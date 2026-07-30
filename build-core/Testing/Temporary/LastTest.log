@@ -1,0 +1,209 @@
+Start testing: Jun 29 23:43 EEST
+----------------------------------------------------------
+1/1 Testing: client_core_tests
+1/1 Test: client_core_tests
+Command: "/root/uAthena/Client/build-core/tests/client_core_tests"
+Directory: /root/uAthena/Client/build-core/tests
+"client_core_tests" start time: Jun 29 23:43 EEST
+Output:
+----------------------------------------------------------
+[ERR] SPR: bad signature
+[ERR] ACT: bad signature
+[ERR] GAT: bad signature
+[ERR] GND: bad signature
+[ERR] RSW: bad signature
+[ERR] RSM: bad signature
+[ERR] BMP: bad signature
+[WRN] TGA: unsupported image type 1 (need 2 or 10)
+[PASS] bytereader_reads_little_endian
+[PASS] bytereader_big_endian_swap
+[PASS] bytereader_cstring_stops_at_nul
+[PASS] bytereader_overflow_throws
+[PASS] bytewriter_reader_roundtrip
+[PASS] bytereader_seek_skip
+[PASS] vec_arithmetic
+[PASS] vec_cross_and_normalize
+[PASS] mat_identity_is_neutral
+[PASS] mat_translation_moves_point
+[PASS] mat_ortho_maps_screen_corners_to_ndc
+[PASS] angle_conversions
+[PASS] ini_parses_data_ini_layout
+[PASS] ini_handles_comments_and_whitespace
+[PASS] ini_missing_section_returns_default
+[PASS] spr_raw_indexed_v100
+[PASS] spr_rle_indexed_v201
+[PASS] spr_truecolor_v101
+[PASS] spr_truecolor_rows_flipped_vertically
+[PASS] spr_swap_truecolor_red_blue
+[PASS] spr_drop_indexed_frames
+[PASS] spr_rejects_bad_signature
+[PASS] pal_parse_256_rgba
+[PASS] pal_rejects_short
+[PASS] act_full_v205
+[PASS] act_v200_gates
+[PASS] act_rejects_bad_signature
+[PASS] gat_parses_grid
+[PASS] gat_rejects_bad_signature
+[PASS] gnd_parses_v17
+[PASS] gnd_rejects_bad_signature
+[PASS] rsw_parses_v21
+[PASS] rsw_rejects_bad_signature
+[PASS] rsm_parses_v14
+[PASS] rsm_rejects_bad_signature
+[PASS] bmp_decodes_24bit
+[PASS] bmp_rejects_bad_signature
+[PASS] tga_decodes_32bit_bottom_up
+[PASS] tga_keys_magenta_24bit
+[PASS] tga_decodes_rle
+[PASS] tga_rejects_unsupported_type
+[PASS] gr2_parse_header_and_sections
+[PASS] gr2_reject_bad_magic
+[PASS] gr2_reject_truncated
+[PASS] particles_emit_at_emitter_and_pool_is_finite
+[PASS] particles_update_motion_fade_and_life
+[PASS] particles_accel_applies_before_motion
+[PASS] particles_clear_kills_all
+[PASS] groundmesh_builds_top_quad
+[PASS] groundmesh_empty_when_no_tiles
+[PASS] modelmesh_triangulates_node
+[PASS] pathfind_straight
+[PASS] pathfind_diagonal
+[PASS] pathfind_diagonal_first_shape
+[PASS] pathfind_around_wall
+[PASS] pathfind_unreachable
+[PASS] pathfind_dest_blocked
+[PASS] pathfind_same_cell
+[PASS] protocol_accept_login
+[PASS] protocol_accept_login_incomplete
+[PASS] protocol_refuse_login
+[PASS] protocol_char_list
+[PASS] protocol_char_list_empty
+[PASS] protocol_zone_server
+[PASS] protocol_map_authok
+[PASS] protocol_build_login
+[PASS] protocol_build_wanttoconnection
+[PASS] protocol_build_ch_enter_and_select
+[PASS] protocol_build_npc_input
+[PASS] protocol_skill_up
+[PASS] protocol_actor_pc_idle
+[PASS] protocol_guild_emblem
+[PASS] protocol_item_equip_actions
+[PASS] protocol_status_change_replies
+[PASS] protocol_actor_pc_walk
+[PASS] protocol_actor_npc
+[PASS] protocol_vanish
+[PASS] protocol_framing
+[PASS] protocol_walk_request
+[PASS] protocol_player_move
+[PASS] protocol_unit_move
+[PASS] protocol_stop_move
+[PASS] protocol_char_delete
+[PASS] protocol_name_ack
+[PASS] protocol_attack_act
+[PASS] protocol_map_change
+[PASS] protocol_state_change
+[PASS] protocol_skill_nodamage
+[PASS] protocol_couple_status
+[PASS] protocol_npc_newentry2_spawn
+[PASS] protocol_change_dir
+[PASS] protocol_recovery
+[PASS] protocol_whisper
+[PASS] protocol_player_actions
+[PASS] protocol_cp1251_roundtrip
+[PASS] protocol_trade
+[PASS] protocol_skill_casting
+[PASS] protocol_skill_fail
+[PASS] protocol_emotion
+[PASS] protocol_ground_skill
+[PASS] protocol_status_effect
+[PASS] protocol_notify_effect
+[PASS] protocol_par_change
+[PASS] protocol_sprite_change
+[PASS] protocol_movetoattack
+[PASS] protocol_npc_dialog
+[PASS] protocol_sit_stand
+[PASS] protocol_chat_build
+[PASS] protocol_cp1251_to_utf8
+[PASS] protocol_chat_decode
+[PASS] protocol_shop_deal_select
+[PASS] protocol_shop_buy_list
+[PASS] protocol_shop_sell_list
+[PASS] protocol_vending
+[PASS] protocol_openstore
+[PASS] protocol_use_skill
+[PASS] protocol_my_vending
+[PASS] protocol_inventory_list
+[PASS] protocol_ground_item
+[PASS] protocol_inventory_updates
+[PASS] protocol_shop_result
+[PASS] protocol_skill_unit
+[PASS] protocol_status
+[PASS] protocol_skill_list
+[PASS] protocol_stat_change
+[PASS] protocol_make_char
+[PASS] protocol_storage
+[PASS] protocol_cart
+[PASS] jobnames_classic
+[PASS] jobnames_trans_and_baby
+[PASS] jobnames_expanded_and_third
+[PASS] jobnames_unknown_fallback
+[PASS] skillnames_known
+[PASS] skillnames_unknown_falls_back_to_internal
+[PASS] skillcastdelay_known
+[PASS] skillcastdelay_[INF] GRF: /tmp/uaro_test_grf_a.grf (2 files, v0x200)
+[INF] GRF: /tmp/uaro_test_grf_b.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_test_grf_c.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_test_grf_d.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_test_grf_e.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_vfs_override/g.grf (2 files, v0x200)
+[INF] GRF: /tmp/uaro_vfs_order/g0.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_vfs_order/g1.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_vfs_ini/new.grf (1 files, v0x200)
+[INF] GRF: /tmp/uaro_vfs_ini/data.grf (2 files, v0x200)
+instant_or_unknown_is_zero
+[PASS] skilldesc_parses_named_blocks
+[PASS] skilldesc_unknown_absent
+[PASS] grfalias_pure_ascii_unchanged
+[PASS] grfalias_body_path_translates_folders_and_job_sex
+[PASS] grfalias_whole_component_with_underscore
+[PASS] grfalias_unaliased_korean_token_kept
+[PASS] mp3nametable_parses_map_to_bgm
+[PASS] mp3nametable_lowercases_and_strips_ext
+[PASS] clientinfo_parses_connections
+[PASS] clientinfo_skips_incomplete
+[PASS] clientinfo_empty
+[PASS] socket_loopback_roundtrip
+[PASS] queue_basic_fifo
+[PASS] queue_close_drains_then_stops
+[PASS] queue_producer_consumer
+[PASS] thread_role_configure_is_safe
+[PASS] netsend_worker_drains_in_order
+[PASS] netsend_worker_stops_sending_after_link_drop
+[PASS] snapshot_mailbox_consume_tracks_version
+[PASS] snapshot_mailbox_threaded_latest_wins
+[PASS] grf_open_reads_header_and_entries
+[PASS] grf_reads_and_decompresses_file
+[PASS] grf_normalizes_lookup_path
+[PASS] grf_missing_file_returns_nullopt
+[PASS] grf_reads_binary_payload
+[PASS] zlib_inflate_roundtrip_for_emblem
+[PASS] vfs_loose_dir_overrides_grf
+[PASS] vfs_first_mounted_grf_wins
+[PASS] vfs_mount_data_ini_respects_order
+[PASS] itemdb_parse_basic_crlf_and_underscore
+[PASS] itemdb_parse_resnames_preserve_bytes
+[PASS] itemdb_parse_skips_malformed_and_comments
+[PASS] itemdb_parse_last_line_without_newline
+[PASS] itemdb_parse_empty_value
+[PASS] itemdb_parse_desc_table
+
+171 test(s), 0 failed, 1672 checks performed
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"client_core_tests" end time: Jun 29 23:43 EEST
+"client_core_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jun 29 23:43 EEST

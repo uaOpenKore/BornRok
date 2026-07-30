@@ -1,0 +1,83 @@
+// uaRO Android app module. Builds libmain.so (the client) via the NDK + our CMake, using vcpkg for
+// the native deps (arm64-android triplet). Set VCPKG_ROOT + ndkVersion for your machine; the vcpkg
+// toolchain is chain-loaded onto the NDK toolchain so both apply. See docs/android-build-km.md.
+plugins {
+    id 'com.android.application'
+}
+
+// Path to vcpkg (env VCPKG_ROOT, or override in gradle.properties as vcpkgRoot).
+def vcpkgRoot = System.getenv("VCPKG_ROOT") ?: (project.findProperty("vcpkgRoot") ?: "")
+
+// Optional HOST shaderc.exe (from the desktop win-msvc/vcpkg build) so the Android build can compile
+// the essl (GLES3) shaders -- the arm64-android shaderc can't run on the build host. Without it the
+// APK still builds but renders clear-only. Set env HOST_SHADERC or gradle.properties hostShaderc.
+def hostShaderc = System.getenv("HOST_SHADERC") ?: (project.findProperty("hostShaderc") ?: "")
+
+android {
+    namespace 'ua.bornrok.client'
+    compileSdk 34
+    ndkVersion "30.0.14904198"   // S.'s installed NDK
+
+    defaultConfig {
+        applicationId "ua.bornrok.client"
+        minSdk 28                 // Android 9.0+ -- vcpkg's openssl/curl reference _FORTIFY_SOURCE
+                                  // stubs (__sendto_chk etc.) added to Bionic at API 26, so linking at
+                                  // 24 left them undefined. 28 is a safe floor (Redmi/modern all >=).
+        targetSdk 34
+        // Version from the SINGLE source of truth (Client/VERSION), so Android matches the CMake/MSIX/
+        // window-title version (S.: "версия из одной переменной, вид 0.0.11.0"). versionName is the full
+        // "0.0.11.0"; versionCode is a monotonic int derived from it (a.b.c.d -> a*10^6+b*10^4+c*10^2+d).
+        def uaroVersion = file("../../VERSION").text.trim()
+        def vp = uaroVersion.tokenize('.')
+        versionCode vp[0].toInteger()*1000000 + vp[1].toInteger()*10000 + vp[2].toInteger()*100 + (vp.size()>3 ? vp[3].toInteger() : 0)
+        versionName uaroVersion
+
+        ndk {
+            // arm64-v8a: phones. x86_64: Chromebook (Intel/AMD via ARCVM) + the LDPlayer/AS emulator.
+            // Each ABI is a separate CMake configure; jni/CMakeLists.txt maps ANDROID_ABI -> the vcpkg
+            // triplet (do NOT hardcode VCPKG_TARGET_TRIPLET here, or both ABIs share one arch's deps).
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_shared",
+                          "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.sdkDirectory}/ndk/${ndkVersion}/build/cmake/android.toolchain.cmake",
+                          "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
+                          "-DCLIENT_HOST_SHADERC=${hostShaderc}"
+                targets "UaRO"   // CMake target name; its OUTPUT_NAME "main" produces libmain.so
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Build Release by default (S.). The native lib compiles optimized (AGP uses RelWithDebInfo
+            // for the release variant vs unoptimized Debug). Sign with AGP's auto-managed debug keystore
+            // so the release APK INSTALLS without a manual keystore -- the usual reason release was
+            // skipped in favour of debug. (Alpha, not a Play Store upload.) Build via `gradlew
+            // assembleRelease`, or set the Build Variant to "release" once in Android Studio (persists).
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "../jni/CMakeLists.txt"   // jni/ is at the android/ root, not under app/
+            version "3.24.0+"
+        }
+    }
+
+    // SDL3's Java runtime (org.libsdl.app.*) must be on the source path. Point this at the SDL3
+    // android java sources (from the vcpkg SDL3 port or the SDL3 source tree). See the build doc.
+    sourceSets {
+        main {
+            java.srcDirs += [System.getenv("SDL3_ANDROID_JAVA") ?: "sdl3-java"]
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

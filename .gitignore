@@ -1,0 +1,37 @@
+# Build output
+/build/
+build/
+out/
+*.o
+*.obj
+*.a
+*.lib
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# vcpkg
+vcpkg_installed/
+
+# Compiled shader output
+/assets/shaders/**/*.bin
+
+# IDE
+.vs/
+.idea/
+*.user
+# .vscode/ is committed (shared build config); ignore only user-local files
+.vscode/*.log
+.vscode/ipch/
+
+# Flatpak staged binary (build artifact)
+packaging/flatpak/BornRok
+packaging/flatpak/content/
+
+# Bundled content packs (Client/content) — huge data zips/grf are staged locally, not committed.
+# Only the README + .gitkeep are tracked (see Client/content/README.md).
+content/*
+!content/README.md
+!content/.gitkeep

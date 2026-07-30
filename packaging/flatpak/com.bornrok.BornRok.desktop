@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=BornRok
+Comment=Classic MMORPG
+Exec=bornrok
+Icon=com.bornrok.BornRok
+Terminal=false
+Categories=Game;RolePlaying;

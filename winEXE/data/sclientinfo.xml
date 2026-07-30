@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="euc-kr" ?>
+<clientinfo>
+	<desc>BornRok</desc>
+	<servicetype>korea</servicetype>
+	<servertype>primary</servertype>
+	<connection>
+		<display>BornRok</display>
+      		<address>play.bornrok.com</address>
+      		<port>16900</port>
+      		<version>20</version>
+      		<langtype>14</langtype>
+		<registrationweb>https://bornrok.com/</registrationweb>
+		<loading>
+			<image>loading00.jpg</image>
+			<image>loading01.jpg</image>
+			<image>loading02.jpg</image>
+			<image>loading03.jpg</image>
+			<image>loading04.jpg</image>
+			<image>loading05.jpg</image>
+			<image>loading06.jpg</image>
+		</loading>
+   	</connection>
+	<connection>
+		<display>BornRok 11.3 - uAthena - x64</display>
+      		<address>play.bornrok.com</address>
+      		<port>6900</port>
+      		<version>20</version>
+      		<langtype>14</langtype>
+		<registrationweb>https://bornrok.com/</registrationweb>
+		<loading>
+			<image>loading00.jpg</image>
+			<image>loading01.jpg</image>
+			<image>loading02.jpg</image>
+			<image>loading03.jpg</image>
+			<image>loading04.jpg</image>
+			<image>loading05.jpg</image>
+			<image>loading06.jpg</image>
+		</loading>
+   	</connection>
+</clientinfo>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fullscreen, no ActionBar/title. Without this the default system theme draws an ActionBar
+         titled with android:label at the top; it ate vertical space AND hid the login screen's
+         top-right "Menu" button under it. (S.: menu button invisible, header eats screen space.)
+         SDLActivity extends android.app.Activity, so a base android theme (not AppCompat) is correct. -->
+    <style name="AppTheme" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>

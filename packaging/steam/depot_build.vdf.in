@@ -1,0 +1,19 @@
+// SteamPipe depot-build script for the BornRok client (generated from depot_build.vdf.in by
+// scripts/build-steam.sh). Maps everything under the staged content root into the depot.
+"DepotBuildConfig"
+{
+	"DepotID"	"@DEPOTID@"
+	"contentroot"	"@CONTENT@"
+
+	"FileMapping"
+	{
+		"LocalPath"	"*"     // everything under contentroot
+		"DepotPath"	"."     // -> depot root
+		"recursive"	"1"
+	}
+
+	// Don't ship debug/symbol/leftover files.
+	"FileExclusion"	"*.pdb"
+	"FileExclusion"	"*.debug"
+	"FileExclusion"	"*/.DS_Store"
+}

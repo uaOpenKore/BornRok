@@ -1,0 +1,246 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "core-only",
+      "displayName": "Core only (no SDL3/bgfx, offline/CI)",
+      "binaryDir": "${sourceDir}/build/core",
+      "cacheVariables": {
+        "CLIENT_CORE_ONLY": "ON",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux GCC (full, Release, static SDL3 -- default)",
+      "binaryDir": "${sourceDir}/build/linux-gcc",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "linux-static",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-clang",
+      "displayName": "Linux Clang (full, Release, static SDL3 -- default)",
+      "binaryDir": "${sourceDir}/build/linux-clang",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "linux-static",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "displayName": "Linux GCC (full, Debug, system SDL3 -- fast dev)",
+      "inherits": "linux-gcc",
+      "binaryDir": "${sourceDir}/build/linux-gcc-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_MANIFEST_FEATURES": ""
+      }
+    },
+    {
+      "name": "linux-clang-debug",
+      "displayName": "Linux Clang (full, Debug, system SDL3 -- fast dev)",
+      "inherits": "linux-clang",
+      "binaryDir": "${sourceDir}/build/linux-clang-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_MANIFEST_FEATURES": ""
+      }
+    },
+    {
+      "name": "linux-gcc-release",
+      "displayName": "Linux GCC (full, Release, static SDL3)",
+      "inherits": "linux-gcc",
+      "binaryDir": "${sourceDir}/build/linux-gcc-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "linux-static"
+      }
+    },
+    {
+      "name": "linux-clang-release",
+      "displayName": "Linux Clang (full, Release, static SDL3)",
+      "inherits": "linux-clang",
+      "binaryDir": "${sourceDir}/build/linux-clang-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "linux-static"
+      }
+    },
+    {
+      "name": "linux-arm-gcc-release",
+      "displayName": "Linux aarch64 (arm64) cross from x86_64, Release, static",
+      "inherits": "linux-gcc-release",
+      "binaryDir": "${sourceDir}/build/linux-arm",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "aarch64-linux-gnu-gcc",
+        "CMAKE_CXX_COMPILER": "aarch64-linux-gnu-g++",
+        "VCPKG_TARGET_TRIPLET": "arm64-linux",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-triplets",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/linux-arm64-cross.cmake",
+        "CLIENT_PREBUILT_SHADERS": "${sourceDir}/build/linux-gcc-release/src/shaders;${sourceDir}/build/win-msvc/src/Release/shaders"
+      }
+    },
+    {
+      "name": "mac-clang",
+      "displayName": "macOS Clang (full, Metal via bgfx)",
+      "binaryDir": "${sourceDir}/build/mac-clang",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.3"
+      }
+    },
+    {
+      "name": "mac-clang-release",
+      "displayName": "macOS Clang (full, Release)",
+      "inherits": "mac-clang",
+      "binaryDir": "${sourceDir}/build/mac-clang-release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "mac-arm64-release",
+      "displayName": "macOS Apple Silicon (arm64, Release)",
+      "inherits": "mac-clang-release",
+      "binaryDir": "${sourceDir}/build/mac-arm64",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-osx",
+        "CLIENT_PREBUILT_SHADERS": "${sourceDir}/build/mac-clang-release/src/shaders"
+      }
+    },
+    {
+      "name": "ios",
+      "displayName": "iOS / iPadOS (arm64 device, Metal via bgfx)",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-ios",
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "16.3",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CLIENT_PREBUILT_SHADERS": "${sourceDir}/build/mac-clang-release/src/shaders"
+      }
+    },
+    {
+      "name": "win-msvc",
+      "displayName": "Windows MSVC (full, static deps / single-file exe)",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/win-msvc",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static",
+        "CMAKE_CONFIGURATION_TYPES": "Release"
+      }
+    },
+    {
+      "name": "win-arm64",
+      "displayName": "Windows on ARM (MSVC cross from x64, static deps / single-file exe)",
+      "inherits": "win-msvc",
+      "binaryDir": "${sourceDir}/build/win-arm64",
+      "architecture": { "value": "ARM64", "strategy": "set" },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-windows-static",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-triplets",
+        "CLIENT_HOST_SHADERC": "${sourceDir}/build/win-msvc/vcpkg_installed/x64-windows-static/tools/bgfx/shaderc.exe"
+      }
+    },
+    {
+      "name": "xbox-uwp",
+      "displayName": "Xbox (UWP / Dev Mode, all series) — MSVC WindowsStore + WinRT",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/xbox-uwp",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "WindowsStore",
+        "CMAKE_SYSTEM_VERSION": "10.0.22621.0",
+        "VCPKG_TARGET_TRIPLET": "x64-uwp",
+        "CLIENT_CONSOLE_BACKEND": "xbox",
+        "CMAKE_CONFIGURATION_TYPES": "Release",
+        "CLIENT_BUILD_AVX2": "OFF",
+        "CLIENT_HOST_SHADERC": "${sourceDir}/build/win-msvc/vcpkg_installed/x64-windows-static/tools/bgfx/shaderc.exe",
+        "CMAKE_GENERATOR_INSTANCE": "C:/BT1710"
+      }
+    },
+    {
+      "name": "nx",
+      "displayName": "Nintendo Switch (NX) — vendor NDK toolchain (licensee)",
+      "description": "Set UARO_NX_TOOLCHAIN to the Nintendo NDK CMake toolchain file and UARO_HOST_SHADERC to a host-built bgfx shaderc. The console/nx/*.cpp TODO(SDK) points must be filled first. See docs/switch-build-km.md.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/nx",
+      "toolchainFile": "$env{UARO_NX_TOOLCHAIN}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CLIENT_CONSOLE_BACKEND": "nx",
+        "CLIENT_BUILD_AVX2": "OFF",
+        "CLIENT_BUILD_TESTS": "OFF",
+        "CLIENT_HOST_SHADERC": "$env{UARO_HOST_SHADERC}"
+      }
+    },
+    {
+      "name": "prospero",
+      "displayName": "PlayStation 5 (Prospero) — vendor SDK toolchain (licensee)",
+      "description": "Set UARO_PROSPERO_TOOLCHAIN to the PS5 SDK CMake toolchain file and UARO_HOST_SHADERC to a host-built bgfx shaderc. Fill console/prospero/*.cpp TODO(SDK) first. See docs/ps-build-km.md.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/prospero",
+      "toolchainFile": "$env{UARO_PROSPERO_TOOLCHAIN}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CLIENT_CONSOLE_BACKEND": "prospero",
+        "CLIENT_BUILD_AVX2": "OFF",
+        "CLIENT_BUILD_TESTS": "OFF",
+        "CLIENT_HOST_SHADERC": "$env{UARO_HOST_SHADERC}"
+      }
+    },
+    {
+      "name": "orbis",
+      "displayName": "PlayStation 4 (Orbis) — vendor SDK toolchain (licensee)",
+      "description": "Set UARO_ORBIS_TOOLCHAIN to the PS4 SDK CMake toolchain file and UARO_HOST_SHADERC to a host-built bgfx shaderc. Same console/prospero/ slot as PS5, GNM renderer. See docs/ps-build-km.md.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/orbis",
+      "toolchainFile": "$env{UARO_ORBIS_TOOLCHAIN}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CLIENT_CONSOLE_BACKEND": "orbis",
+        "CLIENT_BUILD_AVX2": "OFF",
+        "CLIENT_BUILD_TESTS": "OFF",
+        "CLIENT_HOST_SHADERC": "$env{UARO_HOST_SHADERC}"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "core-only", "configurePreset": "core-only" },
+    { "name": "linux-gcc", "configurePreset": "linux-gcc" },
+    { "name": "linux-clang", "configurePreset": "linux-clang" },
+    { "name": "linux-gcc-debug", "configurePreset": "linux-gcc-debug" },
+    { "name": "linux-clang-debug", "configurePreset": "linux-clang-debug" },
+    { "name": "linux-gcc-release", "configurePreset": "linux-gcc-release" },
+    { "name": "linux-clang-release", "configurePreset": "linux-clang-release" },
+    { "name": "linux-arm-gcc-release", "configurePreset": "linux-arm-gcc-release" },
+    { "name": "mac-clang", "configurePreset": "mac-clang" },
+    { "name": "mac-clang-release", "configurePreset": "mac-clang-release" },
+    { "name": "mac-arm64-release", "configurePreset": "mac-arm64-release" },
+    { "name": "win-msvc", "configuration": "Release", "configurePreset": "win-msvc" },
+    { "name": "win-arm64", "configuration": "Release", "configurePreset": "win-arm64" },
+    { "name": "xbox-uwp", "configuration": "Release", "configurePreset": "xbox-uwp" },
+    { "name": "nx", "configurePreset": "nx" },
+    { "name": "prospero", "configurePreset": "prospero" },
+    { "name": "orbis", "configurePreset": "orbis" }
+  ],
+  "testPresets": [
+    { "name": "core-only", "configurePreset": "core-only", "output": { "outputOnFailure": true } }
+  ]
+}

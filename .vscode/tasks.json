@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Configure: win-msvc",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "win-msvc"],
+      "problemMatcher": [],
+      "detail": "Configure the full Windows build (pulls SDL3/bgfx/zlib via vcpkg on first run)."
+    },
+    {
+      "label": "Build: win-msvc (UaRO.exe)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "win-msvc"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$msCompile"],
+      "detail": "Build the full client. Run the Configure task first if you haven't."
+    },
+    {
+      "label": "Build + test: core-only (no SDL/bgfx/vcpkg)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "core-only"],
+      "problemMatcher": ["$gcc", "$msCompile"],
+      "detail": "Configure the dependency-free core build; then run 'cmake --build --preset core-only' and 'ctest --preset core-only'."
+    }
+  ]
+}

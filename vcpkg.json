@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "uaro-client",
+  "version": "0.0.1",
+  "description": "Cross-platform uaRO game client (Windows/Linux/Android/iOS).",
+  "dependencies": [
+    {
+      "name": "sdl3",
+      "platform": "!linux & !uwp"
+    },
+    {
+      "name": "bgfx",
+      "features": [
+        "tools"
+      ],
+      "platform": "(!arm64 & !arm & !android & !emscripten & !uwp) | osx"
+    },
+    {
+      "name": "bgfx",
+      "platform": "(arm64 | arm | android | emscripten | uwp) & !osx"
+    },
+    "zlib",
+    "libwebp",
+    {
+      "name": "libvorbis",
+      "platform": "!uwp"
+    },
+    {
+      "name": "harfbuzz",
+      "platform": "!uwp"
+    },
+    {
+      "name": "curl",
+      "features": [
+        "ssl"
+      ],
+      "default-features": false,
+      "platform": "!android"
+    },
+    {
+      "name": "curl",
+      "features": [
+        "mbedtls"
+      ],
+      "default-features": false,
+      "platform": "android"
+    },
+    "zstd"
+  ],
+  "features": {
+    "linux-static": {
+      "description": "Build SDL3 from vcpkg (static) on Linux instead of the system .so, so the release binary is fully static (only glibc/GL/X11 stay dynamic). x11-only: dbus/ibus/wayland are dropped so it does NOT pull libsystemd (which needs meson + a python venv). Activated by the linux-*-release presets via VCPKG_MANIFEST_FEATURES.",
+      "dependencies": [
+        {
+          "name": "sdl3",
+          "default-features": false,
+          "features": [
+            "x11"
+          ]
+        }
+      ]
+    }
+  }
+}

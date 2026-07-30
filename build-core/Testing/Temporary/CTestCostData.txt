@@ -1,0 +1,2 @@
+client_core_tests 24 0.000501925
+---

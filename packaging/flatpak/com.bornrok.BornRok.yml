@@ -1,0 +1,50 @@
+# Flatpak manifest for the BornRok client (Debian/Ubuntu/Fedora/… via Flatpak/Flathub).
+#
+# We bundle the PREBUILT statically-linked Linux binary (build-linux.sh) rather than rebuilding
+# every vcpkg dependency inside the flatpak sandbox — the static build only needs the runtime's
+# system libs (GL/Vulkan, X11/Wayland, audio). Writable game data (patcher downloads + settings)
+# lands in the per-app XDG dir (~/.var/app/com.bornrok.BornRok/) because /app is read-only and the
+# client's fs::data_dir() falls back to the writable pref dir there — same mechanism as the MSIX fix.
+#
+# Build:  Client/scripts/build-flatpak.sh   (stages ./BornRok next to this manifest first)
+app-id: com.bornrok.BornRok
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: bornrok
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --share=ipc            # X11/Wayland shared-memory
+  - --device=dri           # GPU (bgfx Vulkan/GL)
+  - --share=network        # patcher (downloads.list / content) + game server
+  - --device=input         # gamepads (#115)
+
+modules:
+  - name: bornrok
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 BornRok /app/bin/bornrok
+      - install -Dm644 com.bornrok.BornRok.desktop /app/share/applications/com.bornrok.BornRok.desktop
+      - install -Dm644 com.bornrok.BornRok.metainfo.xml /app/share/metainfo/com.bornrok.BornRok.metainfo.xml
+      - install -Dm644 icon.png /app/share/icons/hicolor/256x256/apps/com.bornrok.BornRok.png
+      - install -Dm644 icon-128.png /app/share/icons/hicolor/128x128/apps/com.bornrok.BornRok.png
+      # Baked game-data packs -> /app/bin/content (the client mounts base_dir()/content at runtime,
+      # same pipeline as the Steam/MSIX/console packages). Empty if Client/content had no packs —
+      # then the in-client patcher fetches on first run. (S. 2026-07-27)
+      - 'if [ -n "$(ls -A content 2>/dev/null)" ]; then mkdir -p /app/bin/content && cp -a content/. /app/bin/content/; fi'
+    sources:
+      - type: file
+        path: BornRok        # staged by build-flatpak.sh from build/linux-gcc-release/src/BornRok
+      - type: file
+        path: com.bornrok.BornRok.desktop
+      - type: file
+        path: com.bornrok.BornRok.metainfo.xml
+      - type: file
+        path: icon.png
+      - type: file
+        path: icon-128.png
+      - type: dir
+        path: content        # Client/content staged by build-flatpak.sh (stage-content.sh); may be empty

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.bornrok.BornRok</id>
+  <name>BornRok</name>
+  <summary>Classic sprite-based MMORPG</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="com.bornrok">
+    <name>PechSoft</name>
+  </developer>
+  <description>
+    <p>
+      BornRok is a cross-platform client for a classic Ragnarok-style MMORPG. It renders the
+      original 2D sprite world with a modern engine and downloads game content through its
+      built-in patcher.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Classic 2D sprite rendering with modern lighting and effects</li>
+      <li>Full character, inventory, skill, party, guild and trade systems</li>
+      <li>Gamepad and touch input support</li>
+      <li>Built-in patcher keeps game content up to date</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">com.bornrok.BornRok.desktop</launchable>
+  <categories>
+    <category>Game</category>
+    <category>RolePlaying</category>
+  </categories>
+  <!-- Flathub REQUIRES at least one screenshot at a PUBLIC https URL. Replace these with real
+       screenshots hosted on bornrok.com (PNG/JPG, 16:9 preferred, no window decorations). -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://bornrok.com/flatpak/screenshots/1-town.png</image>
+      <caption>Exploring a town</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://bornrok.com/flatpak/screenshots/2-combat.png</image>
+      <caption>Party combat against monsters</caption>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://bornrok.com/</url>
+  <url type="contact">https://bornrok.com/</url>
+  <!-- OARS content rating (required by Flathub). MMORPG: mild fantasy combat + uncontrolled online
+       chat/interaction. Tune these to the game's actual content before submitting. -->
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-fantasy">mild</content_attribute>
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="0.0.23.0" date="2026-07-29"/>
+    <release version="0.0.19.0" date="2026-07-24"/>
+  </releases>
+</component>

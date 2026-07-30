@@ -1,0 +1,82 @@
+# ==========================================================================================
+# Flathub SUBMISSION manifest (proprietary / closed-source -> the "extra-data" model).
+#
+# This is DIFFERENT from ../com.bornrok.BornRok.yml (our own build, which copies a locally
+# staged binary). Flathub builds on THEIR infrastructure from THIS manifest and can't see your
+# local binary, and the source is private — so the client binary is fetched at INSTALL time from
+# bornrok.com via `extra-data` (the same model Spotify/Discord use on Flathub). Flathub only
+# redistributes this tiny manifest + metadata; the actual binary is served from your server.
+#
+# HOW TO SUBMIT (see also docs/flathub-submission.md):
+#   1. Own + verify the domain bornrok.com (Flathub checks the com.bornrok.* app-id).
+#   2. Host the per-arch binaries at STABLE https URLs (below) and fill url/sha256/size.
+#      Get the hash+size:  sha256sum bornrok-x86_64 ; stat -c%s bornrok-x86_64
+#   3. Host >=1 screenshot (see the metainfo.xml) at a public https URL.
+#   4. Fork github.com/flathub/flathub, add this manifest + the desktop/metainfo/icon files to a
+#      new branch `com.bornrok.BornRok`, open a PR. Reviewers iterate with you; on merge a
+#      dedicated repo flathub/com.bornrok.BornRok is created and the app goes live.
+#      Users then: flatpak install flathub com.bornrok.BornRok
+#
+# NOTE: the runtime is Freedesktop 24.08 (Flathub hosts it). Content is still fetched by the
+# in-client patcher at runtime into the writable per-app dir, exactly as in the self-built flatpak.
+# ==========================================================================================
+app-id: com.bornrok.BornRok
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: bornrok
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --share=ipc
+  - --device=dri
+  - --share=network
+  - --device=input
+
+modules:
+  - name: bornrok
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 com.bornrok.BornRok.desktop -t /app/share/applications/
+      - install -Dm644 com.bornrok.BornRok.metainfo.xml -t /app/share/metainfo/
+      - install -Dm644 icon.png /app/share/icons/hicolor/256x256/apps/com.bornrok.BornRok.png
+      - install -Dm644 icon-128.png /app/share/icons/hicolor/128x128/apps/com.bornrok.BornRok.png
+      # apply_extra runs on the USER's machine after the binary is downloaded to /app/extra/;
+      # it moves the real binary into place. `bornrok` (command:) is a thin wrapper that execs it.
+      - install -Dm755 apply_extra /app/bin/apply_extra
+      - install -Dm755 bornrok.sh /app/bin/bornrok
+    sources:
+      # ---- the closed binary, downloaded per-arch at install time -------------------------
+      - type: extra-data
+        only-arches: [x86_64]
+        filename: bornrok.bin
+        url: https://bornrok.com/flatpak/bin/bornrok-x86_64   # TODO: real URL
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000  # TODO: sha256sum
+        size: 0                                                                    # TODO: byte size
+      - type: extra-data
+        only-arches: [aarch64]
+        filename: bornrok.bin
+        url: https://bornrok.com/flatpak/bin/bornrok-aarch64  # TODO: real URL
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000  # TODO: sha256sum
+        size: 0                                                                    # TODO: byte size
+      # ---- metadata shipped inside the (tiny) Flathub package ------------------------------
+      - type: file
+        path: com.bornrok.BornRok.desktop
+      - type: file
+        path: com.bornrok.BornRok.metainfo.xml
+      - type: file
+        path: icon.png
+      - type: file
+        path: icon-128.png
+      # ---- helper scripts (generated inline so the PR repo needs no extra files) -----------
+      - type: script
+        dest-filename: apply_extra
+        commands:
+          # cwd is /app/extra at apply time; install the downloaded binary as the real exe.
+          - install -Dm755 bornrok.bin /app/bin/bornrok.real
+      - type: script
+        dest-filename: bornrok.sh
+        commands:
+          - exec /app/bin/bornrok.real "$@"

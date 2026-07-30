@@ -1,0 +1,16 @@
+// SteamPipe app-build script for the BornRok client (generated from app_build.vdf.in by
+// scripts/build-steam.sh — do NOT edit the generated build/steam/app_build.vdf, edit this template).
+// Upload with:  steamcmd +login <user> +run_app_build /abs/path/build/steam/app_build.vdf +quit
+"appbuild"
+{
+	"appid"		"@APPID@"
+	"desc"		"BornRok @VERSION@ (SteamOS/Linux)"
+	"buildoutput"	"@OUTPUT@"      // steamcmd writes logs + chunk cache here
+	"contentroot"	"@CONTENT@"     // the staged depot payload (binary + data)
+	"setlive"	""              // set to a branch name (e.g. "beta") to auto-publish; empty = manual
+
+	"depots"
+	{
+		"@DEPOTID@"	"@DEPOTVDF@"
+	}
+}

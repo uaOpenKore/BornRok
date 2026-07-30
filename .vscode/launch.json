@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Windows (MSVC). Build first, pick "UaRO" as the CMake launch
+      // target, then F5. cwd is the exe dir so it finds shaders/assets next to it.
+      "name": "Run UaRO (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${command:cmake.launchTargetDirectory}",
+      "console": "integratedTerminal"
+    },
+    {
+      // Linux / macOS (gdb/lldb via the C/C++ extension).
+      "name": "Run UaRO (Linux/macOS)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "cwd": "${command:cmake.launchTargetDirectory}",
+      "MIMode": "gdb",
+      "setupCommands": [
+        { "description": "Enable pretty-printing for gdb", "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    }
+  ]
+}

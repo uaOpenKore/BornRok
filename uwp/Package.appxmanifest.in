@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UWP/GDK package manifest for the uaRO client on Xbox (Dev Mode) / Windows Store. Targets the
+     UWP app model that Xbox Dev Mode deploys. Fill in a real Publisher/Identity from Partner Center
+     before packaging. See docs/xbox-uwp-build-km.md. -->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+    IgnorableNamespaces="uap mp">
+
+  <!-- Store product "BornRok-Xbox" (S. reserved it in Partner Center): Package Identity Name +
+       Properties/DisplayName MUST match the reservation, or the Store rejects the upload
+       ("Недопустимое имя идентификатора пакета", 2026-07-29). The Publisher (CN) is unchanged — its
+       hash nq0prcg8y9840 already matched the reserved family PechSoft.BornRok-Xbox_nq0prcg8y9840. -->
+  <Identity Name="PechSoft.BornRok-Xbox" Publisher="CN=61037DF1-57D4-495A-B98B-6932FE1F50C0" Version="@_msix_version@" ProcessorArchitecture="@_msix_arch@" />
+  <mp:PhoneIdentity PhoneProductId="00000000-0000-0000-0000-000000000000" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <!-- Must be the reserved product name (not just "BornRok", which isn't reserved for this product). -->
+    <DisplayName>BornRok-Xbox</DisplayName>
+    <PublisherDisplayName>PechSoft</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+    <!-- Xbox device family for Dev Mode deployment. -->
+    <TargetDeviceFamily Name="Windows.Xbox" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="BornRok.exe" EntryPoint="uaRO.App">
+      <uap:VisualElements
+          DisplayName="BornRok"
+          Description="BornRok client"
+          BackgroundColor="transparent"
+          Square150x150Logo="Assets\Square150x150Logo.png"
+          Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <Capability Name="internetClientServer" />
+  </Capabilities>
+</Package>

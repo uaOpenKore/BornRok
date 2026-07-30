@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Desktop MSIX (Desktop Bridge) manifest for the Windows build of the uaRO client. Unlike the Xbox
+     UWP manifest (uwp/), this packages the FULL-TRUST Win32 exe: same static BornRok.exe, wrapped as an
+     MSIX so Windows installs/updates/removes it cleanly. NOTE: MSIX always installs to the managed
+     C:\Program Files\WindowsApps\ location; a custom path (C:\games\uaro) is not possible in MSIX.
+     Requires a signed package; see win/sign-msix.ps1 + docs/windows-msix-km.md. -->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap rescap">
+
+  <!-- Identity Name + Properties/DisplayName come from the Partner Center reservation and DIFFER per
+       Store product: S. registered the arm64 desktop build as its own product "BornRok-ARM". They're
+       filled per-arch by CMake (_msix_identity_name / _msix_display_name), overridable with
+       -DCLIENT_MSIX_IDENTITY_NAME / -DCLIENT_MSIX_DISPLAY_NAME. Publisher (CN) is shared across all
+       products (its hash is the package-family suffix). -->
+  <Identity Name="@_msix_identity_name@" Publisher="CN=61037DF1-57D4-495A-B98B-6932FE1F50C0" Version="@_msix_version@" ProcessorArchitecture="@_msix_arch@" />
+
+  <Properties>
+    <!-- Reserved product name (per-arch): arm64 -> "BornRok-ARM". Must match Partner Center. -->
+    <DisplayName>@_msix_display_name@</DisplayName>
+    <PublisherDisplayName>PechSoft</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <!-- Windows.FullTrustApplication = a normal Win32 exe packaged as MSIX (Desktop Bridge). -->
+    <Application Id="BornRok" Executable="BornRok.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+          DisplayName="BornRok"
+          Description="BornRok client"
+          BackgroundColor="transparent"
+          Square150x150Logo="Assets\Square150x150Logo.png"
+          Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Full-trust Win32 app: runFullTrust is a restricted capability (fine for sideload/Dev; for the
+         Store it needs Microsoft approval). internetClient for the patcher's downloads. -->
+    <rescap:Capability Name="runFullTrust" />
+    <Capability Name="internetClient" />
+  </Capabilities>
+</Package>

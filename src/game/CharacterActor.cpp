@@ -331,6 +331,40 @@ u16 weaponViewFromValue(u16 v) {
     return 0;                 // guns / shuriken / etc.: no body-weapon suffix yet
 }
 
+// Some HD sprite frames were re-exported to WebP as OPAQUE RGB with a solid BLACK background instead
+// of a transparent alpha channel (S. 2026-08-04: "все спрайты с чёрным фоном которые загружаются с
+// webp"). WebPDecodeRGBA then gives alpha=255 everywhere, so the black box renders solid. Recover the
+// transparency by flood-filling near-black pixels REACHABLE FROM THE BORDER to alpha 0: this clears the
+// background but leaves the sprite's INTERIOR black (outlines, dark cloth) opaque, since those are
+// enclosed by non-black sprite pixels the fill can't cross. No-op when the frame already carries real
+// alpha (a border pixel with alpha 0 fails the opaque test) or when no black touches the edge. tol is
+// generous vs (0,0,0) because WebP compression jitters the flat background a few levels off pure black.
+void keyBlackBackground(std::vector<u8>& px, int w, int h, int tol = 16) {
+    if (w <= 0 || h <= 0 || px.size() < static_cast<usize>(w) * h * 4) return;
+    auto isBg = [&](int x, int y) {
+        const u8* p = &px[(static_cast<usize>(y) * w + x) * 4];
+        return p[3] > 0 && p[0] <= tol && p[1] <= tol && p[2] <= tol;
+    };
+    std::vector<u8> seen(static_cast<usize>(w) * h, 0);
+    std::vector<int> stack;
+    auto push = [&](int x, int y) {
+        const usize i = static_cast<usize>(y) * w + x;
+        if (!seen[i] && isBg(x, y)) { seen[i] = 1; stack.push_back(static_cast<int>(i)); }
+    };
+    for (int x = 0; x < w; ++x) { push(x, 0); push(x, h - 1); }
+    for (int y = 0; y < h; ++y) { push(0, y); push(w - 1, y); }
+    while (!stack.empty()) {
+        const int i = stack.back();
+        stack.pop_back();
+        const int x = i % w, y = i / w;
+        px[static_cast<usize>(i) * 4 + 3] = 0;  // background texel -> transparent
+        if (x > 0) push(x - 1, y);
+        if (x < w - 1) push(x + 1, y);
+        if (y > 0) push(x, y - 1);
+        if (y < h - 1) push(x, y + 1);
+    }
+}
+
 // Dilate opaque colour into transparent texels so bilinear filtering near the
 // edges interpolates real colours instead of the (0,0,0,0) transparent ones —
 // otherwise smoothed sprites get a dark halo. Alpha is left untouched (still the
@@ -986,6 +1020,8 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
         // so .pal dyes don't recolour it (documented CM limitation).
         if (auto ov = pngOverride_.find(key); ov != pngOverride_.end()) {
             std::vector<u8> rgba = ov->second.rgba;
+            keyBlackBackground(rgba, static_cast<int>(ov->second.width),
+                               static_cast<int>(ov->second.height));  // webp exported w/ opaque black bg -> transparent
             bleedEdges(rgba, static_cast<int>(ov->second.width),
                        static_cast<int>(ov->second.height));
             t.create(static_cast<u16>(ov->second.width), static_cast<u16>(ov->second.height),

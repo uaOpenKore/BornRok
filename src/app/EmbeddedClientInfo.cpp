@@ -13,22 +13,21 @@ const std::string& embedded_clientinfo() {
 	<servicetype>korea</servicetype>
 	<servertype>primary</servertype>
 	<connection>
-		<display>bornrok.com</display>
-      		<address>play.bornrok.com</address>
-      		<port>16900</port>
-      		<version>20</version>
-      		<langtype>14</langtype>
+		<display>BornRok.com</display>
+		<address>play.bornrok.com</address>
+		<port>6900</port>
+		<version>20</version>
+		<langtype>14</langtype>
 		<registrationweb>https://bornrok.com/</registrationweb>
-		<loading>
-			<image>loading00.jpg</image>
-			<image>loading01.jpg</image>
-			<image>loading02.jpg</image>
-			<image>loading03.jpg</image>
-			<image>loading04.jpg</image>
-			<image>loading05.jpg</image>
-			<image>loading06.jpg</image>
-		</loading>
-   	</connection>
+	</connection>
+	<connection>
+		<display>UaRO.kiev.ua</display>
+		<address>play.uaro.kiev.ua</address>
+		<port>6900</port>
+		<version>20</version>
+		<langtype>14</langtype>
+		<registrationweb>https://uaro.kiev.ua/</registrationweb>
+	</connection>
 </clientinfo>
 )CI";
     return kXml;

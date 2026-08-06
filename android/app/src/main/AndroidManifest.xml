@@ -10,10 +10,16 @@
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- android:usesCleartextTraffic="true": Android 9+ (targetSdk 28+) blocks plaintext HTTP by
+         default, so the patcher's http:// mirror (http://patcher.bornrok.com/downloads.list) and any
+         http pack URLs in downloads.list silently failed to connect — the patcher worked on desktop
+         but "не работал" on Android (S. 2026-08-06). Allow cleartext so the http mirror/pack fetches
+         go through (the https mirror is tried too, but individual pack URLs may be http). -->
     <application
         android:label="BornRok"
         android:theme="@style/AppTheme"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true"
         android:hasCode="true">
 

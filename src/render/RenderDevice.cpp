@@ -1,6 +1,7 @@
 #include "render/RenderDevice.hpp"
 
 #include <bgfx/bgfx.h>
+#include <bgfx/platform.h>  // bgfx::setPlatformData (surface re-acquire on Android resume)
 
 #include <algorithm>
 #include <cmath>

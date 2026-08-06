@@ -10,6 +10,7 @@
 #endif
 
 #include "core/Log.hpp"
+#include "resource/Cp949.hpp"  // portable UTF-8 -> cp949 for non-Windows (Android) ZIP entry names
 #include "resource/Grf.hpp"  // GrfArchive::normalize (shared vpath normalization)
 
 namespace uaro {
@@ -35,7 +36,10 @@ std::string utf8ToCp949(const std::string& s) {
     WideCharToMultiByte(949, 0, w.c_str(), wl, out.data(), cl, nullptr, &usedDefault);
     return usedDefault ? s : out;  // unrepresentable in cp949 -> leave the original UTF-8 bytes
 #else
-    return s;
+    // Android/Linux: no OS codepage API, so use the embedded Unicode->cp949 table. Without this the
+    // whole Korean-folder content (유저인터페이스 UI skin, 몬스터 sprites, 이펙트, ...) never matched a
+    // cp949 lookup on Android -> nothing textured rendered (S. 2026-08-06). See resource/Cp949.
+    return utf8ToCp949Portable(s);
 #endif
 }
 

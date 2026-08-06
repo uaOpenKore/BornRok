@@ -54,6 +54,7 @@ if(ZLIB_FOUND)
     resource/Grf.cpp
     resource/GrfDecrypt.cpp
     resource/Zip.cpp
+    resource/Cp949.cpp
     resource/Vfs.cpp
     resource/ContentRoute.cpp
     resource/ItemDb.cpp

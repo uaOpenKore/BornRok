@@ -5,12 +5,8 @@
 #include <cstring>
 #include <string>
 
-#if defined(_WIN32)
-#include <windows.h>
-#endif
-
 #include "core/Log.hpp"
-#include "resource/Cp949.hpp"  // portable UTF-8 -> cp949 for non-Windows (Android) ZIP entry names
+#include "resource/Cp949.hpp"  // portable UTF-8 -> cp949 (identical on every platform)
 #include "resource/Grf.hpp"  // GrfArchive::normalize (shared vpath normalization)
 
 namespace uaro {
@@ -19,29 +15,13 @@ namespace {
 
 // A ZIP written by a modern tool (7-Zip, Windows Explorer) stores non-ASCII filenames as UTF-8 and
 // sets general-purpose bit 11. RO assets are requested by their cp949 (EUC-KR) bytes (as the GND/GRF
-// index stores them), so a UTF-8 entry name would never match. Convert UTF-8 -> cp949 via the OS
-// codepages (no embedded table) so a content maker can just zip a folder of Korean-named overrides
-// and it works. If a char isn't representable in cp949 (non-Korean UTF-8 name), keep the raw bytes.
-// Linux client: no cheap OS transcoder here -> keep raw (loose overrides cover that platform). (S. zip)
-std::string utf8ToCp949(const std::string& s) {
-#if defined(_WIN32)
-    const int wl = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), nullptr, 0);
-    if (wl <= 0) return s;
-    std::wstring w(static_cast<size_t>(wl), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), w.data(), wl);
-    BOOL usedDefault = FALSE;
-    const int cl = WideCharToMultiByte(949, 0, w.c_str(), wl, nullptr, 0, nullptr, nullptr);
-    if (cl <= 0) return s;
-    std::string out(static_cast<size_t>(cl), '\0');
-    WideCharToMultiByte(949, 0, w.c_str(), wl, out.data(), cl, nullptr, &usedDefault);
-    return usedDefault ? s : out;  // unrepresentable in cp949 -> leave the original UTF-8 bytes
-#else
-    // Android/Linux: no OS codepage API, so use the embedded Unicode->cp949 table. Without this the
-    // whole Korean-folder content (유저인터페이스 UI skin, 몬스터 sprites, 이펙트, ...) never matched a
-    // cp949 lookup on Android -> nothing textured rendered (S. 2026-08-06). See resource/Cp949.
-    return utf8ToCp949Portable(s);
-#endif
-}
+// index stores them), so a UTF-8 entry name would never match. Convert UTF-8 -> cp949 so a content
+// maker can just zip a folder of Korean-named overrides and it works; a char not representable in cp949
+// (non-Korean name) keeps its raw bytes. Uses the embedded Unicode->cp949 table for IDENTICAL behaviour
+// on EVERY platform (S. 2026-08-06 "проверь для всех платформ"): the old Windows-only OS-codepage path
+// was a no-op on Android/Linux/consoles, so their whole Korean-folder content (유저인터페이스 UI skin,
+// 몬스터 sprites, 이펙트 ...) silently missed every lookup and nothing textured rendered. See resource/Cp949.
+std::string utf8ToCp949(const std::string& s) { return utf8ToCp949Portable(s); }
 
 // Some content packs are zipped from INSIDE a data/ folder, so their entries are rooted at a data
 // subdir ("texture/...", "model/...", "palette/...", "wav/...") instead of the "data/texture/..."

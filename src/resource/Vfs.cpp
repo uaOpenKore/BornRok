@@ -61,7 +61,14 @@ bool Vfs::mountGrf(const std::string& path, ContentSource tag) {
 
 bool Vfs::mountZip(const std::string& path, ContentSource tag) {
     auto zip = std::make_unique<ZipArchive>();
-    if (!zip->open(path)) return false;
+    if (!zip->open(path)) {
+        log::warn("Vfs: zip open FAILED '{}'", path);  // diagnostic: pack present but unreadable
+        return false;
+    }
+    // Diagnostic (S. 2026-08-06: Android mounted packs but showed no textures/sprites). A pack that
+    // opens but parses 0 entries = its central directory didn't read (e.g. a big/partial pack) -> every
+    // asset lookup into it misses. This log tells at a glance whether e.g. texture.zip actually has entries.
+    log::info("Vfs: mounted zip '{}' ({} entries)", path, zip->entries().size());
     zips_.push_back({std::move(zip), tag});
     return true;
 }

@@ -131,6 +131,17 @@ function(client_compile_shaders TARGET)
 
   _client_find_shaderc(SHADERC)
   if(NOT SHADERC)
+    if(ANDROID)
+      # No shaderc AND no CLIENT_PREBUILT_SHADERS (that path returned above) -> the essl (GLES) shaders
+      # can't be built, so the APK would render only a grey clear colour (S. 2026-08-06 hit exactly this
+      # after the repo split staled the hostShaderc path). FAIL LOUDLY instead of shipping a dead APK.
+      message(FATAL_ERROR
+        "shaderc not found for the Android build -> the essl (GLES) shaders can't be compiled and the "
+        "APK would show only a grey screen. Provide a HOST shaderc: set env HOST_SHADERC or gradle "
+        "'hostShaderc' (android/gradle.properties) to a host-arch shaderc(.exe) from a desktop build "
+        "(BornRok/build/win-msvc/vcpkg_installed/x64-windows-static/tools/bgfx/shaderc.exe), or pass "
+        "-DCLIENT_PREBUILT_SHADERS=<dir with essl/*.bin>. See docs/android-build-km.md.")
+    endif()
     message(WARNING "shaderc not found: skipping shader compilation for '${TARGET}'. "
                     "The client will run but render only a clear color until shaders are built.")
     return()

@@ -8,10 +8,17 @@ plugins {
 // Path to vcpkg (env VCPKG_ROOT, or override in gradle.properties as vcpkgRoot).
 def vcpkgRoot = System.getenv("VCPKG_ROOT") ?: (project.findProperty("vcpkgRoot") ?: "")
 
-// Optional HOST shaderc.exe (from the desktop win-msvc/vcpkg build) so the Android build can compile
-// the essl (GLES3) shaders -- the arm64-android shaderc can't run on the build host. Without it the
-// APK still builds but renders clear-only. Set env HOST_SHADERC or gradle.properties hostShaderc.
+// HOST shaderc(.exe) (from the desktop win-msvc/vcpkg build) so the Android build can compile the essl
+// (GLES3) shaders -- the arm64/x86_64-android shaderc can't run on the build host. WITHOUT valid essl
+// shaders the APK renders only a grey clear colour (S. 2026-08-06). Resolution order: env HOST_SHADERC,
+// then gradle.properties hostShaderc, then auto-locate a shaderc from a desktop build INSIDE this
+// checkout (BornRok/build/win-msvc/...). A stale/missing path is ignored so the auto-locate can win --
+// this is what broke after the repo split (the old hardcoded uAthena/Client path no longer exists).
 def hostShaderc = System.getenv("HOST_SHADERC") ?: (project.findProperty("hostShaderc") ?: "")
+if (hostShaderc == "" || !file(hostShaderc).exists()) {
+    def guess = file("${rootDir}/../build/win-msvc/vcpkg_installed/x64-windows-static/tools/bgfx/shaderc.exe")
+    hostShaderc = guess.exists() ? guess.absolutePath : ""
+}
 
 android {
     namespace 'ua.bornrok.client'

@@ -179,6 +179,27 @@ void RenderDevice::recomputeRenderSize() {
     sceneH_ = std::max(1, static_cast<int>(std::lround(height_ * fsrScale_)));
 }
 
+void RenderDevice::reacquire(const NativeWindow& nw) {
+#if defined(__ANDROID__)
+    // Android returns from background with a NEW ANativeWindow; the one bgfx's EGL context was bound to
+    // was destroyed while backgrounded. Re-point bgfx at the fresh handle and reset -- this rebuilds the
+    // swap chain (and the offscreen HDR/FSR/grade targets), fixing the permanent black screen after
+    // minimise -> restore (S. 2026-08-06). Mirrors resize()'s reset + target rebuild.
+    bgfx::PlatformData pd{};
+    pd.ndt = nw.ndt;
+    pd.nwh = nw.nwh;
+    bgfx::setPlatformData(pd);
+    bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_),
+                kResetMsaa | (vsync_ ? BGFX_RESET_VSYNC : 0u));
+    bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+    if (hdrActive()) createHdrTarget();
+    if (fsrActive()) createFsrTargets();
+    if (bgfx::isValid(gradeFb_)) createGradeTarget();
+#else
+    (void)nw;
+#endif
+}
+
 void RenderDevice::resize(int width, int height) {
     if (width <= 0 || height <= 0) return;
     if (width == width_ && height == height_) return;

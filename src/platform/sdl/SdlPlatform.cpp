@@ -262,6 +262,7 @@ bool Platform::pump(InputState& state) {
     state.numDigit = -1;
     state.mousePressed = state.mouseReleased = state.mouseDoubleClick = false;
     state.closeRequested = false;
+    state.appResumed = false;  // one-frame edge; appSuspended is a level that persists across pumps
     state.wheel = 0.0f;
     state.mouseDX = state.mouseDY = 0;
     // Gamepad EDGE fields reset each frame (held/axes persist, refreshed below).
@@ -300,6 +301,18 @@ bool Platform::pump(InputState& state) {
                 // Alt+F4 / window X. Do NOT hard-quit — the game controls its own exit
                 // (in-game ESC menu). Scenes read closeRequested and decide.
                 state.closeRequested = true;
+                break;
+            case SDL_EVENT_DID_ENTER_BACKGROUND:
+                // Android: the app is backgrounded and its EGL surface is being destroyed. Latch the
+                // level so the main loop stops rendering to a dead surface (else -> permanent black on
+                // restore). Also pause audio here would be nice; the loop already idles on suspend.
+                state.appSuspended = true;
+                break;
+            case SDL_EVENT_DID_ENTER_FOREGROUND:
+                // Android: back in the foreground with a fresh surface. Clear suspend + flag a one-frame
+                // resume edge so the loop re-acquires the render surface (RenderDevice::reacquire).
+                if (state.appSuspended) state.appResumed = true;
+                state.appSuspended = false;
                 break;
             case SDL_EVENT_KEY_DOWN:
                 switch (e.key.key) {

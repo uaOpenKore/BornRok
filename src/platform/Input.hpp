@@ -15,6 +15,11 @@ struct InputState {
     bool resized = false;  // framebuffer size changed this frame
     int width = 0;         // current drawable width  (pixels)
     int height = 0;        // current drawable height (pixels)
+    // App lifecycle (Android): appSuspended LEVEL-persists while backgrounded (main loop stops
+    // rendering to the destroyed surface); appResumed is a one-frame EDGE the loop uses to re-acquire
+    // the render surface. Never set on desktop. (S. 2026-08-06: black screen after minimise -> restore.)
+    bool appSuspended = false;
+    bool appResumed = false;
 
     // Text typed this frame (UTF-8, may be several characters with an IME).
     std::string text;

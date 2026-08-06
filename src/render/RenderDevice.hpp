@@ -33,6 +33,10 @@ public:
     void shutdown();
 
     void resize(int width, int height);
+    // Re-point bgfx at a fresh native window + reset the swap chain. Android only: after the app returns
+    // from background the EGL surface it was bound to was destroyed, so rendering to the stale handle
+    // gives a permanent black screen (S. 2026-08-06). No-op off Android.
+    void reacquire(const NativeWindow& nw);
     void setVsync(bool on);  // toggle V-Sync at runtime (bgfx::reset); no-op if unchanged (#104)
     void beginFrame();  // set view rect + clear, ensure the view is touched
     void endFrame();    // advance bgfx (present)

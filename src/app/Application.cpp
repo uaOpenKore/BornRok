@@ -193,14 +193,20 @@ int Application::run(const AppConfig& cfg) {
     while (platform_.pump(input_)) {
         const auto frameStart = std::chrono::steady_clock::now();
 
-        // While the OS has the title suspended (console sleep), skip the frame + audio and idle
-        // cheaply; keep pumping so we notice Resumed/Quit. Never taken on desktop (always Running).
-        if (lifecycle_ == AppLifecycle::Suspended) {
+        // While the OS has the title suspended (console sleep) OR the Android app is backgrounded
+        // (its EGL surface is gone), skip the frame + audio and idle cheaply; keep pumping so we
+        // notice Resumed/Quit. Rendering to the destroyed surface is what caused the permanent black
+        // screen after minimise -> restore on Android (S. 2026-08-06). Never taken on desktop.
+        if (lifecycle_ == AppLifecycle::Suspended || input_.appSuspended) {
             if (quitRequested_ || lifecycle_ == AppLifecycle::QuitRequested) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             continue;
         }
         if (lifecycle_ == AppLifecycle::QuitRequested) break;
+
+        // Android returned from background: re-point bgfx at the fresh native window BEFORE rendering,
+        // else the first frame draws to the stale (destroyed) surface and stays black. (no-op elsewhere)
+        if (input_.appResumed) render_.reacquire(platform_.window().native());
 
         if (input_.resized) render_.resize(input_.width, input_.height);
 

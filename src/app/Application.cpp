@@ -427,10 +427,13 @@ void Application::loadConfig() {
                 if (in >> val && !val.empty()) lastLogin_ = val;
                 continue;
             }
-            if (key == "texquality" || key == "sprquality") {  // "1k"/"4k" content quality (#71)
+            if (key == "texquality" || key == "sprquality") {  // "1k"/"2k"/"4k" content quality (#71)
                 std::string val;
                 if (in >> val) {
-                    if (val != "1k" && val != "4k") val.clear();  // legacy/garbage -> platform default
+                    // Must include 2k -- the quality button cycles 1k->2k->4k, so dropping 2k here made a
+                    // 2k choice silently revert to the 1k default on the next launch (S. 2026-08-06:
+                    // "меняю качество - выхожу - захожу и всё равно 1k").
+                    if (val != "1k" && val != "2k" && val != "4k") val.clear();  // legacy/garbage -> platform default
                     (key == "texquality" ? textureQuality_ : spriteQuality_) = val;
                 }
                 continue;

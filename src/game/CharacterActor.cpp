@@ -1034,7 +1034,14 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
         if (static_cast<usize>(idx) < frames.size()) {
             const SprFrame& fr = frames[idx];
             std::vector<u8> rgba = indexed ? sp->indexedToRgba(idx) : fr.pixels;
-            if (!indexed) keyMagentaRgba(rgba);  // truecolor peco/mount frames: 0xFF00FF -> transparent
+            if (!indexed) {
+                keyMagentaRgba(rgba);  // truecolor peco/mount frames: 0xFF00FF -> transparent
+                // PNG-sprite (#109) / webp-synthesized frames may be flattened opaque RGB with a solid
+                // BLACK background instead of alpha (S. 2026-08-07: black box around NPCs). Key it out.
+                // Safe on magenta sprites: keyMagentaRgba already zeroed their corner, so the alpha==255
+                // guard in keyBlackBackground skips them; only a truly opaque black-cornered frame is cut.
+                keyBlackBackground(rgba, static_cast<int>(fr.width), static_cast<int>(fr.height));
+            }
             if (fr.width > 0 && fr.height > 0 && !rgba.empty()) {
                 bleedEdges(rgba, static_cast<int>(fr.width), static_cast<int>(fr.height));
                 t.create(static_cast<u16>(fr.width), static_cast<u16>(fr.height), rgba.data(),

@@ -47,8 +47,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 7  | Map load (RSW/GND/GAT) + renderer     | scene `0x004f6ae0`; world `0x0059f9c0` | `07-map-rsw-gnd-gat.md` | ✅ |
 | 8  | Effect engine (CEffect / .str)        | factory `0x005c2630`; table `DAT_006d9100` | `08-effect-engine.md` | ✅ |
 | 9  | Network / packet dispatch             | dispatcher `0x00579900` (306 cases) | `09-network-packets.md` | ✅ |
-| 10 | UI windows / widgets                  | (tbd)            | —   | ⬜ |
-| 11 | Audio (Miles/WINMM) + Bink video      | binkw32          | —   | ⬜ |
+| 10 | UI windows / widgets                  | CButton `0x004405f0`; root `DAT_0074aea0` | `10-ui-windows-widgets.md` | ✅ |
+| 11 | Audio (Miles/WINMM) + Bink video      | init `0x004214f0`; binkw32 | —   | 🟨 |
 | 12 | Lua / lub script VM                   | (tbd)            | —   | ⬜ |
 | 13 | Game-state / session / login flow     | (tbd)            | —   | ⬜ |
 
@@ -130,3 +130,9 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   = 306-case switch** (called from `0x00559b00` loop). Pre-game dispatchers `0x00645650`
   (~108)/`0x006445f0`. Outgoing build `0x004192f0`/`0x004191b0`, ping 0x187. Optional
   packet obfuscation (off). Cross-ref uOK210/packet-audit. NEXT: Subsystem 10 — UI.
+- **2026-08-09** — **Subsystem 10 DONE** → `10-ui-windows-widgets.md`. UI = code-built
+  windows; CButton ctor `0x004405f0` (0xA4 obj, 3-bmp skin normal/_a/_b from 유저인터페이스
+  via VFS). Widget set CEdit/CText/CList/CScroll/CWindow. Builders: login/char-create
+  (arw_str/agi/vit/int), in-game windows (port already reimpl #39-#98/#136). UI root
+  `DAT_0074aea0` = first-chance msg dispatch; Z-order top captures click; titlebar drag;
+  modal blocks world. Strings via `0x00504fb0`. NEXT: Subsystem 11 — audio + Bink.

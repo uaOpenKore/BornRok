@@ -43,8 +43,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 3  | DirectDraw render backend             | `0x00403f30` init; device `DAT_006ee3d8` | `03-directdraw-render-backend.md` | ✅ |
 | 4  | DirectInput (keyboard/mouse)          | mouse `0x00419b50`; capture `0x00419e20` | `04-directinput.md` | ✅ |
 | 5  | File / GRF virtual filesystem         | mount `0x0050ccb0`; entry `0x005118b0` | `05-grf-vfs.md` | ✅ |
-| 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | 🟨 |
-| 7  | Map load (RSW/GND/GAT) + renderer     | (tbd)            | —   | ⬜ |
+| 6  | Sprite (.spr/.act) load + animation   | spr `0x004385f0`; act `0x00422aa0` | `06-sprite-spr-act.md` | ✅ |
+| 7  | Map load (RSW/GND/GAT) + renderer     | `0x004f6ae0` load map | —   | 🟨 |
 | 8  | Effect engine (CEffect / .str)        | `0x5c2630`       | `effect-ids-from-exe.md` | 🟨 |
 | 9  | Network / packet dispatch             | (tbd)            | —   | ⬜ |
 | 10 | UI windows / widgets                  | (tbd)            | —   | ⬜ |
@@ -99,3 +99,11 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   table load `0x00510fd0`; entry read `0x005118b0` = read→DES `0x005120b0`→zlib uncompress.
   resNameTable remap singleton `0x00512b70`/`DAT_0074bad8` (+alias `0x00513e80`). Paths
   cp949. NEXT: Subsystem 6 — .spr/.act sprite load + animation.
+- **2026-08-09** — **Subsystem 6 DONE** → `06-sprite-spr-act.md`. .spr parse `0x004385f0`
+  (magic 'SP' 0x5053; 256-RGBA palette at tail-0x400 → `this+0x110`; indexed frames, RLE
+  `0x00439260` for v≥0x201, truecolor RGBA for v≥0x200; index→texture `0x004390c0`; HD
+  downscale `0x004392f0`/`DAT_007735f4/f8`). .act parse `0x00422aa0` (magic 'AC' 0x4341;
+  actions×dir → frames → layers{spr,offset,mirror,tint,scale,rot} + delay + anchor CP pts
+  + sound idx). Anim: action=dir*N+motion, delay scaled by ASPD, billboard quads via D3D,
+  dye via palette swap. Stream `0x0050d570`/seek `0x0050d620`.
+  NEXT: Subsystem 7 — map RSW/GND/GAT load + world renderer (`0x004f6ae0`).

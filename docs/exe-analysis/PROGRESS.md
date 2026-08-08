@@ -46,7 +46,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 6  | Sprite (.spr/.act) load + animation   | spr `0x004385f0`; act `0x00422aa0` | `06-sprite-spr-act.md` | ✅ |
 | 7  | Map load (RSW/GND/GAT) + renderer     | scene `0x004f6ae0`; world `0x0059f9c0` | `07-map-rsw-gnd-gat.md` | ✅ |
 | 8  | Effect engine (CEffect / .str)        | factory `0x005c2630`; table `DAT_006d9100` | `08-effect-engine.md` | ✅ |
-| 9  | Network / packet dispatch             | build `0x00419480`; ping 0x187 | —   | 🟨 |
+| 9  | Network / packet dispatch             | dispatcher `0x00579900` (306 cases) | `09-network-packets.md` | ✅ |
 | 10 | UI windows / widgets                  | (tbd)            | —   | ⬜ |
 | 11 | Audio (Miles/WINMM) + Bink video      | binkw32          | —   | ⬜ |
 | 12 | Lua / lub script VM                   | (tbd)            | —   | ⬜ |
@@ -122,3 +122,11 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   v0x94 layered keyframe billboards (pos/uv/rgba/angle/scale/blend), one-shot additive,
   body-anchored. 4 invocation channels (0x1F3/0x19B/skillId/0x8A). Cross-refs
   effect-ids-from-exe.md, ragexe-effect-map.md. NEXT: Subsystem 9 — network/packets.
+- **2026-08-09** — **Subsystem 9 DONE** → `09-network-packets.md`. Winsock init
+  `0x00418db0` (WSAStartup + **dynamic send/recv ptrs** `DAT_006ee6e4`/`DAT_006ee66c`
+  from ws2_32, "Module Hooking Error" fallback stubs — anti-IAT-hook). Conn singleton
+  `0x00419480`=`DAT_006ee670`, non-blocking TCP connect `0x00418af0`; 3 conns login→char→
+  map. recv→frame(len table / 2-byte var)→dispatch. **Master ZC dispatcher `0x00579900`
+  = 306-case switch** (called from `0x00559b00` loop). Pre-game dispatchers `0x00645650`
+  (~108)/`0x006445f0`. Outgoing build `0x004192f0`/`0x004191b0`, ping 0x187. Optional
+  packet obfuscation (off). Cross-ref uOK210/packet-audit. NEXT: Subsystem 10 — UI.

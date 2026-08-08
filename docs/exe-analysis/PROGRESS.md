@@ -44,7 +44,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 4  | DirectInput (keyboard/mouse)          | mouse `0x00419b50`; capture `0x00419e20` | `04-directinput.md` | ✅ |
 | 5  | File / GRF virtual filesystem         | mount `0x0050ccb0`; entry `0x005118b0` | `05-grf-vfs.md` | ✅ |
 | 6  | Sprite (.spr/.act) load + animation   | spr `0x004385f0`; act `0x00422aa0` | `06-sprite-spr-act.md` | ✅ |
-| 7  | Map load (RSW/GND/GAT) + renderer     | `0x004f6ae0` load map | —   | 🟨 |
+| 7  | Map load (RSW/GND/GAT) + renderer     | scene `0x004f6ae0`; world `0x0059f9c0` | `07-map-rsw-gnd-gat.md` | ✅ |
 | 8  | Effect engine (CEffect / .str)        | `0x5c2630`       | `effect-ids-from-exe.md` | 🟨 |
 | 9  | Network / packet dispatch             | (tbd)            | —   | ⬜ |
 | 10 | UI windows / widgets                  | (tbd)            | —   | ⬜ |
@@ -107,3 +107,11 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   + sound idx). Anim: action=dir*N+motion, delay scaled by ASPD, billboard quads via D3D,
   dye via palette swap. Stream `0x0050d570`/seek `0x0050d620`.
   NEXT: Subsystem 7 — map RSW/GND/GAT load + world renderer (`0x004f6ae0`).
+- **2026-08-09** — **Subsystem 7 DONE** → `07-map-rsw-gnd-gat.md`. Scene switch
+  `0x004f6ae0` (destroy/construct scene; world ctor `0x0059f9c0` vtbl `PTR_FUN_0069f4dc`,
+  alt `0x005582d0`). **Async** map request `0x004f6c40` (name `this+0x30`, flag
+  `this+0x5c`) → explains loading screen. Server map-change `0x005a49f0` builds `"%s.rsw"`
+  (map global `DAT_00771730`) + PingLog. RSW(world/light/objects)+GND(mesh/lightmap)+
+  GAT(collision¼)+RSM(models) render order documented. NOTE: low-level byte parsers are
+  world-scene vtable methods → enumerate in Subsystem 13; formats already in port
+  (Rsw/Gnd/Gat/Rsm). NEXT: Subsystem 8 — effect engine (CEffect `0x5c2630` / .str).

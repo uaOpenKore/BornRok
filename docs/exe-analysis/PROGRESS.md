@@ -40,8 +40,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 |---|-----------|-------------------------|-----|--------|
 | 1  | Entry / WinMain / init order          | `0x006555f0`     | `01-entry-winmain.md` | ✅ |
 | 2  | Window + message loop (WndProc)       | WndProc `0x006541e0`; **main loop `0x0059fda0`** | `02-message-loop-and-frame.md` | ✅ |
-| 3  | DirectDraw render backend             | `0x00403f30` init; DDRAW imports | —   | 🟨 |
-| 4  | DirectInput (keyboard/mouse)          | DINPUT imports   | —   | ⬜ |
+| 3  | DirectDraw render backend             | `0x00403f30` init; device `DAT_006ee3d8` | `03-directdraw-render-backend.md` | ✅ |
+| 4  | DirectInput (keyboard/mouse)          | `0x004f6cb0` msg; DINPUT imports | —   | 🟨 |
 | 5  | File / GRF virtual filesystem         | (tbd)            | —   | ⬜ |
 | 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | ⬜ |
 | 7  | Map load (RSW/GND/GAT) + renderer     | (tbd)            | —   | ⬜ |
@@ -77,3 +77,12 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   (IME first-chance filter `DAT_0074aea0`, WM_CLOSE→quit, focus→Bink pause, syscmd
   screensaver block). Per-mode `Process`/`OnEnter` vtables deferred to Subsystem 13.
   NEXT: Subsystem 3 — DirectDraw/D3D backend (init `0x00403f30`, device `DAT_006ee3d8`).
+- **2026-08-09** — **Subsystem 3 DONE** → `03-directdraw-render-backend.md`. Backend =
+  **DirectDraw7 + Direct3D7 immediate mode** (`DirectDrawCreateEx`, `IID_IDirectDraw7`
+  `DAT_006a20dc`). CRenderDevice `DAT_006ee3d8`: `[0xf]`=D3D7 device, `[0x24/0x28]`=
+  viewport, `[0x75]`=fullscreen, `[0x77]`=IDirectDraw7. Create path
+  `0x00403f30`→`0x00404260`→ fullscreen `0x00404570` / windowed clipper `0x00404450` /
+  surfaces+device `0x004049f0` (primary+back flip chain + Z-buffer). Default FF pipeline:
+  2 texture stages, stage0 MODULATE(tex×diffuse) bilinear, stage1 lightmap, TFACTOR.
+  DrawPrimitive submission deferred to sprite(6)/map(7) subsystems.
+  NEXT: Subsystem 4 — DirectInput (keyboard/mouse), then 5 — GRF VFS.

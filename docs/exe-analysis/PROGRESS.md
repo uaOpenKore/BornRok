@@ -39,8 +39,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | # | Subsystem | Key anchors / addresses | Doc | Status |
 |---|-----------|-------------------------|-----|--------|
 | 1  | Entry / WinMain / init order          | `0x006555f0`     | `01-entry-winmain.md` | ✅ |
-| 2  | Window + message loop (WndProc)       | `0x006541e0` WndProc; `0x00421e60(0x3c)` timer | `01-entry-winmain.md` (partial) | 🟨 |
-| 3  | DirectDraw render backend             | DDRAW imports    | —   | ⬜ |
+| 2  | Window + message loop (WndProc)       | WndProc `0x006541e0`; **main loop `0x0059fda0`** | `02-message-loop-and-frame.md` | ✅ |
+| 3  | DirectDraw render backend             | `0x00403f30` init; DDRAW imports | —   | 🟨 |
 | 4  | DirectInput (keyboard/mouse)          | DINPUT imports   | —   | ⬜ |
 | 5  | File / GRF virtual filesystem         | (tbd)            | —   | ⬜ |
 | 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | ⬜ |
@@ -68,3 +68,12 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   (`0x00403f30`), subsystem-init batch, intro Bink (`0x0050b740`/`0x0050b390`), login.rsw
   load (`0x004f6ae0`), shutdown drain. OPEN: exact per-frame loop mechanism → Subsystem 2.
   NEXT: Subsystem 2 — full WndProc switch + frame-loop/timer model.
+- **2026-08-09** — **Subsystem 2 DONE** → `02-message-loop-and-frame.md`. Resolved the
+  open question: main loop is the **mode state-machine `CModeMgr::Run` @ `0x0059fda0`**
+  (`while(running && !DAT_007735e0){ enter pending state via vtbl[0x18]; Process via
+  vtbl[0x10]; frame++ }`), quit flag `DAT_007735e0` set by WM_CLOSE. Frame clock 60 Hz
+  via `0x00421e60` (`DAT_0070ec10`=16 ms). Per-frame keep-alive `0x0059fe10` sends
+  char-server ping (0x187) every 12 s. Full WndProc `0x006541e0` message map documented
+  (IME first-chance filter `DAT_0074aea0`, WM_CLOSE→quit, focus→Bink pause, syscmd
+  screensaver block). Per-mode `Process`/`OnEnter` vtables deferred to Subsystem 13.
+  NEXT: Subsystem 3 — DirectDraw/D3D backend (init `0x00403f30`, device `DAT_006ee3d8`).

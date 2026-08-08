@@ -45,8 +45,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 5  | File / GRF virtual filesystem         | mount `0x0050ccb0`; entry `0x005118b0` | `05-grf-vfs.md` | ✅ |
 | 6  | Sprite (.spr/.act) load + animation   | spr `0x004385f0`; act `0x00422aa0` | `06-sprite-spr-act.md` | ✅ |
 | 7  | Map load (RSW/GND/GAT) + renderer     | scene `0x004f6ae0`; world `0x0059f9c0` | `07-map-rsw-gnd-gat.md` | ✅ |
-| 8  | Effect engine (CEffect / .str)        | `0x5c2630`       | `effect-ids-from-exe.md` | 🟨 |
-| 9  | Network / packet dispatch             | (tbd)            | —   | ⬜ |
+| 8  | Effect engine (CEffect / .str)        | factory `0x005c2630`; table `DAT_006d9100` | `08-effect-engine.md` | ✅ |
+| 9  | Network / packet dispatch             | build `0x00419480`; ping 0x187 | —   | 🟨 |
 | 10 | UI windows / widgets                  | (tbd)            | —   | ⬜ |
 | 11 | Audio (Miles/WINMM) + Bink video      | binkw32          | —   | ⬜ |
 | 12 | Lua / lub script VM                   | (tbd)            | —   | ⬜ |
@@ -115,3 +115,10 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   GAT(collision¼)+RSM(models) render order documented. NOTE: low-level byte parsers are
   world-scene vtable methods → enumerate in Subsystem 13; formats already in port
   (Rsw/Gnd/Gat/Rsm). NEXT: Subsystem 8 — effect engine (CEffect `0x5c2630` / .str).
+- **2026-08-09** — **Subsystem 8 DONE** → `08-effect-engine.md`. CEffect factory
+  `0x005c2630`(this,owner,effectId,x,y,z): stores id@`this+0x100`, per-id param table
+  `DAT_006d9100[id]`@`this+0x114`, giant switch effectId→.str filename (defense/JobLvUP/
+  angel/devil/melt/cart/sword/asum/ramadan…) else procedural fall-through. .str = STRM
+  v0x94 layered keyframe billboards (pos/uv/rgba/angle/scale/blend), one-shot additive,
+  body-anchored. 4 invocation channels (0x1F3/0x19B/skillId/0x8A). Cross-refs
+  effect-ids-from-exe.md, ragexe-effect-map.md. NEXT: Subsystem 9 — network/packets.

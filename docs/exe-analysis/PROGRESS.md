@@ -42,8 +42,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 2  | Window + message loop (WndProc)       | WndProc `0x006541e0`; **main loop `0x0059fda0`** | `02-message-loop-and-frame.md` | ✅ |
 | 3  | DirectDraw render backend             | `0x00403f30` init; device `DAT_006ee3d8` | `03-directdraw-render-backend.md` | ✅ |
 | 4  | DirectInput (keyboard/mouse)          | mouse `0x00419b50`; capture `0x00419e20` | `04-directinput.md` | ✅ |
-| 5  | File / GRF virtual filesystem         | `0x00512b70` resNameTable | —   | 🟨 |
-| 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | ⬜ |
+| 5  | File / GRF virtual filesystem         | mount `0x0050ccb0`; entry `0x005118b0` | `05-grf-vfs.md` | ✅ |
+| 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | 🟨 |
 | 7  | Map load (RSW/GND/GAT) + renderer     | (tbd)            | —   | ⬜ |
 | 8  | Effect engine (CEffect / .str)        | `0x5c2630`       | `effect-ids-from-exe.md` | 🟨 |
 | 9  | Network / packet dispatch             | (tbd)            | —   | ⬜ |
@@ -93,3 +93,9 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   Focus capture toggle `0x00419e20` (Acquire/Unacquire on WM_ACTIVATEAPP). Keyboard =
   Win32 WM_KEY*/CHAR via IME/input mgr `DAT_0074aea0` (no DI keyboard device).
   NEXT: Subsystem 5 — GRF virtual filesystem (resNameTable `0x00512b70`, archive mount).
+- **2026-08-09** — **Subsystem 5 DONE** → `05-grf-vfs.md`. Layered VFS: `DATA.INI [Data]`
+  keys '9'..'0' enumerated by `0x0069422f` → each GRF mounted via `0x0050ccb0` (provider
+  chain; GRF vtbl `PTR_FUN_0069c988`, loose-dir override vtbl `PTR_FUN_0069c97c`). GRF
+  table load `0x00510fd0`; entry read `0x005118b0` = read→DES `0x005120b0`→zlib uncompress.
+  resNameTable remap singleton `0x00512b70`/`DAT_0074bad8` (+alias `0x00513e80`). Paths
+  cp949. NEXT: Subsystem 6 — .spr/.act sprite load + animation.

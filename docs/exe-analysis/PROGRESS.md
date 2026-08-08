@@ -41,8 +41,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 1  | Entry / WinMain / init order          | `0x006555f0`     | `01-entry-winmain.md` | ✅ |
 | 2  | Window + message loop (WndProc)       | WndProc `0x006541e0`; **main loop `0x0059fda0`** | `02-message-loop-and-frame.md` | ✅ |
 | 3  | DirectDraw render backend             | `0x00403f30` init; device `DAT_006ee3d8` | `03-directdraw-render-backend.md` | ✅ |
-| 4  | DirectInput (keyboard/mouse)          | `0x004f6cb0` msg; DINPUT imports | —   | 🟨 |
-| 5  | File / GRF virtual filesystem         | (tbd)            | —   | ⬜ |
+| 4  | DirectInput (keyboard/mouse)          | mouse `0x00419b50`; capture `0x00419e20` | `04-directinput.md` | ✅ |
+| 5  | File / GRF virtual filesystem         | `0x00512b70` resNameTable | —   | 🟨 |
 | 6  | Sprite (.spr/.act) load + animation   | (tbd)            | —   | ⬜ |
 | 7  | Map load (RSW/GND/GAT) + renderer     | (tbd)            | —   | ⬜ |
 | 8  | Effect engine (CEffect / .str)        | `0x5c2630`       | `effect-ids-from-exe.md` | 🟨 |
@@ -86,3 +86,10 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   2 texture stages, stage0 MODULATE(tex×diffuse) bilinear, stage1 lightmap, TFACTOR.
   DrawPrimitive submission deferred to sprite(6)/map(7) subsystems.
   NEXT: Subsystem 4 — DirectInput (keyboard/mouse), then 5 — GRF VFS.
+- **2026-08-09** — **Subsystem 4 DONE** → `04-directinput.md`. Mouse = **DirectInput7**
+  (CMouse `0x00419b50`: DirectInputCreateA v0x700, CreateDevice GUID_SysMouse
+  `DAT_006a109c`, c_dfDIMouse `DAT_0069fe84`, coop FOREGROUND|NONEXCLUSIVE, Acquire;
+  virtual cursor `this[5/6]` clamped, swap-button `SM_SWAPBUTTON`; global `DAT_006ee6f4`).
+  Focus capture toggle `0x00419e20` (Acquire/Unacquire on WM_ACTIVATEAPP). Keyboard =
+  Win32 WM_KEY*/CHAR via IME/input mgr `DAT_0074aea0` (no DI keyboard device).
+  NEXT: Subsystem 5 — GRF virtual filesystem (resNameTable `0x00512b70`, archive mount).

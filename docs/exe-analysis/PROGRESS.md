@@ -158,3 +158,16 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   `0x00579900`→render, ping `0x0059fe10`) → warp `0x005a49f0` → logout teardown `0x004f5790`.
   **ALL 13 SUBSYSTEMS COMPLETE.** Remaining depth (per-mode vtable bodies, per-packet
   handlers, low-level map parsers) is drill-down within these anchored subsystems.
+- **2026-08-09** — **DEEP-DIVE: effects/particles/render** (S. request: understand how
+  clouds/smoke/skills visualize) → `14-effects-particles-render-deep-dive.md`. Two families:
+  .str (data) + procedural particles (code). Effect manager = scene+0x164 linked list
+  (+0x168 count), common message method vtbl+8 (init 0x7D/stop 0x18/clear 0x19). Particle
+  emitter factory `0x005c3670` → obj `operator_new(0xF9E4)`, ctor `0x00610e80` vtable
+  `PTR_FUN_0069fbc8`, texture cache `0x0040c590`; **particle array at +0xF704, 0xB8 bytes
+  each** (active/age/lifespan 40|30|25|∞/pos/vel/size/color). Coded dispatch switch
+  `~0x005b9b88`→emit fns (cloud `0x005e08b0`, waterfall `0x005e0bc0`, rings, smoke).
+  **Billboard blend** via device SetRenderState SRCBLEND 0x13/DESTBLEND 0x14: alpha (5,6)
+  clouds/smoke, additive (2,2) glows/magic; Z-test on write-off; MODULATE stage0; camera-
+  facing, owner-anchored one-shot. Clouds/smoke = cloud1/2/4/11.tga + smoke.tga emitters +
+  RSW EF_ ids (44 smoke/45 firefly/165 sparkle). Named skills GrandCross `0x005ba4e2`/
+  Asura `0x005db1b3`/SoulBreaker `0x005db80e`. Added as doc 14.

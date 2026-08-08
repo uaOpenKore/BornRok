@@ -23,6 +23,11 @@ The running journal and coverage map live in [`PROGRESS.md`](PROGRESS.md).
 12. [Lua / lub VM (+ homun AI)](12-lua-vm.md) — AI vm `0x005a6ac0`
 13. [Game states, session & login flow](13-game-state-session.md) — `0x0059fda0`
 
+### Deep dives
+- [Effects, particles & rendering](14-effects-particles-render-deep-dive.md) — how
+  clouds/smoke/skills are emitted and drawn (particle engine `0x005c3670`, billboard
+  blend modes, effect manager list)
+
 ## High-level architecture
 
 ```

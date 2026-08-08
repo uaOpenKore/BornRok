@@ -49,8 +49,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 9  | Network / packet dispatch             | dispatcher `0x00579900` (306 cases) | `09-network-packets.md` | ✅ |
 | 10 | UI windows / widgets                  | CButton `0x004405f0`; root `DAT_0074aea0` | `10-ui-windows-widgets.md` | ✅ |
 | 11 | Audio (Miles/WINMM) + Bink video      | init `0x004214f0`; AIL/mss32 | `11-audio-bink.md` | ✅ |
-| 12 | Lua / lub script VM                   | (tbd)            | —   | 🟨 |
-| 13 | Game-state / session / login flow     | (tbd)            | —   | ⬜ |
+| 12 | Lua / lub script VM                   | AI vm `0x005a6ac0`; script `0x005a6b60` | `12-lua-vm.md` | ✅ |
+| 13 | Game-state / session / login flow     | modes `0x0059fda0` sm | —   | 🟨 |
 
 ## Journal
 
@@ -143,3 +143,10 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   handle w/ 3D pos (ACT frame sound idx / effect wav / skill). BGM mp3 stream `0x004219c0`.
   Bink intro via BinkOpenDirectSound. Port replaces w/ SDL3+dr_libs / XAudio2.
   NEXT: Subsystem 12 — Lua/lub VM.
+- **2026-08-09** — **Subsystem 12 DONE** → `12-lua-vm.md`. Embedded **Lua 5.0/5.1** (static;
+  lua_getinfo/error/trace/LUA_PATH). Uses: (1) luafiles/.lub data tables (itemInfo,
+  MonsterSkillInfo, etc.) into VM at startup; (2) **homun/merc AI**: create `0x005a6ac0`,
+  load `0x005a6b60` (\AI\AI.lua / AI_M.lua, USER_AI overrides `DAT_00772ecc`/`f68`), per-tick
+  `0x005a6c60` AI(id), init event vtbl+8(0x7d), errors AI_lua_error via `0x00405bf0`.
+  Cross-ref homun-ai-lua-vm(#148). NEXT: Subsystem 13 — game-state/session/login flow
+  (mode state machine `0x0059fda0`, per-mode vtables).

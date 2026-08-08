@@ -50,7 +50,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 10 | UI windows / widgets                  | CButton `0x004405f0`; root `DAT_0074aea0` | `10-ui-windows-widgets.md` | ✅ |
 | 11 | Audio (Miles/WINMM) + Bink video      | init `0x004214f0`; AIL/mss32 | `11-audio-bink.md` | ✅ |
 | 12 | Lua / lub script VM                   | AI vm `0x005a6ac0`; script `0x005a6b60` | `12-lua-vm.md` | ✅ |
-| 13 | Game-state / session / login flow     | modes `0x0059fda0` sm | —   | 🟨 |
+| 13 | Game-state / session / login flow     | modes `0x0059fda0`; `0x005a49f0` | `13-game-state-session.md` | ✅ |
 
 ## Journal
 
@@ -150,3 +150,11 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   `0x005a6c60` AI(id), init event vtbl+8(0x7d), errors AI_lua_error via `0x00405bf0`.
   Cross-ref homun-ai-lua-vm(#148). NEXT: Subsystem 13 — game-state/session/login flow
   (mode state machine `0x0059fda0`, per-mode vtables).
+- **2026-08-09** — **Subsystem 13 DONE** → `13-game-state-session.md`. Session flow via
+  mode state machine `0x0059fda0` (state `mgr[1]`, g_mode `DAT_0074b560`): intro/login.rsw
+  → login (account send, char-list via `0x00645650`) → server/char select (slots as
+  sprites; Make=char-create arw_* steppers) → map-login `0x72` via `0x004c9fc0` → world
+  scene `0x0059f9c0` loads RSW/GND/GAT + spawn → in-game Process(input→move→dispatch
+  `0x00579900`→render, ping `0x0059fe10`) → warp `0x005a49f0` → logout teardown `0x004f5790`.
+  **ALL 13 SUBSYSTEMS COMPLETE.** Remaining depth (per-mode vtable bodies, per-packet
+  handlers, low-level map parsers) is drill-down within these anchored subsystems.

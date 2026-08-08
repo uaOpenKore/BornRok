@@ -48,8 +48,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 8  | Effect engine (CEffect / .str)        | factory `0x005c2630`; table `DAT_006d9100` | `08-effect-engine.md` | ✅ |
 | 9  | Network / packet dispatch             | dispatcher `0x00579900` (306 cases) | `09-network-packets.md` | ✅ |
 | 10 | UI windows / widgets                  | CButton `0x004405f0`; root `DAT_0074aea0` | `10-ui-windows-widgets.md` | ✅ |
-| 11 | Audio (Miles/WINMM) + Bink video      | init `0x004214f0`; binkw32 | —   | 🟨 |
-| 12 | Lua / lub script VM                   | (tbd)            | —   | ⬜ |
+| 11 | Audio (Miles/WINMM) + Bink video      | init `0x004214f0`; AIL/mss32 | `11-audio-bink.md` | ✅ |
+| 12 | Lua / lub script VM                   | (tbd)            | —   | 🟨 |
 | 13 | Game-state / session / login flow     | (tbd)            | —   | ⬜ |
 
 ## Journal
@@ -136,3 +136,10 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   (arw_str/agi/vit/int), in-game windows (port already reimpl #39-#98/#136). UI root
   `DAT_0074aea0` = first-chance msg dispatch; Z-order top captures click; titlebar drag;
   modal blocks world. Strings via `0x00504fb0`. NEXT: Subsystem 11 — audio + Bink.
+- **2026-08-09** — **Subsystem 11 DONE** → `11-audio-bink.md`. Backend = **Miles Sound
+  System (AIL_*/mss32)** + mp3dec.asi. Init `0x004214f0`: AIL_startup, open digital driver
+  (rate 22050/11025/8000, 16/8-bit, mono/stereo from settings `DAT_007731a8/b0/b8`), voice
+  pool 48/32/16 by quality `DAT_007731b4`, 3D provider (positional SFX). SFX .wav→sample
+  handle w/ 3D pos (ACT frame sound idx / effect wav / skill). BGM mp3 stream `0x004219c0`.
+  Bink intro via BinkOpenDirectSound. Port replaces w/ SDL3+dr_libs / XAudio2.
+  NEXT: Subsystem 12 — Lua/lub VM.

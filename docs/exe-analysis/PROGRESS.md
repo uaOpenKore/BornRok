@@ -38,8 +38,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 
 | # | Subsystem | Key anchors / addresses | Doc | Status |
 |---|-----------|-------------------------|-----|--------|
-| 1  | Entry / WinMain / init order          | (tbd)            | —   | ⬜ |
-| 2  | Window + message loop (WndProc)       | (tbd)            | —   | ⬜ |
+| 1  | Entry / WinMain / init order          | `0x006555f0`     | `01-entry-winmain.md` | ✅ |
+| 2  | Window + message loop (WndProc)       | `0x006541e0` WndProc; `0x00421e60(0x3c)` timer | `01-entry-winmain.md` (partial) | 🟨 |
 | 3  | DirectDraw render backend             | DDRAW imports    | —   | ⬜ |
 | 4  | DirectInput (keyboard/mouse)          | DINPUT imports   | —   | ⬜ |
 | 5  | File / GRF virtual filesystem         | (tbd)            | —   | ⬜ |
@@ -58,3 +58,13 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   `.py` scripts need PyGhidra + system Python (absent). Switched to Java GhidraScript
   `DumpDecomp.java` (no Python). Import settled: PE / `x86:LE:32:default:windows`.
   Awaiting `uaRO_decomp.c` from full-program decompile. Log scaffold created.
+- **2026-08-09** — Received `uaRO_decomp.c` (14.9 MB, 548,684 lines, **11,379 functions**),
+  stored at `winEXE/decomp/` (git-ignored). ~7,444 auto-named `FUN_`, rest are import/CRT
+  thunks; navigation is by API calls + string xrefs (no RTTI class names recovered).
+  **Subsystem 1 DONE** → `01-entry-winmain.md`: entry→WinMain(`0x006555f0`), cmdline/mode
+  parse (g_mode `DAT_0074b560`), anti-tamper self-relaunch (`0x0067407e`), single-instance
+  mutex + "Surface" checksum trip-wire, timer-res raise, COM, OS gate, resNameTable load,
+  window create (`0x00654b60`, WndProc `0x006541e0`), audio (`0x004214f0`), D3D/GRF init
+  (`0x00403f30`), subsystem-init batch, intro Bink (`0x0050b740`/`0x0050b390`), login.rsw
+  load (`0x004f6ae0`), shutdown drain. OPEN: exact per-frame loop mechanism → Subsystem 2.
+  NEXT: Subsystem 2 — full WndProc switch + frame-loop/timer model.

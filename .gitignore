@@ -35,3 +35,6 @@ packaging/flatpak/content/
 content/*
 !content/README.md
 !content/.gitkeep
+
+# Ghidra full decompile (large, local-only)
+winEXE/decomp/

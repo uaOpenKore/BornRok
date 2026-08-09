@@ -92,6 +92,61 @@ using the decoded weapon-type→hit-wav table
   weapon/headgear/status-icon lua tables, `.str` inventory (2308), effecttool (226).
 - These are the exact inputs each gap task consumes.
 
+## Beyond the client code — other requirements for full skill/fx porting
+
+These are **not** C++ gaps but are required for skills to actually appear correctly.
+
+### A. Content / assets — **present, with a webp caveat**
+- In `texture_x4.zip`: **2308 `.str`**, **~21 382 `.webp`** effect textures (incl. all
+  classic coded-fx: `cross_old/asura1/ring_white/cloud11/alpha_center/explosive_1_128/
+  star02/magic_target/endure/guardK`…), **88 `.ezv`**. Effect sounds: **759** in `wav.zip`.
+  So the assets exist — nothing to re-pack.
+- **Caveat 1 — bmp/tga → webp resolution:** the coded-fx code references `*.bmp/*.tga`;
+  content ships them as `*.webp`. The client's texture loader must resolve the extension
+  (it largely does — `readPreferPng`/`decodeImage`). Any coded effect still referencing a
+  raw `.bmp` via a Bmp-only path needs the webp-preferring loader (memory
+  `format-override-must-gate-on-decode`).
+- **Caveat 2 — webp alpha:** several HD webp re-exports are flattened (no alpha / baked
+  black or colour bg) → square artefacts (memory `combat-visuals-and-webp-gotchas`,
+  `onTop-sprite-no-writez-particle-bleed`). **Content QA**: verify effect webp keep alpha,
+  or the client bg-keys them (`keyBlackBackground`/`applyCornerKey`).
+- Confirm `downloads.list` mounts `texture_x4.zip` + `wav.zip`.
+
+### B. Server-side parity — **critical, outside the client**
+Skills only animate if the **server sends the trigger packets** with the right ids:
+- `0x1DE`/`0x11A` (damage/no-damage skill), `0x115` (ground), `0x11F`/`0x120` (skill unit
+  enter/leave), `0x13E` (cast ack + castTime), `0x1F3`/`0x19B` (effect), `0x196`/`0x983`
+  (status), `0x1D3` (sound). Verify the uAthena map-server emits these for the target
+  packetver (memory `openkore-uok210-protocol-reference`).
+- **Skill-id parity:** the client tables key on numeric skillId; server must use matching
+  ids. Non-standard/renamed ids exist (memory `skill-inf-and-nonstd-ids`, e.g. Asura 271) →
+  validate a skillId map server↔client.
+- **Skill-unit → skillId** map (for P2 ground units): confirm the UNT ids the server sends.
+
+### C. Cast/skill animation motions (sprite side)
+`beginMotionType` (ACTOR_STATE ST_*) must map to a real **ACT action index** on each job
+sprite. Verify every job sprite has the cast/skill motions the skills request (else the
+caster just stands). Reference: `data/lua-tables/actorstate-map.tsv`.
+
+### D. Codegen / single source of truth
+The effect wiring is hand-maintained C++ switches. To keep them in sync (and to add the
+data-driven P1 path), generate `skillFxDef`/`effectFxStr`/`skillSfx`/`SkillCastDelay` from
+the committed TSVs (`data/*.tsv`) at build time rather than editing by hand.
+
+### E. QA harness
+A way to trigger + visually verify **every** skill: the existing `--view2d` effect inspector
++ `logSkillCastFx()` gap logger; add a per-skill cast test (server `@useskill`) and a visual
+checklist keyed to `16-skill-master-table.md`. This is how 1:1 parity is validated.
+
+### F. Blend / render parity
+`.str` uses **21** src/dst combos (up to `5/9`); effecttool emitters use up to **`11`
+(SRCALPHASAT)** and `10/x`. Confirm `StrEffect.cpp`'s D3DBLEND table covers `11` and every
+dst factor used, else some effects blend wrong.
+
+### G. Positional audio
+Effect/cast sounds should play **3D** (distance/pan) like the exe (`FUN_004396b0`). Verify
+the SDL3 audio backend does positional SFX; cp949 wav paths resolve via the `Cp949` table.
+
 ## Recommended order
 P1 (data-driven binding) → P2 (ground units) → P4 (status auras) → P3 (cast bar + circle)
 → P5 (durations) → P6 (coded coverage) → P7/P8 (polish). P1 is the force-multiplier: it turns

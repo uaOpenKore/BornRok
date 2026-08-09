@@ -8765,44 +8765,6 @@ void GameScene::loadMinimap(Application& app) {
         }
 }
 
-// A skill cast progress bar floating over each casting unit, driven by castBars_ (0x13e ZC_USESKILL_ACK
-// carries the cast time; we store {start,end,skillId}). Drawn in the HUD 2D pass (shares the active
-// SpriteBatch, world position projected via lastVp_ like pickActor). One-liner blue bar; disappears when
-// the cast completes or is cancelled (castBars_ is erased on 0x1b9 / completion). (P3, 2026-08-09.)
-void GameScene::drawCastBars(Application& app) {
-    if (castBars_.empty() || !haveLastVp_ || lastViewW_ <= 0 || lastViewH_ <= 0) return;
-    SpriteBatch& sb = app.sprites();
-    const u32 selfGid = app.session().accountId;
-    auto project = [&](const Vec3& w, float& sx, float& sy) -> bool {
-        const Vec4 c = lastVp_ * Vec4{w.x, w.y, w.z, 1.0f};
-        if (c.w <= 0.0f) return false;  // behind the camera
-        sx = (c.x / c.w * 0.5f + 0.5f) * static_cast<float>(lastViewW_);
-        sy = (1.0f - (c.y / c.w * 0.5f + 0.5f)) * static_cast<float>(lastViewH_);
-        return true;
-    };
-    for (const auto& kv : castBars_) {
-        const auto& cb = kv.second;
-        const double span = cb.end - cb.start;
-        if (span <= 0.0 || time_ >= cb.end) continue;  // instant / finished -> no bar
-        Vec3 pos;  // caster world position (self from playerPos_, others from their actor)
-        if (kv.first == selfGid) {
-            pos = playerPos_;
-        } else {
-            const auto it = actors_.find(kv.first);
-            if (it == actors_.end() || it->second.dyingUntil > 0) continue;
-            pos = it->second.pos;
-        }
-        float sx, sy;
-        if (!project(pos + camUp_ * 3.4f, sx, sy)) continue;  // ~one model-height above the head
-        const float frac = std::clamp(static_cast<float>((time_ - cb.start) / span), 0.0f, 1.0f);
-        constexpr float kW = 42.0f, kH = 5.0f;
-        const float x = sx - kW * 0.5f, y = sy;
-        sb.draw(x - 1.0f, y - 1.0f, kW + 2.0f, kH + 2.0f, ui::rgba(0, 0, 0, 175));  // backing/border
-        sb.draw(x, y, kW, kH, ui::rgba(30, 30, 38, 220));                           // empty groove
-        sb.draw(x, y, kW * frac, kH, ui::rgba(90, 170, 255, 235));                  // fill (blue cast)
-    }
-}
-
 void GameScene::drawMinimap(Application& app) {
     mmDrawn_ = false;  // until proven drawn this frame; gates the click-to-walk handled in update()
     loadMinimap(app);  // lazy: decode on first draw for this map
@@ -13600,7 +13562,6 @@ void GameScene::render(Application& app) {
     // Minimap (top-right) + BasicInfo panel (top-left). The dev HUD (map name + position +
     // status) flows just below the panel so the two never overlap; the panel height depends
     // on its Alt+V state (collapsed 22 / short 40 / full 150).
-    drawCastBars(app);  // skill cast progress bars over casters (drawn first so HUD windows sit on top)
     drawMinimap(app);
     drawBasicInfo(app);
     drawGamepadModeStrip(app);  // bottom-screen active-modes line (#102/#115)

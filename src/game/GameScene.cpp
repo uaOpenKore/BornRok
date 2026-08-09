@@ -4576,7 +4576,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 91 &&  // Heaven's Drive: dedicated 5x5 stone-spike grid branch below
                                  sd.skillId != 84 && sd.skillId != 86 &&  // Jupitel Thunder / Water Ball: dedicated caster->target bolt branches below
                                  sd.skillId != 90 && sd.skillId != 81 &&  // Earth Spike / Sight Rasher: dedicated doc16 branches below
-                                 sd.skillId != 212 && sd.skillId != 219 &&  // Back Stab / Intimidate: dedicated doc16 branches below
+                                 sd.skillId != 212 && sd.skillId != 219 && sd.skillId != 120 &&  // Back Stab / Intimidate / Flasher: dedicated doc16 branches below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4986,9 +4986,10 @@ void GameScene::pumpStream(Application& app) {
                             }
                         }
                     }
-                    // Back Stab (212, RG_BACKSTAP): doc16 -> a white flash burst on the target
-                    // (thunder_center.bmp), sound @ f20. Coded as a bright white radial flash at the target.
-                    if (!romFx && haveDst && sd.skillId == 212 &&
+                    // Back Stab (212, RG_BACKSTAP) / Flasher trap (120, HT_FLASHER): doc16 -> a white flash
+                    // burst on the target (thunder_center.bmp) + spark streaks, sound @ f20. Coded as a
+                    // bright white radial flash at the target.
+                    if (!romFx && haveDst && (sd.skillId == 212 || sd.skillId == 120) &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
@@ -5225,6 +5226,7 @@ void GameScene::pumpStream(Application& app) {
                             case 113: case 486: case 138: case 378:  // self-buff cast auras (Overthrust/Max/Enchant Poison/EDP), doc16
                             case 53:  // TF_DETOXIFY: green cure motes on the target (doc16)
                             case 26: case 50:  // Teleport blue flash / Steal gold sparkles at the caster (doc16)
+                            case 135: case 130:  // Cloaking white fade / Detecting ground ripple (doc16)
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
                                     if (sn.skillId == 28) {  // AL_HEAL: rune circle under the CASTER (S.: "круг
@@ -8305,7 +8307,7 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
                skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
                skillId == 378 || skillId == 34 || skillId == 53 || skillId == 26 ||
-               skillId == 50) {
+               skillId == 50 || skillId == 135 || skillId == 130) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.
         float r = 1.0f, g = 1.0f, b = 1.0f;  // Assumptio (361) / HolyLight (156): white
@@ -8321,6 +8323,8 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         else if (skillId == 53) { r = 0.4f; g = 1.0f; b = 0.45f; }     // Detoxify: green cure motes (doc16)
         else if (skillId == 26) { r = 0.45f; g = 0.7f; b = 1.0f; }     // Teleport: blue flash ring (doc16)
         else if (skillId == 50) { r = 1.0f; g = 0.85f; b = 0.35f; }    // Steal: gold sparkle motes (doc16)
+        else if (skillId == 135){ r = 1.0f; g = 1.0f; b = 1.0f; }      // Cloaking: white fade ring (doc16)
+        else if (skillId == 130){ r = 0.7f; g = 0.9f; b = 1.0f; }      // Detecting: pale ground ripple (doc16)
         dustRing(r, g, b, sz);
     }
 }

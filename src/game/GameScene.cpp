@@ -4573,6 +4573,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 19 && sd.skillId != 14 &&  // Fire/Cold Bolt: dedicated falling-bolt branch below (must NOT draw the element kanji square NOR steal the fx debounce -- that collision ate the bolt sprite AND its damage numbers)
                                  sd.skillId != 20 &&  // Lightning Bolt: dedicated vertical thunder-strike branch below (doc16: planar bolt -> target, not a green wind puff)
                                  sd.skillId != 11 && sd.skillId != 13 && sd.skillId != 15 &&  // Napalm/Soul Strike/Frost Diver: dedicated doc16 branches below
+                                 sd.skillId != 91 &&  // Heaven's Drive: dedicated 5x5 stone-spike grid branch below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4831,6 +4832,31 @@ void GameScene::pumpStream(Application& app) {
                             p.r = 0.62f; p.g = 0.86f; p.b = 1.0f; p.a = 0.92f; p.da = -1.6f;  // ice-blue
                             p.size = 0.16f; p.growth = -0.05f; p.life = 0.55f; p.fxTex = glow;
                             skillParticles_.emit(p);
+                        }
+                    }
+                    // Heaven's Drive (91, WZ_HEAVENDRIVE): doc16 -> a 5x5 grid of stone spikes erupting
+                    // from the ground over the AoE (stone.bmp x25, shake). Coded as 25 brown earth spikes
+                    // shooting up from each cell around the target, slightly staggered. Earth element.
+                    if (!romFx && haveDst && sd.skillId == 91 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        constexpr float kCell = 0.87f;  // ~1 GAT cell in world units
+                        for (int gz = -2; gz <= 2; ++gz) {
+                            for (int gx = -2; gx <= 2; ++gx) {
+                                const int idx = (gz + 2) * 5 + (gx + 2);
+                                const Vec3 cell{dstPos.x + gx * kCell, dstPos.y + 0.05f, dstPos.z + gz * kCell};
+                                for (int k = 0; k < 3; ++k) {  // a few motes per spike = a little column
+                                    skillParticles_.setEmitter(cell);
+                                    Particle p;
+                                    p.vel = Vec3{0.0f, 2.4f + hh(idx * 4 + k) * 0.8f, 0.0f};  // shoot up
+                                    p.accel = Vec3{0.0f, -4.5f, 0.0f};                          // fall back
+                                    p.r = 0.62f; p.g = 0.46f; p.b = 0.28f; p.a = 0.9f; p.da = -1.8f;  // brown stone
+                                    p.size = 0.11f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                    skillParticles_.emit(p);
+                                }
+                            }
                         }
                     }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --

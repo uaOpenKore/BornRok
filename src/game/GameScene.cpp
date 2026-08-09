@@ -2591,6 +2591,21 @@ void GameScene::playSkillCastSfx(Application& app, u16 skillId, const Vec3& at) 
     playWorldSfx(app, std::string(w) + ".wav", at);
 }
 
+// Record the overhead skill-name "shout" (S.: "когда чар кастит скилл, над головой выкрик названия на
+// 1,5 секунды"). Keyed by caster gid, so a fresh cast refreshes it. skillConstList() (server skill_db,
+// id->display name) is our numeric-id name source; an unknown id (no name) shows nothing.
+void GameScene::noteSkillShout(u32 gid, u16 skillId) {
+    if (gid == 0 || skillId == 0) return;
+    static const std::unordered_map<u16, std::string> kNames = [] {
+        std::unordered_map<u16, std::string> m;
+        for (const auto& kv : skillConstList()) m.emplace(kv.first, kv.second);
+        return m;
+    }();
+    const auto it = kNames.find(skillId);
+    if (it == kNames.end() || it->second.empty()) return;
+    skillShouts_[gid] = {it->second, time_ + 1.5};  // 1.5s over the caster's head
+}
+
 void GameScene::playWorldSfx(Application& app, const std::string& name, const Vec3& at, float gain) {
     constexpr float kAudioRange = 24.0f * 5.0f;  // cells -> world units (1 cell ~= 5 world units)
     const float dx = at.x - playerPos_.x, dz = at.z - playerPos_.z;
@@ -4583,6 +4598,7 @@ void GameScene::pumpStream(Application& app) {
                     }
                     logSkillCastFx(sd.skillId, romFx, "0x1de");  // #144 report wiring gaps to testers
                     if (haveDst) playSkillCastSfx(app, sd.skillId, dstPos);  // #144 native cast sound
+                    if (!castBars_.count(sd.src)) noteSkillShout(sd.src, sd.skillId);  // instant-skill yell (cast skills yell at 0x13e)
                     // AL_HOLYLIGHT (156): white flower on the CASTER + a separate white glow on the
                     // GROUND at the target (S.: "белый цветок на чаре, а на цели отдельная текстурка на
                     // земле"). Attack skill -> arrives on 0x1de; debounce per cast.
@@ -4840,6 +4856,7 @@ void GameScene::pumpStream(Application& app) {
                         }
                         logSkillCastFx(sn.skillId, rom, "0x11a");  // #144 report wiring gaps
                         playSkillCastSfx(app, sn.skillId, tp);  // #144 native cast sound
+                        if (!castBars_.count(sn.src)) noteSkillShout(sn.src, sn.skillId);  // instant-skill yell
                         // #146 coded/procedural priest auras (exe: default handler, no .str) — reproduced
                         // on the particle engine, debounced per cast. Ruwach detect sparkles / Heal rising
                         // green ring, both at the target (self or ally). Tune vs S.'s kRO reference.
@@ -4998,6 +5015,7 @@ void GameScene::pumpStream(Application& app) {
                     }
                     logSkillCastFx(gs.skillId, rom, "groundskill");  // #144 report wiring gaps
                     playSkillCastSfx(app, gs.skillId, cell);  // #144 native cast sound
+                    if (!castBars_.count(gs.src)) noteSkillShout(gs.src, gs.skillId);  // instant ground-skill yell
                 }
                 break;
             }
@@ -5310,6 +5328,7 @@ void GameScene::pumpStream(Application& app) {
                 if (net::decodeSkillCasting(rx.data(), rx.size(), src, sid, ms, &castDst) != 0 && src != 0 &&
                     ms > 0) {
                     castBars_[src] = {time_, time_ + static_cast<double>(ms) / 1000.0, sid};
+                    noteSkillShout(src, sid);  // overhead skill-name yell at cast start (S.)
                     // S.: "на всех кастах кастующий должен останавливаться" -> the caster stands still while
                     // casting. Stop its glide the moment the cast begins (self: also drop the walk target /
                     // prediction so we don't re-request; others: freeze their mover).
@@ -7042,6 +7061,7 @@ void GameScene::changeMap(Application& app, const net::MapChange& mc) {
     vendingNames_.clear();
     chatRooms_.clear();
     castBars_.clear();     // drop any in-progress cast bars across the warp
+    skillShouts_.clear();  // and any overhead skill-name yells
     castFxFired_.clear();  // and the cast-begin coded-fx guard entries
     unitStatus_.clear();   // ally buff auras don't survive a map change (units all despawn)
     mapPvpType_ = 0;       // reset pvp/gvg state; the new map re-sends 0x199 if it's a pvp/gvg map (S.)
@@ -13343,6 +13363,27 @@ void GameScene::render(Application& app) {
             sb.draw(cbx - 1.0f, cby - 1.0f, cbw + 2.0f, cbh + 2.0f, ui::rgba(0, 0, 0, 200));
             sb.draw(cbx, cby, cbw, cbh, ui::rgba(40, 40, 52, 220));
             sb.draw(cbx, cby, cbw * std::clamp(frac, 0.0f, 1.0f), cbh, ui::rgba(255, 205, 80, 255));
+        }
+        ++it;
+    }
+
+    // Overhead skill-name "shout" over each caster for 1.5s (S.: "когда чар кастит скилл, над головой
+    // выкрик названия скилла"). Centred white text with a black outline, above the head.
+    for (auto it = skillShouts_.begin(); it != skillShouts_.end();) {
+        if (time_ >= it->second.until) { it = skillShouts_.erase(it); continue; }  // yell expired
+        float ssx = 0.0f, ssy = 0.0f;
+        const bool have = (it->first == app.session().accountId) ? selfScreenPos(ssx, ssy)
+                                                                 : actorScreenPos(it->first, ssx, ssy);
+        if (have) {
+            const std::string& nm = it->second.name;
+            const float ysc = 1.0f;
+            const float tw = font.width(nm, ysc);
+            const float tx = ssx - tw * 0.5f, ty = ssy - 32.0f;  // above the head
+            const u32 black = ui::rgba(0, 0, 0, 255), white = ui::rgba(255, 255, 255, 255);
+            for (int dx = -1; dx <= 1; ++dx)
+                for (int dy = -1; dy <= 1; ++dy)
+                    if (dx || dy) font.draw(sb, tx + dx, ty + dy, ysc, black, nm);
+            font.draw(sb, tx, ty, ysc, white, nm);
         }
         ++it;
     }

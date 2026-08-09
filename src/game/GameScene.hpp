@@ -379,6 +379,10 @@ private:
     // Active skill casts (ZC_USESKILL_ACK 0x13e): a progress bar under the caster until end/cancel.
     struct CastBar { double start = 0.0, end = 0.0; u16 skillId = 0; };
     std::unordered_map<u32, CastBar> castBars_;        // gid -> in-progress cast
+    // Overhead skill-name "shout" (S.: при касте над головой имя скилла на 1.5с) -> gid -> {name, until}.
+    struct SkillShout { std::string name; double until = 0.0; };
+    std::unordered_map<u32, SkillShout> skillShouts_;
+    void noteSkillShout(u32 gid, u16 skillId);         // record a 1.5s overhead skill-name yell for a caster
     u32 hoveredGid_ = 0;
     u32 plateGid_ = 0;   // name-plate target: hover OR the magnet-snapped mob                                // unit under the cursor this frame
     net::Connection conn_;

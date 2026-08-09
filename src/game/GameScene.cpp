@@ -4575,6 +4575,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 11 && sd.skillId != 13 && sd.skillId != 15 &&  // Napalm/Soul Strike/Frost Diver: dedicated doc16 branches below
                                  sd.skillId != 91 &&  // Heaven's Drive: dedicated 5x5 stone-spike grid branch below
                                  sd.skillId != 84 && sd.skillId != 86 &&  // Jupitel Thunder / Water Ball: dedicated caster->target bolt branches below
+                                 sd.skillId != 90 && sd.skillId != 81 &&  // Earth Spike / Sight Rasher: dedicated doc16 branches below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4925,6 +4926,63 @@ void GameScene::pumpStream(Application& app) {
                             p.r = 0.45f; p.g = 0.7f; p.b = 1.0f; p.a = 0.85f; p.da = -1.7f;
                             p.size = 0.09f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
                             skillParticles_.emit(p);
+                        }
+                    }
+                    // Earth Spike (90, WZ_EARTHSPIKE): doc16/FUN_005cf9f0 -> 1 central + 10 radial stone
+                    // spikes erupting at the target (stone.bmp). Coded as a centre column + 10 brown earth
+                    // spikes in a ring shooting up.
+                    if (!romFx && haveDst && sd.skillId == 90 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        auto spike = [&](const Vec3& at, float up) {
+                            for (int k = 0; k < 3; ++k) {
+                                skillParticles_.setEmitter(at);
+                                Particle p;
+                                p.vel = Vec3{0.0f, up + hh(k) * 0.6f, 0.0f};
+                                p.accel = Vec3{0.0f, -4.5f, 0.0f};
+                                p.r = 0.62f; p.g = 0.46f; p.b = 0.28f; p.a = 0.9f; p.da = -1.9f;  // brown stone
+                                p.size = 0.12f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        };
+                        spike(Vec3{dstPos.x, dstPos.y + 0.05f, dstPos.z}, 3.0f);  // taller centre spike
+                        for (int i = 0; i < 10; ++i) {
+                            const float a = static_cast<float>(i) / 10 * 6.2831853f;
+                            const float r = 0.7f;
+                            spike(Vec3{dstPos.x + std::cos(a) * r, dstPos.y + 0.05f, dstPos.z + std::sin(a) * r}, 2.2f);
+                        }
+                    }
+                    // Sight Rasher (81, WZ_SIGHTRASHER): doc16/FUN_005ce790 -> 16 radial shards fired
+                    // outward from the CASTER + a ground ring (ring_yellow). Coded as 16 bright shards
+                    // shooting out from the caster along the ground + a flat yellow ring.
+                    if (!romFx && sd.skillId == 81 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            const Vec3 c{cp.x, cp.y + 0.3f, cp.z};
+                            for (int i = 0; i < 16; ++i) {  // radial shards
+                                const float a = static_cast<float>(i) / 16 * 6.2831853f;
+                                skillParticles_.setEmitter(c);
+                                Particle p;
+                                p.vel = Vec3{std::cos(a) * 2.4f, 0.4f, std::sin(a) * 2.4f};
+                                p.r = 1.0f; p.g = 0.95f; p.b = 0.55f; p.a = 0.9f; p.da = -1.8f;  // pale yellow
+                                p.size = 0.1f; p.growth = -0.01f; p.life = 0.5f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                            for (int i = 0; i < 20; ++i) {  // flat ground ring
+                                const float a = static_cast<float>(i) / 20 * 6.2831853f;
+                                skillParticles_.setEmitter(Vec3{cp.x, cp.y + 0.06f, cp.z});
+                                Particle p;
+                                p.vel = Vec3{std::cos(a) * 2.0f, 0.05f, std::sin(a) * 2.0f};
+                                p.r = 1.0f; p.g = 0.9f; p.b = 0.5f; p.a = 0.7f; p.da = -1.5f;
+                                p.size = 0.09f; p.growth = -0.01f; p.life = 0.55f; p.fxTex = glow;
+                                p.groundFlat = true;
+                                skillParticles_.emit(p);
+                            }
                         }
                     }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --

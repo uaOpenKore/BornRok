@@ -30,6 +30,8 @@ All extracted tables (TSV): [`data/lua-tables/`](data/lua-tables/).
 | `shadowtable` → **ShadowFactorTable** | job/class → shadow scale | 1236 | `shadowtable.ShadowFactorTable.tsv` |
 | `efstids` → **EFST_IDs** | status name → EFST id (823) | 823 | `efstids.EFST_IDs.tsv` |
 | `stateiconinfo` → **StateIconList** | EFST → status-icon `{descript, colours, haveTimeLimit,…}` | 416 | `stateiconinfo.StateIconList.tsv` |
+| `spreditinfo` → **BigLayerDir/SmallLayerDir (_M/_F)** | job → per-direction sprite draw-layer order (headgear/robe layering) | 53 | `*layerdir_*.tsv` |
+| `skillinfolist` → **SKILL_INFO_LIST** | skill → name/MaxLv/range/SP·AP per lvl/tree prereqs | 1554 | `skillinfolist.SKILL_INFO_LIST.tsv` |
 | `petinfo` → **PetNameTable / PetEggItemID_PetJobID / PetFoodTable / PetIllustNameTable / PetAcc*** | pet id → name / egg-item / food-item / illust / accessory | ~126 each | `petinfo.*.tsv` |
 
 ### Ready-made joins

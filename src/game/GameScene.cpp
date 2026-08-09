@@ -651,6 +651,18 @@ const char* skillSfx(u16 id) {
         case 219: return "effect/rog_intimidate";        // RG_INTIMIDATE
         case 473: return "effect/swordman_provoke";      // SM_SELFPROVOKE
         case 486: return "effect/black_overthrust";      // WS_OVERTHRUSTMAX
+        // 1st-class gaps whose cast wav is verified present in wav/effect/ (content repack 2026-07),
+        // matched 1:1 to the aegis skill — the elemental-bolt "arrow" sounds are deliberately NOT
+        // mapped here (their name is ambiguous re: bolt vs archer arrow, would be a guess).
+        case 5:   return "effect/ef_bash";               // SM_BASH
+        case 10:  return "effect/ef_sight";              // MG_SIGHT
+        case 29:  return "effect/ef_incagility";         // AL_INCAGI (Increase AGI)
+        case 32:  return "effect/ef_signum";             // AL_CRUCIS (Signum Crucis)
+        case 50:  return "effect/ef_steal";              // TF_STEAL
+        case 52:  return "effect/thief_invenom";         // TF_POISON (Envenom)
+        case 53:  return "effect/ef_detoxication";       // TF_DETOXIFY
+        case 73:  return "effect/priest_kyrie_eleison_a";// PR_KYRIE
+        case 108: return "effect/black_weapon_repair";   // BS_REPAIRWEAPON
         default: return nullptr;
     }
 }

@@ -5167,6 +5167,40 @@ void GameScene::pumpStream(Application& app) {
                         logSkillCastFx(sn.skillId, rom, "0x11a");  // #144 report wiring gaps
                         playSkillCastSfx(app, sn.skillId, tp);  // #144 native cast sound
                         if (!castBars_.count(sn.src)) noteSkillShout(sn.src, sn.skillId);  // instant-skill yell
+                        // Potion Pitcher (231, AM_POTIONPITCHER): doc16 -> a thrown bottle flies from the
+                        // caster to the ally then a heal splash (0x12a). Coded as a parabolic arc of green
+                        // potion motes caster->target + a green splash burst on the target.
+                        if (sn.skillId == 231 && haveT &&
+                            (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                            lastFxSkill_ = 231; lastBurstAt_ = time_;
+                            auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            Vec3 cp;
+                            if (posOf(sn.src, cp)) {  // parabolic bottle arc caster -> ally
+                                const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
+                                const Vec3 b{tp.x, tp.y + 0.5f, tp.z};
+                                const int steps = 16;
+                                for (int i = 0; i < steps; ++i) {
+                                    const float t = static_cast<float>(i) / (steps - 1);
+                                    const float arc = 4.0f * t * (1.0f - t);  // parabola peak at mid-flight
+                                    skillParticles_.setEmitter(Vec3{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t + arc * 1.3f, a.z + (b.z - a.z) * t});
+                                    Particle p;
+                                    p.r = 0.4f; p.g = 0.9f; p.b = 0.5f; p.a = 0.9f; p.da = -2.2f;  // green potion
+                                    p.size = 0.1f; p.growth = -0.01f; p.life = 0.4f; p.fxTex = glow;
+                                    skillParticles_.emit(p);
+                                }
+                            }
+                            for (int i = 0; i < 14; ++i) {  // green heal splash on the ally
+                                const float a = static_cast<float>(i) / 14 * 6.2831853f;
+                                skillParticles_.setEmitter(Vec3{tp.x, tp.y + 0.3f, tp.z});
+                                Particle p;
+                                p.vel = Vec3{std::cos(a) * (0.8f + hh(i) * 0.6f), 0.9f + hh(i + 20) * 0.5f, std::sin(a) * (0.8f + hh(i) * 0.6f)};
+                                p.accel = Vec3{0.0f, -1.6f, 0.0f};
+                                p.r = 0.45f; p.g = 1.0f; p.b = 0.5f; p.a = 0.9f; p.da = -1.7f;
+                                p.size = 0.09f; p.growth = -0.01f; p.life = 0.5f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        }
                         // #146 coded/procedural priest auras (exe: default handler, no .str) — reproduced
                         // on the particle engine, debounced per cast. Ruwach detect sparkles / Heal rising
                         // green ring, both at the target (self or ally). Tune vs S.'s kRO reference.

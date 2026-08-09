@@ -5185,6 +5185,7 @@ void GameScene::pumpStream(Application& app) {
                             case 28: case 29: case 30: case 31: case 73: case 74: case 142: case 361: case 362:
                             case 383:  // SN_WINDWALK: yellow cast flower (guarded vs the 0x13e begin emit)
                             case 249: case 356: case 390:  // #147 block/guard visual (Auto Guard/Parry/Reject Sword)
+                            case 113: case 486: case 138: case 378:  // self-buff cast auras (Overthrust/Max/Enchant Poison/EDP), doc16
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
                                     if (sn.skillId == 28) {  // AL_HEAL: rune circle under the CASTER (S.: "круг
@@ -8263,7 +8264,8 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         p.size = 0.9f; p.growth = 0.35f; p.life = 0.85f;
         skillParticles_.emit(p);
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
-               skillId == 383) {
+               skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
+               skillId == 378) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.
         float r = 1.0f, g = 1.0f, b = 1.0f;  // Assumptio (361) / HolyLight (156): white
@@ -8272,6 +8274,9 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         else if (skillId == 74) { r = 0.4f;  g = 0.6f;  b = 1.0f;  sz = 1.0f / 3.0f; }  // Magnificat: blue, ×⅓ (S.)
         else if (skillId == 156){ sz = 1.0f / 3.0f; }                 // Holy Light: particles 3x smaller (S.)
         else if (skillId == 383){ r = 1.0f; g = 0.85f; b = 0.2f; }    // Wind Walk: yellow cast flower (S.)
+        else if (skillId == 113 || skillId == 486){ r = 1.0f; g = 0.3f; b = 0.2f; }  // Overthrust / Max: red power aura (doc16)
+        else if (skillId == 138){ r = 0.4f; g = 1.0f; b = 0.35f; }    // Enchant Poison: green venom aura (doc16)
+        else if (skillId == 378){ r = 0.6f; g = 0.9f; b = 0.3f; }     // EDP: toxic yellow-green aura (doc16)
         dustRing(r, g, b, sz);
     }
 }

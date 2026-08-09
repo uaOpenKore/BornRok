@@ -137,6 +137,7 @@ private:
     const ui::UiImage* skillIcon(Application& app, const std::string& name);  // skill icon, cached
     const ui::UiImage* statusIcon(Application& app, u16 si);  // status-effect .tga icon, cached (or null)
     void drawStatusIcons(Application& app);  // active-status icon row under the minimap
+    void drawCastBars(Application& app);     // world-anchored skill cast progress bar over each caster (P3)
     void requestGuildEmblem(Application& app, u32 guildId, u32 version);  // fetch a guild emblem once
     void setGuildEmblem(const net::GuildEmblem& e);  // decode + cache a received emblem bitmap
     void loadMinimap(Application& app);  // decode the current map's minimap bitmap (once per map)

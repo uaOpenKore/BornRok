@@ -4576,6 +4576,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 91 &&  // Heaven's Drive: dedicated 5x5 stone-spike grid branch below
                                  sd.skillId != 84 && sd.skillId != 86 &&  // Jupitel Thunder / Water Ball: dedicated caster->target bolt branches below
                                  sd.skillId != 90 && sd.skillId != 81 &&  // Earth Spike / Sight Rasher: dedicated doc16 branches below
+                                 sd.skillId != 212 && sd.skillId != 219 &&  // Back Stab / Intimidate: dedicated doc16 branches below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4981,6 +4982,50 @@ void GameScene::pumpStream(Application& app) {
                                 p.r = 1.0f; p.g = 0.9f; p.b = 0.5f; p.a = 0.7f; p.da = -1.5f;
                                 p.size = 0.09f; p.growth = -0.01f; p.life = 0.55f; p.fxTex = glow;
                                 p.groundFlat = true;
+                                skillParticles_.emit(p);
+                            }
+                        }
+                    }
+                    // Back Stab (212, RG_BACKSTAP): doc16 -> a white flash burst on the target
+                    // (thunder_center.bmp), sound @ f20. Coded as a bright white radial flash at the target.
+                    if (!romFx && haveDst && sd.skillId == 212 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 t{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        skillParticles_.setEmitter(t);  // central flash
+                        Particle f;
+                        f.r = 1.0f; f.g = 1.0f; f.b = 1.0f; f.a = 0.95f; f.da = -3.6f;
+                        f.size = 0.5f; f.growth = 1.4f; f.life = 0.28f; f.fxTex = glow;
+                        skillParticles_.emit(f);
+                        for (int i = 0; i < 14; ++i) {  // white spark burst
+                            const float a = static_cast<float>(i) / 14 * 6.2831853f;
+                            const float r = 1.2f + hh(i) * 0.9f;
+                            skillParticles_.setEmitter(t);
+                            Particle p;
+                            p.vel = Vec3{std::cos(a) * r, 0.4f + hh(i + 20) * 0.6f, std::sin(a) * r};
+                            p.r = 1.0f; p.g = 1.0f; p.b = 0.95f; p.a = 0.9f; p.da = -2.6f;
+                            p.size = 0.08f; p.growth = -0.01f; p.life = 0.35f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                    }
+                    // Intimidate (219, RG_INTIMIDATE): doc16 -> 20 white streaks fanning out along the
+                    // ground from the CASTER's feet (white01.bmp). Coded as 20 flat white ground streaks.
+                    if (!romFx && sd.skillId == 219 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            for (int i = 0; i < 20; ++i) {
+                                const float a = static_cast<float>(i) / 20 * 6.2831853f;
+                                skillParticles_.setEmitter(Vec3{cp.x, cp.y + 0.06f, cp.z});
+                                Particle p;
+                                p.vel = Vec3{std::cos(a) * 2.6f, 0.05f, std::sin(a) * 2.6f};  // shoot out along the ground
+                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.85f; p.da = -1.9f;
+                                p.size = 0.1f; p.growth = 0.04f; p.life = 0.45f; p.fxTex = glow;
+                                p.groundFlat = true; p.stretch = 2.5f;  // elongated streaks
                                 skillParticles_.emit(p);
                             }
                         }

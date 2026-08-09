@@ -4721,6 +4721,21 @@ void GameScene::pumpStream(Application& app) {
                             d.kind = DmgKind::Number;
                             dmgTexts_.push_back(d);
                         }
+                        if (sd.skillId == 14) {  // Cold Bolt: a flat blue impact ring where the ice shards
+                            // land (doc16: icearrow shards + ring_blue hit-ring). Ground-flat expanding ring.
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            constexpr int kR = 18;
+                            for (int i = 0; i < kR; ++i) {
+                                const float a = static_cast<float>(i) / kR * 6.2831853f;
+                                skillParticles_.setEmitter(Vec3{dstPos.x, dstPos.y + 0.06f, dstPos.z});
+                                Particle p;
+                                p.vel = Vec3{std::cos(a) * 1.4f, 0.05f, std::sin(a) * 1.4f};  // expand on the ground
+                                p.r = 0.5f; p.g = 0.8f; p.b = 1.0f; p.a = 0.8f; p.da = -1.6f;  // ice blue
+                                p.size = 0.09f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                p.groundFlat = true;
+                                skillParticles_.emit(p);
+                            }
+                        }
                     }
                     // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,
                     // not a falling ball or the generic wind puff. doc16/FUN_005d0f50 draws a planar

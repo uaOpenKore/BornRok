@@ -37,5 +37,9 @@ Shared conventions used throughout (from the reversed engine):
   are data-driven, with only status-icon overlays hardcoded
 - [Statuses / generic hits / level-up / cast-circle geometry](status-generic-rings.md)
 
+**Data-driven modern skills:** [`lua-skilleffectinfolist.md`](lua-skilleffectinfolist.md) —
+the Ninja/Kagerou/Oboro/Rebellion/Eclage skills whose effects live in the GRF Lua table
+`skilleffectinfolist.lub` (decoded), not hardcoded in the exe.
+
 **Consolidated index:** [`../16-skill-master-table.md`](../16-skill-master-table.md) — one
 row per skill (effect fn + textures + sound + geometry + client & server timings).

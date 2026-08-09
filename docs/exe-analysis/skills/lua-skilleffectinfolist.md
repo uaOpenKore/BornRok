@@ -1,0 +1,37 @@
+# Data-driven skill→effect table (`skilleffectinfolist.lub`)
+
+The client's classic 1st/2nd-job skill visuals are **hardcoded in `uaRO.exe`** (see the per-class dossiers). The remaining **modern skills** (Ninja/Kagerou/Oboro/Rebellion/Eclage) are **data-driven** from `data/lua files/skilleffectinfo/skilleffectinfolist.lub` (Lua 5.0 bytecode), the table the exe loads into the per-skill effect array (`obj+0x544`). Decoded below by executing the `.lub` in a patched Lua 5.0 VM with symbolic-name proxies for `SKID`/`EFID`/`ACTOR_STATE`.
+
+Global: `SKILL_EFFECT_INFO_LIST[SKID.<skill>] = { beginEffectID/beginMotionType (cast), effectID/effectIDs+effectNum (on caster), groundEffectID+groundEffectNum (ground AoE), onTarget, targetEffectID+targetEffectNum (on target), waveFileName / targetWaveFileName (cp949) }`. EF ids shown as `NAME(number)` where the numeric id is known from `effectid.lub`. Raw data: [`data/skilleffectinfolist.tsv`](../data/skilleffectinfolist.tsv), EF map [`data/effectid-map.tsv`](../data/effectid-map.tsv).
+
+| skill (SKID) | cast (begin) | caster effect | ground effect | on-tgt | target effect | cast wav | target wav |
+|---|---|---|---|---|---|---|---|
+| ECLAGE_RECALL | EF_BEGINSPELL(12) |  |  |  |  |  |  |
+| ECL_PEONYMAMY |  |  |  | true | EF_FLOWERLEAF(699) |  |  |
+| ECL_SADAGUI |  |  |  | true | EF_WINDHIT(52) |  |  |
+| ECL_SEQUOIADUST |  |  |  | true | EF_EXIT2(314) |  |  |
+| ECL_SNOWFLIP |  |  |  | true | EF_ICECRASH(135) |  |  |
+| KG_KAGEHUMI | ST_NINJASKILL2 | EF_KG_KAGEHUMI(991) |  |  |  |  |  |
+| KG_KAGEMUSYA |  |  |  | true | EF_ENERGYCOAT(169) |  | effect\mon_금강불괴.wav |
+| KG_KYOMU |  |  |  | true | EF_KG_KYOMU(1001) |  | effect\t_에너지방출.wav |
+| KO_BAKURETSU | ST_NINJASKILL2 | EF_THROW_BAKURETSU(983) |  | true | EF_GROUND_EXPLOSION(990) | effect\닌자_던지기.wav | effect\폭염룡.wav |
+| KO_DOHU_KOUKAI | EF_BEGINSPELL(12); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_GENWAKU | EF_BEGINSPELL3(55); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_HAPPOKUNAI | ST_NINJASKILL2 | EF_THROW_HAPPOKUNAI(981), EF_ROTATE_LINE_GRAY(986) |  |  |  | effect\T_회오리차기.wav |  |
+| KO_HUUMARANKA | ST_NINJASKILL2 |  | EF_ROTATE_HUUMARANKA(984), EF_ROTATE_LINE_BLUE(1000), EF_KO_HUUMARANKA(1002) |  |  | effect\T_회오리차기.wav |  |
+| KO_HYOUHU_HUBUKI | EF_BLUECASTING(441); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_IZAYOI | ST_NINJASKILL2 | EF_KO_IZAYOI(999) |  |  |  | effect\ab_renovatio.wav |  |
+| KO_JYUMONJIKIRI | ST_ATTACK2 |  |  | true | EF_KO_JYUMONJIKIRI(996) | effect\cru_holy cross.wav |  |
+| KO_JYUSATSU | EF_BEGINSPELL2(54); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_KAHU_ENTEN | EF_BEGINSPELL3(55); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_KAIHOU |  | EF_KAIHOU(989) |  | true | EF_KAIHOU1(1008) | effect\닌자_던지기.wav |  |
+| KO_KAZEHU_SEIRAN | EF_BEGINSPELL4(56); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_KYOUGAKU | EF_BEGINSPELL7(59); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_MEIKYOUSISUI | EF_BEGINSPELL5(57); ST_NINJAREADY |  |  |  |  |  |  |
+| KO_MUCHANAGE |  | EF_THROW_MULTIPLE_COIN(982) |  | true | EF_HITLINE(330) | effect\닌자_던지기.wav |  |
+| KO_SETSUDAN | ST_NINJASKILL2 |  |  | true | EF_KO_SETSUDAN(997) |  | effect\T_전기.wav |
+| KO_ZENKAI | ST_NINJASKILL2 |  |  |  |  |  |  |
+| NJ_KUNAI |  | EF_THROWITEM8(614) |  | true |  | effect\닌자_던지기.wav |  |
+| OB_AKAITSUKI | EF_BEGINSPELL3(55); ST_NINJAREADY |  |  | true | EF_AKAITSUKI(1009) |  | effect\t_에너지방출.wav |
+| OB_OBOROGENSOU | ST_NINJAREADY |  |  | true | EF_GENSOU(1011) |  | effect\sign_up.wav |
+| OB_ZANGETSU | EF_BEGINSPELL(12); ST_NINJAREADY |  |  | true | EF_ZANGETSU(1010) |  | effect\t_따듯한마법.wav |

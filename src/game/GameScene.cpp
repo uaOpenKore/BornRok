@@ -4577,6 +4577,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 84 && sd.skillId != 86 &&  // Jupitel Thunder / Water Ball: dedicated caster->target bolt branches below
                                  sd.skillId != 90 && sd.skillId != 81 &&  // Earth Spike / Sight Rasher: dedicated doc16 branches below
                                  sd.skillId != 212 && sd.skillId != 219 && sd.skillId != 120 &&  // Back Stab / Intimidate / Flasher: dedicated doc16 branches below
+                                 sd.skillId != 467 && sd.skillId != 468 && sd.skillId != 469 &&  // Soul Linker Estin/Estun/Esma soul bolts: dedicated branch below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -5031,6 +5032,38 @@ void GameScene::pumpStream(Application& app) {
                             }
                         }
                     }
+                    // Soul Linker soul attacks — Estin (467) / Estun (468) / Esma (469): data-driven in
+                    // the original (no .str). Coded as a pale soul bolt streaming from the caster to the
+                    // target + a soul burst on impact (like Soul Strike). Ghost element.
+                    if (!romFx && haveDst && (sd.skillId == 467 || sd.skillId == 468 || sd.skillId == 469) &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {  // soul bolt caster -> target
+                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
+                            const int steps = 18;
+                            for (int i = 0; i < steps; ++i) {
+                                const float t = static_cast<float>(i) / (steps - 1);
+                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t + std::sin(t * 3.14159f) * 0.4f, a.z + (tgt.z - a.z) * t});
+                                Particle p;
+                                p.r = 0.8f; p.g = 0.85f; p.b = 1.0f; p.a = 0.9f; p.da = -2.6f;  // pale soul
+                                p.size = 0.11f; p.growth = -0.02f; p.life = 0.32f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        }
+                        for (int i = 0; i < 12; ++i) {  // soul burst on impact
+                            const float ang = static_cast<float>(i) / 12 * 6.2831853f;
+                            skillParticles_.setEmitter(tgt);
+                            Particle p;
+                            p.vel = Vec3{std::cos(ang) * (0.8f + hh(i) * 0.6f), 0.6f + hh(i + 20) * 0.5f, std::sin(ang) * (0.8f + hh(i) * 0.6f)};
+                            p.r = 0.82f; p.g = 0.86f; p.b = 1.0f; p.a = 0.9f; p.da = -2.0f;
+                            p.size = 0.1f; p.growth = -0.01f; p.life = 0.4f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                    }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --
                     // the normal damage number applies). Same 이펙트\fireball.spr the exe animates in
                     // place (CEffect @ 0x5cadde, sizes 80/130/180 by level). Stationary => from == to.
@@ -5202,6 +5235,44 @@ void GameScene::pumpStream(Application& app) {
                                 p.accel = Vec3{0.0f, -1.6f, 0.0f};
                                 p.r = 0.45f; p.g = 1.0f; p.b = 0.5f; p.a = 0.9f; p.da = -1.7f;
                                 p.size = 0.09f; p.growth = -0.01f; p.life = 0.5f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        }
+                        // Expanded classes (Soul Linker / Star Gladiator) buffs — data-driven in the
+                        // original (no exe hardcode, no .str), so port a coloured rising cast aura on the
+                        // target, colour per skill family (roBrowser reference). Soul Linker "Spirit of X"
+                        // (445-461,494) + Kaizel/Kaahi/Kaupe/Kaite/Kaina (462-466); Star Gladiator
+                        // warmth/comfort/anger/bless (428-440, by Sun/Moon/Star). (S.: Soul Linker / Star
+                        // Gladiator / Taekwon.)
+                        if (!romFx && haveT &&
+                            ((sn.skillId >= 445 && sn.skillId <= 461) || sn.skillId == 494 ||
+                             (sn.skillId >= 462 && sn.skillId <= 466) ||
+                             (sn.skillId >= 428 && sn.skillId <= 440)) &&
+                            (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                            lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
+                            float r = 1.0f, g = 0.9f, b = 0.6f;  // Soul Linker spirit: white-gold
+                            if (sn.skillId == 462)      { r = 1.0f; g = 0.85f; b = 0.3f; }  // Kaizel: gold
+                            else if (sn.skillId == 463) { r = 0.4f; g = 1.0f;  b = 0.5f; }  // Kaahi: green
+                            else if (sn.skillId == 464) { r = 1.0f; g = 1.0f;  b = 1.0f; }  // Kaupe: white
+                            else if (sn.skillId == 465) { r = 0.4f; g = 0.7f;  b = 1.0f; }  // Kaite: blue
+                            else if (sn.skillId == 466) { r = 0.5f; g = 1.0f;  b = 1.0f; }  // Kaina: cyan
+                            else if (sn.skillId >= 428 && sn.skillId <= 440) {              // Star Gladiator
+                                const int fam = (sn.skillId - 428) % 3;  // 0 Sun, 1 Moon, 2 Star
+                                if (fam == 0)      { r = 1.0f; g = 0.6f; b = 0.2f; }  // Sun: orange
+                                else if (fam == 1) { r = 0.5f; g = 0.6f; b = 1.0f; }  // Moon: blue
+                                else               { r = 1.0f; g = 0.9f; b = 0.3f; }  // Star: yellow
+                            }
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            constexpr int kN = 22;
+                            const float phase = static_cast<float>(time_) * 1.5f;
+                            for (int i = 0; i < kN; ++i) {
+                                const float a = static_cast<float>(i) / kN * 6.2831853f + phase;
+                                const float rad = 0.6f;
+                                skillParticles_.setEmitter(Vec3{tp.x + std::cos(a) * rad, tp.y + 0.1f, tp.z + std::sin(a) * rad});
+                                Particle p;
+                                p.vel = Vec3{0.0f, 1.1f, 0.0f};  // rise around the buffed unit
+                                p.r = r; p.g = g; p.b = b; p.a = 0.7f; p.da = -0.9f;
+                                p.size = 0.06f; p.growth = -0.008f; p.life = 0.9f; p.fxTex = glow;
                                 skillParticles_.emit(p);
                             }
                         }

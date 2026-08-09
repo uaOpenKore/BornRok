@@ -5244,7 +5244,7 @@ void GameScene::pumpStream(Application& app) {
                         // (445-461,494) + Kaizel/Kaahi/Kaupe/Kaite/Kaina (462-466); Star Gladiator
                         // warmth/comfort/anger/bless (428-440, by Sun/Moon/Star). (S.: Soul Linker / Star
                         // Gladiator / Taekwon.)
-                        if (!romFx && haveT &&
+                        if (!rom && haveT &&
                             ((sn.skillId >= 445 && sn.skillId <= 461) || sn.skillId == 494 ||
                              (sn.skillId >= 462 && sn.skillId <= 466) ||
                              (sn.skillId >= 428 && sn.skillId <= 440)) &&

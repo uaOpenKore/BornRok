@@ -11,9 +11,24 @@
 
 namespace uaro {
 
+bool hasTransparentPixels(const std::vector<u8>& rgba) {
+    // A real alpha channel means at least one fully-transparent texel. Proper .webp effect/sprite/icon
+    // assets have large alpha==0 regions; legacy opaque .bmp (magenta-keyed) and flattened re-exports
+    // decode fully opaque (no alpha==0). This one bit decides whether the legacy keyers must run.
+    for (usize i = 3; i < rgba.size(); i += 4)
+        if (rgba[i] == 0) return true;
+    return false;
+}
+
+bool hasTransparentPixels(const Image& img) { return hasTransparentPixels(img.rgba); }
+
 usize keyAndDespillMagenta(Image& img) {
     const int w = static_cast<int>(img.width), h = static_cast<int>(img.height);
     if (w <= 0 || h <= 0 || img.rgba.size() < static_cast<usize>(w) * h * 4) return 0;
+    // Content moving to .webp-with-alpha: if the texture already has a real alpha channel, it is a
+    // proper cutout -- do NOT magenta-key/despill it (that would eat real magenta/pink art). Only the
+    // legacy opaque .bmp path (magenta as the transparent key) needs this. (S. 2026-08-09.)
+    if (hasTransparentPixels(img)) return 0;
     const int n = w * h;
     // Pass 1: hard key. A magenta-dominant texel (high R+B, low G) is the transparent colour key; a
     // slightly-off dither/compression variant counts too. Zero RGBA so no bilinear/mip bleed either.

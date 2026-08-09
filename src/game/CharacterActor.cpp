@@ -341,6 +341,10 @@ u16 weaponViewFromValue(u16 v) {
 // generous vs (0,0,0) because WebP compression jitters the flat background a few levels off pure black.
 void keyBlackBackground(std::vector<u8>& px, int w, int h, int tol = 16) {
     if (w <= 0 || h <= 0 || px.size() < static_cast<usize>(w) * h * 4) return;
+    // Content moving to .webp-with-alpha: a frame that already has real transparency must not be
+    // black-keyed (it would eat the sprite's own dark interior). Only flattened opaque webp/PNG-sprite
+    // frames (no alpha==0 anywhere) need this. (S. 2026-08-09.)
+    if (hasTransparentPixels(px)) return;
     auto isBg = [&](int x, int y) {
         const u8* p = &px[(static_cast<usize>(y) * w + x) * 4];
         return p[3] > 0 && p[0] <= tol && p[1] <= tol && p[2] <= tol;

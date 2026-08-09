@@ -22,6 +22,15 @@ std::optional<Image> decodeImage(const std::vector<u8>& bytes);
 // Returns the number of hard-keyed pixels (callers use it to pick POINT vs mip sampling for cutouts).
 usize keyAndDespillMagenta(Image& img);
 
+// True iff the image already carries a real alpha channel (has at least one fully-transparent texel).
+// The content pipeline is moving to .webp with a proper alpha channel (S. 2026-08-09: "ассеты будут с
+// альфаканалом"); a decoded texture that already has transparency must NOT be run through the legacy
+// colour-key / background-key / despill helpers (they were only for opaque .bmp / flattened re-exports
+// and would eat real pixels). All keying paths gate on this: proper-alpha webp -> keying is a no-op;
+// legacy opaque .bmp (magenta key) / flattened opaque webp -> keyed as before.
+bool hasTransparentPixels(const Image& img);
+bool hasTransparentPixels(const std::vector<u8>& rgba);  // raw RGBA8 buffer overload
+
 // The companion normal-map path for a diffuse texture: the extension is replaced with "_n.png"
 // (S.'s convention "texture_n.png", for all textures and sprites). e.g.
 //   "data/texture/foo.bmp"        -> "data/texture/foo_n.png"

@@ -101,6 +101,9 @@ void applyMagentaKey(Image& img) {
 // must not be touched (its corner colour could match legitimate opaque pixels elsewhere).
 void applyCornerKey(Image& img, int tol = 48, int soft = 180) {
     if (img.rgba.size() < 4 || img.rgba[3] != 255) return;
+    // Proper .webp-with-alpha assets carry their own transparency -> never background-key them (would
+    // punch holes in real art). Only flattened opaque re-exports (no alpha at all) need this. (S. 2026-08-09)
+    if (hasTransparentPixels(img)) return;
     const int kr = img.rgba[0], kg = img.rgba[1], kb = img.rgba[2];
     // Manhattan distance from the key colour. <=tol -> transparent; up to `soft` fades in (a WIDE band
     // because a flattened export has a broad anti-aliased blue rim blended into the graphic edges). The
@@ -7434,18 +7437,22 @@ const ui::UiImage* GameScene::statusIcon(Application& app, u16 si) {
 // shards erupting from the ground cell. (S.: "magnum break / гримтус не рисует шипы".)
 int GameScene::codedFxTexId(Application& app, const char* effName, bool flipV, bool cornerKey) {
     if (auto it = codedFxTex_.find(effName); it != codedFxTex_.end()) return it->second;
-    // alpha_center = the soft-glow PRIMITIVE. This content pack's HD alpha_center.webp is a BROKEN
-    // solid-white 128x128 square (no alpha gradient), which readPreferPng prefers over the real .tga ->
-    // every coded particle (element fallback flash/sparks, Grand Cross, Asura, Bash, Sharp Shooting
-    // vortex, ...) rendered as a hard WHITE SQUARE flying off the target (S.: "белый/серый квадрат").
-    // Force -1 = the renderer's built-in soft radial glow, which IS what alpha_center should be. (Content
-    // fix would be to re-export/delete that webp; this makes it right regardless.)
-    if (std::strcmp(effName, "alpha_center.tga") == 0) { codedFxTex_[effName] = -1; return -1; }
+    // alpha_center = the soft-glow PRIMITIVE. A PROPER alpha_center.webp (real alpha gradient) is used
+    // directly. But an older broken flattened re-export was a solid-white square (no alpha), which
+    // readPreferPng prefers over the real .tga -> every coded particle rendered as a hard WHITE SQUARE
+    // (S.: "белый/серый квадрат"). So: load it, and only if it came back OPAQUE (broken flatten, no
+    // alpha) fall back to -1 = the renderer's built-in soft radial glow. With alpha assets it uses the
+    // real texture. (S. 2026-08-09: "ассеты будут с альфаканалом".)
+    const bool isAlphaCenter = std::strcmp(effName, "alpha_center.tga") == 0;
     int idx = -1;
     if (auto bytes = app.vfs().readPreferPng(std::string("data/texture/effect/") + effName))
         if (auto dec = decodeImage(*bytes); dec && dec->valid()) {
-            applyMagentaKey(*dec);  // RO effect .bmp (cross_old etc.) use a magenta transparent key
-            if (cornerKey) applyCornerKey(*dec);  // flattened HD re-exports (endure.webp: solid blue bg, no alpha)
+            applyMagentaKey(*dec);  // RO effect .bmp (cross_old etc.) use a magenta transparent key (no-op on webp-with-alpha)
+            if (cornerKey) applyCornerKey(*dec);  // flattened HD re-exports (no-op on webp-with-alpha)
+            if (isAlphaCenter && !hasTransparentPixels(*dec)) {  // broken flattened glow -> built-in soft glow
+                codedFxTex_[effName] = -1;
+                return -1;
+            }
             if (flipV) {  // RO effect .bmp storing text (agi_up "AGI UP!") come out upside-down (S.) -> flip rows
                 const int W = static_cast<int>(dec->width), H = static_cast<int>(dec->height);
                 for (int y = 0; y < H / 2; ++y)

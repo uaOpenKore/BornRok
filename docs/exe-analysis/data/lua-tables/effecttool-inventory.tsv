@@ -1,0 +1,227 @@
+effect	emitters	nTex	textures	blendModes(src/dst)
+1@20cn1	9	1	smoke2.bmp	10/2
+1@20cn2	26	6	effect\all_fire_03.bmp;effect\firee_b.bmp;effect\glow02.bmp;effect\glow03.bmp;effect\smoke3.bmp;smoke2.bmp	10/2;10/7;2/2;5/2;5/7;9/2;9/7
+1@4cdn	1	1	smoke2.bmp	
+1@4igd	1	1	effect\lightscatter.bmp	
+1@4inq	22	5	effect\all_fire_03.bmp;effect\firee_b.bmp;effect\lightscatter.bmp;effect\smoke3.bmp;effect\water_light01.bmp	10/2;10/7;2/2;2/7;5/2
+1@4mag	25	2	effect\star02.bmp;smoke2.bmp	5/2;9/2
+1@4tro	24	8	8 textures	5/2;7/2;9/2
+1@4win	21	5	effect\light_y_01.bmp;effect\water_in02.bmp;effect\water_light01.bmp;effect\water_light_02.bmp;effect\water_light_03.bmp	7/2;9/2
+1@adv	190	17	17 textures	2/2;5/2;7/2;9/2
+1@advs	190	17	17 textures	2/2;5/2;7/2;9/2
+1@ba_go	29	5	effect\colo_light.bmp;effect\light_y_04.bmp;effect\smoke3.bmp;effect\star01_a.bmp;effect\star_1.bmp	11/2;11/4;2/2;5/2;5/4
+1@bamn	42	7	7 textures	5/2;9/2
+1@ch_t	500	5	effect\all_fire_03.bmp;effect\colo_light.bmp;effect\firee.bmp;effect\firee_b.bmp;effect\smoke3.bmp	10/2;10/7;2/2;2/7;5/2;5/7
+1@ch_u	115	8	8 textures	10/2;10/4;10/7;2/2;2/7;5/2;5/4;5/7
+1@cor	30	2	effect\bbbb.bmp;effect\boom.bmp	5/2
+1@crd	61	1	smoke2.bmp	10/2;10/4;2/2;2/4;9/2;9/4
+1@def03	28	1	smoke2.bmp	5/2
+1@dth1	56	1	smoke2.bmp	5/2
+1@dth2	56	1	smoke2.bmp	7/2;9/2
+1@dth3	16	1	smoke2.bmp	7/7
+1@eom	75	1	smoke2.bmp	5/2
+1@exds	32	4	effect\12 copy.bmp;effect\smoke3.bmp;effect\waterwave_y_01.bmp;smoke2.bmp	10/2;10/4;2/2;4/2;5/2;9/2
+1@exhn	136	19	19 textures	10/2;5/2;9/2
+1@exnw	37	8	8 textures	11/4;11/5;2/2;2/4;2/5;3/2;3/3;3/5
+1@exse	32	7	7 textures	10/2;10/4;2/2;5/2;5/4;9/2
+1@exsh	76	6	effect\13 copy.bmp;effect\16 copyq.bmp;effect\freeze.bmp;effect\light_y_03.bmp;effect\light_y_05.bmp;effect\star01.bmp	5/2
+1@exsr	31	2	effect\smoke2.bmp;effect\star_1.bmp	11/4
+1@f_lake	182	6	effect\128-4.bmp;effect\firee.bmp;effect\freeze_a.bmp;effect\lord_blast_c.bmp;effect\moon2.bmp;effect\smoke3.bmp	10/2;10/4;5/2;5/4
+1@ge_sn	2	1	effect\all_fire_03.bmp	9/2
+1@ghg	5	2	effect\star01_a.bmp;effect\water_in02.bmp	5/2
+1@gl_prq	232	1	smoke2.bmp	5/2
+1@gol1	24	2	effect\번개4.bmp;smoke2.bmp	10/2;5/2;9/2
+1@gol2	47	3	effect\shockwave_e.bmp;effect\smoke2.bmp;smoke2.bmp	5/2;9/2
+1@halo	49	6	effect\fire_blast.bmp;effect\glow12.bmp;effect\star02.bmp;effect\star02_1.bmp;effect\star05.bmp;smoke2.bmp	10/2;10/4;3/2;3/4;5/2;5/4
+1@herbs	64	12	12 textures	10/2;10/4;10/7;2/2;2/7;5/2;7/2;7/7;9/2;9/4
+1@hgd1	24	7	7 textures	3/2;5/2
+1@infi	177	1	effect\smoke2.bmp	5/2
+1@iwp	165	7	7 textures	10/2;10/4;11/2;11/4;2/2;2/4
+1@jorchs	16	5	effect\12 copy.bmp;effect\hole_y_01.bmp;effect\light_y_01.bmp;effect\smoke3.bmp;effect\water_light01.bmp	2/2
+1@jorlab	8	6	effect\all_fire_03.bmp;effect\fire_0002.bmp;effect\glow02.bmp;effect\glow03.bmp;effect\smoke3.bmp;smoke2.bmp	2/2;2/7;9/2
+1@jtb	46	1	smoke2.bmp	5/2
+1@lab	26	1	smoke2.bmp	5/2
+1@lost	49	5	effect\star01.bmp;effect\water_in01.bmp;effect\water_light.bmp;effect\water_light01.bmp;effect\water_smoke_01.bmp	5/2
+1@ma_b	29	1	smoke2.bmp	5/2
+1@mir	20	3	effect\13 copy.bmp;effect\freeze.bmp;effect\smoke2.bmp	5/2;9/2
+1@mjo1	13	1	effect\smoke3.bmp	10/4
+1@mjo2	135	4	effect\15 copy.bmp;effect\smoke3.bmp;effect\star02.bmp;smoke2.bmp	10/4;5/2;5/4
+1@nyr	0	0		
+1@oz	22	4	effect\smoke3.bmp;effect\star02_1.bmp;effect\water_light_03.bmp;smoke2.bmp	10/2;10/4;5/2;7/2
+1@pop1	17	1	smoke2.bmp	7/2;9/2
+1@pop3	64	1	smoke2.bmp	5/2;7/2;9/2
+1@slug	224	12	12 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2;5/4
+1@slw	156	4	effect\a.bmp;effect\boom.bmp;effect\shockwave_d.bmp;smoke2.bmp	5/2;9/2
+1@soul	88	6	effect\glow copy.bmp;effect\lord_blast_c.bmp;effect\pokjuk_c.bmp;effect\space.bmp;effect\star01.bmp;effect\star06.bmp	5/2
+1@spa2	55	6	effect\light_y_01.bmp;effect\smoke3.bmp;effect\star02_1.bmp;effect\water_light01.bmp;effect\water_light_02.bmp;effect\water_light_03.bmp	5/2;9/2
+1@sthb	96	2	effect\star01.bmp;smoke2.bmp	5/2
+1@sthc	16	1	smoke2.bmp	5/2
+1@sthd	16	1	smoke2.bmp	5/2;7/2
+1@swat	87	1	smoke2.bmp	9/2
+1@tcamp	0	0		
+1@tnm1	0	0		
+1@tnm2	0	0		
+1@tnm3	2	1	smoke2.bmp	5/2
+1@twas	45	10	10 textures	10/2;2/2;3/2;3/4;5/2;5/4;8/2
+1@twbs	45	10	10 textures	10/2;2/2;3/2;3/4;5/2;5/4;8/2
+1@twig	84	10	10 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2
+1@twsd	205	12	12 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2;5/4
+1@vrac1	0	0		
+1@vrac2	0	0		
+1@vrcas	68	3	effect\12 copy.bmp;effect\dust_part.bmp;effect\smoke2.bmp	5/2;9/2
+1@vrclo	0	0		
+1@vrev	74	9	9 textures	10/2;10/4;2/2;2/4;5/2;5/4
+1@vrgen	0	0		
+1@vrhha	20	1	smoke2.bmp	5/2;9/2
+1@vrpo	10	2	effect\aurora_tex01.bmp;effect\star02_1.bmp	2/2;5/2
+1@vrsn	54	7	7 textures	3/2;5/2
+1@whl	62	7	7 textures	2/2;3/2;5/2;7/2;9/2
+2@ch_t	14	4	effect\all_fire_03.bmp;effect\firee.bmp;effect\smoke3.bmp;smoke2.bmp	10/2;10/7;2/2;2/7;5/2;9/7
+2@exds	36	10	10 textures	2/2;5/2
+2@mir	20	3	effect\13 copy.bmp;effect\freeze.bmp;effect\smoke2.bmp	5/2;9/2
+2@nyr	56	4	effect\a.bmp;effect\all_fire_03.bmp;effect\firee_b.bmp;effect\smoke3.bmp	10/2;2/2;5/2
+2@vrclo	6	1	smoke2.bmp	5/2
+3@ch_t	145	13	13 textures	10/2;10/7;2/2;2/7;5/2;5/7;7/2
+abyss_04	115	4	effect\a.bmp;effect\star01_a.bmp;effect\water_light_02.bmp;smoke2.bmp	5/2
+air_if	62	7	7 textures	2/2;3/2;5/2;7/2;9/2
+amicit01	58	4	effect\15 coipy.bmp;effect\monitor_y_01.bmp;effect\smoke3.bmp;smoke2.bmp	10/2;2/2;2/4;5/2;5/4;9/2;9/4
+amicit02	43	7	7 textures	10/2;10/4;2/2;2/4;5/2;5/4
+amicitia1	55	4	effect\15 coipy.bmp;effect\monitor_y_01.bmp;effect\smoke3.bmp;smoke2.bmp	10/2;2/2;2/4;5/2;5/4;9/2;9/4
+amicitia2	43	7	7 textures	10/2;10/4;2/2;2/4;5/2;5/4
+ba_2whs01	36	3	effect\glow03.bmp;effect\light_y_01.bmp;effect\smoke2.bmp	2/2;5/2;7/2
+ba_2whs02	81	5	effect\glow01.bmp;effect\glow02.bmp;effect\glow03.bmp;effect\smoke2.bmp;smoke2.bmp	2/2;5/2
+ba_bath	39	6	effect\15 coipy.bmp;effect\bubble01.bmp;effect\freeze_ice_part.bmp;effect\star02.bmp;effect\water_in01.bmp;effect\water_smoke_01.bmp	10/2;5/2;7/2;9/2
+ba_in01	57	4	effect\15 copy.bmp;effect\freeze_ice_part.bmp;effect\water_light01.bmp;smoke2.bmp	5/2;7/2;9/2
+ba_lib	27	4	effect\a-2.bmp;effect\lightscatter.bmp;effect\water_light.bmp;effect\water_light01.bmp	5/2
+ba_lost	49	5	effect\star01.bmp;effect\water_in01.bmp;effect\water_light.bmp;effect\water_light01.bmp;effect\water_smoke_01.bmp	5/2
+ba_maison	36	7	7 textures	5/2;9/2
+ba_pw01	230	4	effect\15 coipy.bmp;effect\a-2.bmp;effect\smoke2.bmp;smoke2.bmp	5/2;9/2
+ba_pw02	51	6	effect\12 copy.bmp;effect\15 coipy.bmp;effect\freeze.bmp;effect\freeze_a.bmp;effect\freeze_a_small.bmp;smoke2.bmp	5/2;6/2;9/2
+ba_pw03	227	5	effect\15 coipy.bmp;effect\a-2.bmp;effect\smoke2.bmp;effect\smoke_doughnut.bmp;smoke2.bmp	5/2;9/2
+bl_death	8	6	effect\32box.bmp;effect\ba_magic01.tga;effect\cloud11.tga;effect\light_y_02.bmp;effect\smoke3.bmp;effect\star02.bmp	5/2
+bl_grass	6	5	effect\32box.bmp;effect\ba_magic01.tga;effect\cloud11.tga;effect\light_y_02.bmp;effect\star02.bmp	5/2
+bl_ice	56	8	8 textures	10/2;2/2;5/2
+bl_lava	87	8	8 textures	10/2;10/4;5/2;5/4
+bl_soul	45	8	8 textures	10/2;5/2
+bl_temple	7	5	effect\32box.bmp;effect\ba_magic01.tga;effect\cloud11.tga;effect\light_y_02.bmp;effect\star02.bmp	5/2
+bl_venom	70	8	8 textures	10/2;10/4;11/2;5/2;5/4
+clb_kuma	24	4	effect\flower_y_03.bmp;effect\glow01.bmp;effect\smoke2.bmp;effect\smoke3.bmp	2/2;5/2
+clock_01	119	7	7 textures	10/2;10/7;2/2;2/4;2/7;5/2;5/7
+comodo	3	1	smoke2.bmp	5/2
+effectfunc	0	0		
+effectmsgid	0	0		
+effecttoolutil	0	0		
+effecttoolutil_ver_2	0	0		
+ein_dun03	232	1	effect\a.bmp	5/2
+for_dun01	443	3	effect\all_fire_03.bmp;effect\firee.bmp;effect\smoke3.bmp	10/2;10/7;2/2;5/2;5/7
+for_dun02	33	1	effect\smoke3.bmp	10/2
+forcerendereffect	0	0		
+grademk	8	1	smoke2.bmp	5/2
+gw_fild01	21	4	effect\15 copy.bmp;effect\light_y_01.bmp;effect\smoke3.bmp;effect\star02_1.bmp	5/2
+gw_fild02	63	6	effect\13 copy.bmp;effect\15 copy.bmp;effect\light_y_01.bmp;effect\smoke3.bmp;effect\star02_1.bmp;effect\water_light_03.bmp	10/2;5/2
+har_in01	11	1	smoke2.bmp	5/2
+harboro1	41	1	smoke2.bmp	10/2;5/2
+harboro2	0	0		
+hero_dun1	24	7	7 textures	3/2;5/2
+hero_ent1	168	10	10 textures	3/2;5/2;9/2
+hero_ent2	85	10	10 textures	3/2;5/2;9/2
+hero_ent3	87	8	8 textures	2/2;5/2
+hero_in1	24	7	7 textures	3/2;5/2
+hero_in2	18	5	effect\lightscatter.bmp;effect\shine_y_01.bmp;effect\smoke1.bmp;effect\star01.bmp;effect\star_y_01.bmp	3/2;5/2
+hero_in3	81	6	effect\boom.bmp;effect\lightscatter.bmp;effect\shine_y_01.bmp;effect\smoke1.bmp;effect\star01.bmp;effect\star_y_01.bmp	3/2;5/2
+hero_in4	85	7	7 textures	10/2;2/2;3/2;5/2
+hero_lb	0	0		
+hero_out1	15	5	effect\lightscatter.bmp;effect\shine_y_01.bmp;effect\smoke1.bmp;effect\smoke3.bmp;effect\star01.bmp	10/2;3/2
+hero_out2	69	7	7 textures	11/2;11/4;2/2;2/4;3/2
+hero_out3	24	5	effect\lightscatter.bmp;effect\shine_y_01.bmp;effect\smoke1.bmp;effect\star01.bmp;smoke2.bmp	10/2;3/2
+hero_out4	65	6	effect\12 copy.bmp;effect\lightscatter.bmp;effect\shine_y_01.bmp;effect\smoke1.bmp;effect\star01.bmp;smoke2.bmp	10/2;2/2;3/2
+hero_tra	40	3	effect\freeze_ice_part_128.bmp;effect\glow01.bmp;effect\sand_y_01.bmp	5/2
+herosria	283	13	13 textures	2/2;3/2;5/2
+icas_in	53	6	effect\128-4.bmp;effect\freeze_ice_part_128.bmp;effect\frost_y_01.bmp;effect\lightscatter.bmp;effect\smoke3.bmp;effect\star_y_01.bmp	2/2;5/2;7/2;9/2
+icas_in2	0	0		
+icecastle	64	8	8 textures	10/2;11/2;11/4;2/2;2/7;5/2;5/4;5/7
+iz_d04_i	48	5	effect\bubble01.bmp;effect\glow12.bmp;effect\star_y_01.bmp;effect\water_in02.bmp;effect\water_light.bmp	2/2;5/2
+iz_d05_i	88	5	effect\bubble01.bmp;effect\glow12.bmp;effect\light_y_01.bmp;effect\star_y_01.bmp;effect\water_in02.bmp	2/2;5/2
+job4_bio	3	1	effect\star02_1.bmp	5/2
+job4_mag	25	2	effect\star02.bmp;smoke2.bmp	5/2;9/2
+job4_tro	5	2	effect\15 copy.bmp;effect\tro.bmp	5/2;7/2
+jor_ab01	126	3	effect\dust03.bmp;effect\issgard_d_100.bmp;effect\smoke3.bmp	2/2;9/2
+jor_ab02	58	1	effect\smoke3.bmp	2/2;5/2
+jor_back1	165	7	7 textures	10/2;10/4;11/2;11/4;2/2;2/4
+jor_back2	151	8	8 textures	10/2;11/2;11/4;2/2;2/4;5/2;5/4
+jor_back3	86	7	7 textures	10/2;10/4;11/2;11/4;2/2;2/4
+jor_back4	153	8	8 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2;5/4
+jor_back5	21	1	smoke2.bmp	10/2
+jor_back6	119	8	8 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2
+jor_dun01	95	3	effect\dust03.bmp;effect\issgard_d_100.bmp;effect\smoke3.bmp	2/2;9/2
+jor_dun02	58	1	effect\smoke3.bmp	2/2;5/2
+jor_dun03	10	7	7 textures	2/2;2/7;9/2;9/7
+jor_maze	47	1	effect\smoke3.bmp	2/2
+jor_nest	16	5	effect\12 copy.bmp;effect\hole_y_01.bmp;effect\light_y_01.bmp;effect\smoke3.bmp;effect\water_light01.bmp	2/2
+jor_que	58	1	effect\smoke3.bmp	2/2;5/2
+jor_root1	37	3	effect\all_fire_03.bmp;effect\firee_b.bmp;effect\smoke3.bmp	10/2;10/7;2/2;5/2;5/7
+jor_root2	39	3	effect\all_fire_03.bmp;effect\firee_b.bmp;effect\smoke3.bmp	10/2;10/7;2/2;5/2;5/7
+jor_root3	119	2	effect\bubble03.bmp;effect\smoke3.bmp	10/2;10/4;2/2;2/4;5/2;5/4
+jor_safty1	29	3	effect\12 copy.bmp;effect\snake_light_1.bmp;smoke2.bmp	10/2;2/2
+jor_safty2	13	1	effect\smoke3.bmp	10/2;2/2
+jor_sanct	166	4	effect\all_fire_03.bmp;effect\dro_y_04.bmp;effect\firee_b.bmp;effect\smoke3.bmp	10/2;10/7;2/2;2/7;5/2;5/7
+jor_tail	83	6	effect\fish_y_01.bmp;effect\fish_y_02.bmp;effect\fish_y_03.bmp;effect\snake_04.bmp;effect\snake_light_1.bmp;smoke2.bmp	10/2;10/4;11/2;11/4;2/2;2/4
+jor_twice	224	12	12 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2;5/4
+jor_twig	84	10	10 textures	10/2;10/4;11/2;11/4;2/2;2/4;5/2
+lasa_dun01	118	4	effect\a-2.bmp;effect\a.bmp;effect\b.bmp;smoke2.bmp	5/2;7/2
+lasa_dun02	186	3	effect\a-2.bmp;effect\a.bmp;effect\smoke3.bmp	5/2;7/2
+lasa_dun03	274	3	effect\a-2.bmp;effect\smoke2.bmp;smoke2.bmp	5/2;7/2;9/2
+lasa_dun_q	274	3	effect\a-2.bmp;effect\smoke2.bmp;smoke2.bmp	5/2;7/2;9/2
+lasa_fild01	0	0		
+lasa_sea	87	3	effect\a-2.bmp;effect\a.bmp;smoke2.bmp	5/2;9/2
+lasagna	19	1	smoke2.bmp	5/2;9/2
+ma_scene01	36	1	smoke2.bmp	5/2
+malangdo	6	1	smoke2.bmp	5/2
+mjo_wst01	153	2	effect\15 copy.bmp;smoke2.bmp	5/2;5/4
+moro_cav	22	1	smoke2.bmp	5/2
+moro_vol	2	1	smoke2.bmp	5/2
+morocc	81	1	smoke2.bmp	10/2
+nakhyang	7	1	smoke2.bmp	5/2
+nif_dun01	55	7	7 textures	5/2;9/2
+nif_dun02	90	19	19 textures	5/2;7/2;9/2
+odin_past	30	4	effect\13 copy.bmp;effect\a.bmp;effect\water_light_02.bmp;smoke2.bmp	5/2;9/2
+oz_dun01	22	4	effect\smoke3.bmp;effect\star02_1.bmp;effect\water_light_03.bmp;smoke2.bmp	10/2;10/4;5/2;7/2
+oz_dun02	107	4	effect\all_fire_03.bmp;effect\firee.bmp;effect\lord_blast_c.bmp;effect\smoke3.bmp	10/2;10/4;5/2;5/4
+paramk	8	1	smoke2.bmp	5/2
+pay_d03_i	70	1	smoke2.bmp	5/2
+prontera	3	1	effect\smoke1.bmp	9/2
+prt_cas	68	3	effect\12 copy.bmp;effect\dust_part.bmp;effect\smoke2.bmp	5/2;9/2
+prt_cas_q	7	1	smoke2.bmp	5/2
+prt_church	13	1	smoke2.bmp	5/2;9/2
+prt_elib	14	1	effect\smoke2.bmp	9/2
+prt_in	15	1	smoke2.bmp	5/2
+prt_lib	2	1	smoke2.bmp	9/2
+prt_lib_q	2	1	smoke2.bmp	9/2
+prt_mz03_i	111	2	effect\smoke2.bmp;smoke2.bmp	10/2;10/7;2/2;2/7;9/2;9/7
+prt_prison	51	1	smoke2.bmp	5/2;5/4;9/2;9/4
+prt_q	26	1	smoke2.bmp	5/2
+pub_cat	39	1	smoke2.bmp	5/2
+pud_land	47	4	effect\c.bmp;effect\ring_b.bmp;effect\smoke2.bmp;smoke2.bmp	5/2;7/2;9/2
+que_swat	87	1	smoke2.bmp	9/2
+que_thr	0	0		
+ra_pol01	27	3	effect\all_fire_03.bmp;effect\firee.bmp;effect\smoke3.bmp	10/2;2/2;2/7
+ra_temple	161	10	10 textures	10/2;2/2;2/7;5/2;5/4;5/7;9/2
+rebel_in	34	1	smoke2.bmp	5/2
+rockrdg1	94	1	smoke2.bmp	10/2
+rockrdg2	95	1	smoke2.bmp	10/2
+slabw01	185	2	effect\shockwave_d.bmp;smoke2.bmp	5/2;9/2
+sp_cor	30	2	effect\bbbb.bmp;effect\boom.bmp	5/2
+sp_rudus	41	1	smoke2.bmp	9/2
+sp_rudus2	53	1	smoke2.bmp	9/2
+sp_rudus3	55	1	smoke2.bmp	9/2
+sp_rudus4	117	3	effect\smoke3.bmp;effect\star02_1.bmp;smoke2.bmp	5/2;9/2
+star_frst	18	2	effect\13 copy.bmp;effect\freeze.bmp	5/2
+t_garden	72	9	9 textures	5/2
+tur_d03_i	83	1	smoke2.bmp	5/2
+tur_d04_i	75	1	smoke2.bmp	5/2
+verus01	81	1	smoke2.bmp	5/2
+verus03	24	1	smoke2.bmp	5/2
+vr_bob	1	1	effect\smoke2.bmp	
+wolfvill	151	8	8 textures	10/2;10/7;2/2;2/7;5/2;5/4;5/7
+x_prt_evt	178	9	9 textures	10/2;2/2;5/2;5/4;9/2;9/4
+x_prt_in	2	1	smoke2.bmp	5/2

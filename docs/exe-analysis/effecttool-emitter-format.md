@@ -48,8 +48,21 @@ An `_emitterInfo` array holds N emitters (e.g. `1@4mag` = 25) that together comp
 scene effect (smoke + sparks + glow layers). The client's EffectTool loader instantiates
 each emitter through the same particle factory (`FUN_005c3670`-class) at the given `pos`.
 
+## Blend-mode legend (`srcmode`/`destmode` = D3DBLEND)
+`1`=ZERO `2`=ONE `3`=SRCCOLOR `4`=INVSRCCOLOR `5`=SRCALPHA `6`=INVSRCALPHA `7`=DESTALPHA
+`8`=INVDESTALPHA `9`=DESTCOLOR `10`=INVDESTCOLOR `11`=SRCALPHASAT. Common: `5/6` (alpha),
+`2/2` (additive), `9/2`/`3/2` (colour-modulate glow). Across all 226 files the full set of
+`src/dst` combos observed: `2/2 2/4 2/5 2/7 3/2 3/3 3/4 3/5 4/2 5/2 5/4 5/7 6/2 7/2 7/7 8/2
+9/2 9/4 9/7 10/2 10/4 10/7 11/2 11/4 11/5`.
+
+## Full inventory (all 226 decoded)
+- [`data/lua-tables/effecttool-inventory.tsv`](data/lua-tables/effecttool-inventory.tsv) —
+  per-effect: emitter count, distinct textures, blend modes.
+- [`data/lua-tables/effecttool-textures.tsv`](data/lua-tables/effecttool-textures.tsv) —
+  the **144 distinct `effect\*` textures** used across all modern effects.
+
 ## Files
-228 `effecttool/*.lub`, one per instance/effect name. To decode any:
+226 `effecttool/*.lub`, one per instance/effect name. To decode any:
 `unzip -j gro.zip "data/luafiles514/lua files/effecttool/<name>.lub" && LUB=<name>.lub
 <lua5.1> dump.lua`. These are **map/instance ambient effects** (smoke, magic-room glows,
 etc.), not per-skill — skill effects are exe-hardcoded (dossiers) + the 29-skill

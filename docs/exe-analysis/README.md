@@ -34,6 +34,11 @@ The running journal and coverage map live in [`PROGRESS.md`](PROGRESS.md).
   + weapon-hit scheme, and all timings: client effect lifespans (`DAT_006d9100`) + server
   cast/delay/duration (`skill_cast_db`). Bulk data: `data/effect-timing-table.tsv`,
   `data/skill-server-table.tsv`
+- [Skill master table — client effect × server timing](16-skill-master-table.md) — one
+  consolidated row per skill: effect fn + textures/sprites + cast wav + geometry/anchor +
+  client lifespan + server cast/delay/duration (`data/skill-master-table.tsv`)
+- [Per-skill dossiers (by class)](skills/README.md) — minute blow-by-blow detail for each
+  named skill's effect class
 
 ## High-level architecture
 

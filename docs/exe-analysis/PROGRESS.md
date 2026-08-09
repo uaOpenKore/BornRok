@@ -54,6 +54,17 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Journal
 
+- **2026-08-09** — **Per-skill dossiers** (`docs/exe-analysis/skills/`, 8 class files):
+  reversed each named skill's CEffect class via an 8-agent fan-out — per skill: exact .wav
+  + frame, textures/sprites in sequence, geometry (billboard / flat ground quad +0x17c=5 /
+  ribbon / .spr), anchor object (caster/target/cell/torso −80px), phase timing + sub-emitters,
+  blend. Covered Mage/Wizard/Priest/Support+Warp/Assassin-Thief-Rogue/Knight-Crusader/
+  Hunter-BS-Sage-Monk/Statuses+generic-hits+cast-ring-geometry. Also doc 15 + data TSVs
+  (effect-timing-table 700, skill-server-table 650). Notable finds: no SKID enum in client
+  (keys on EF_ id); exhaustive skill→effect map is data-driven (`obj+0x544` Lua array);
+  ground cast-circle = 20-node ring (`FUN_005fbdd0`), element colours via `FUN_00644ed0`
+  (0x36-0x3B); weapon-hit sounds by weapon-type table (`FUN_006379e0`).
+
 - **2026-08-09** — Set up Ghidra on owner's box. Ghidra 11.3 dropped bundled Jython →
   `.py` scripts need PyGhidra + system Python (absent). Switched to Java GhidraScript
   `DumpDecomp.java` (no Python). Import settled: PE / `x86:LE:32:default:windows`.

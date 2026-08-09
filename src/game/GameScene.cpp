@@ -4574,6 +4574,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 20 &&  // Lightning Bolt: dedicated vertical thunder-strike branch below (doc16: planar bolt -> target, not a green wind puff)
                                  sd.skillId != 11 && sd.skillId != 13 && sd.skillId != 15 &&  // Napalm/Soul Strike/Frost Diver: dedicated doc16 branches below
                                  sd.skillId != 91 &&  // Heaven's Drive: dedicated 5x5 stone-spike grid branch below
+                                 sd.skillId != 84 && sd.skillId != 86 &&  // Jupitel Thunder / Water Ball: dedicated caster->target bolt branches below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4857,6 +4858,73 @@ void GameScene::pumpStream(Application& app) {
                                     skillParticles_.emit(p);
                                 }
                             }
+                        }
+                    }
+                    // Jupitel Thunder (84, WZ_JUPITEL): doc16 -> a thunder/plasma ball flies from the
+                    // caster to the target + a ground plasma burst on impact (thunder_pang +
+                    // thunder_plazma_blast_a/b). Coded as a bright cyan plasma stream caster->target and a
+                    // radial plasma burst at the target. Wind element (knockback).
+                    if (!romFx && haveDst && sd.skillId == 84 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {  // plasma stream from the caster to the target
+                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
+                            const int steps = 22;
+                            for (int i = 0; i < steps; ++i) {
+                                const float t = static_cast<float>(i) / (steps - 1);
+                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t, a.z + (tgt.z - a.z) * t});
+                                Particle p;
+                                p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.9f; p.da = -2.8f;  // cyan plasma
+                                p.size = 0.11f; p.growth = -0.02f; p.life = 0.32f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        }
+                        for (int i = 0; i < 16; ++i) {  // plasma burst on impact
+                            const float ang = static_cast<float>(i) / 16 * 6.2831853f;
+                            const float r = 1.0f + hh(i) * 0.8f;
+                            skillParticles_.setEmitter(tgt);
+                            Particle p;
+                            p.vel = Vec3{std::cos(ang) * r, 0.3f + hh(i + 30) * 0.7f, std::sin(ang) * r};
+                            p.r = 0.7f; p.g = 0.9f; p.b = 1.0f; p.a = 0.9f; p.da = -2.2f;
+                            p.size = 0.1f; p.growth = -0.01f; p.life = 0.4f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                    }
+                    // Water Ball (86, WZ_WATERBALL): doc16 -> a water bolt flies caster->target + a splash
+                    // ring on the target (water_out_a/b/c). Coded as a blue water stream caster->target and
+                    // a flat splash ring on the ground at the target.
+                    if (!romFx && haveDst && sd.skillId == 86 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {  // water stream caster -> target
+                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
+                            const int steps = 20;
+                            for (int i = 0; i < steps; ++i) {
+                                const float t = static_cast<float>(i) / (steps - 1);
+                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t, a.z + (tgt.z - a.z) * t});
+                                Particle p;
+                                p.r = 0.35f; p.g = 0.6f; p.b = 1.0f; p.a = 0.9f; p.da = -2.6f;  // water blue
+                                p.size = 0.11f; p.growth = -0.02f; p.life = 0.33f; p.fxTex = glow;
+                                skillParticles_.emit(p);
+                            }
+                        }
+                        const int kSplash = 18;  // flat splash ring on the ground at the target
+                        for (int i = 0; i < kSplash; ++i) {
+                            const float ang = static_cast<float>(i) / kSplash * 6.2831853f;
+                            skillParticles_.setEmitter(Vec3{dstPos.x, dstPos.y + 0.06f, dstPos.z});
+                            Particle p;
+                            p.vel = Vec3{std::cos(ang) * 1.5f, 0.5f, std::sin(ang) * 1.5f};  // splash outward + up
+                            p.accel = Vec3{0.0f, -2.5f, 0.0f};
+                            p.r = 0.45f; p.g = 0.7f; p.b = 1.0f; p.a = 0.85f; p.da = -1.7f;
+                            p.size = 0.09f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                            skillParticles_.emit(p);
                         }
                     }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --

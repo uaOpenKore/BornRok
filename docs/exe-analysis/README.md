@@ -23,6 +23,9 @@ The running journal and coverage map live in [`PROGRESS.md`](PROGRESS.md).
 12. [Lua / lub VM (+ homun AI)](12-lua-vm.md) — AI vm `0x005a6ac0`
 13. [Game states, session & login flow](13-game-state-session.md) — `0x0059fda0`
 
+### Content data (GRF Lua)
+- [GRF Lua data tables — decoded](lua-data-tables.md) — weapon/headgear/job/npc/pet/robe/shadow/status-icon id↔name↔sprite maps (TSV in `data/lua-tables/`), + full 470-file content survey
+
 ### Deep dives
 - [Effects, particles & the render system — COMPLETE reverse](14-effects-particles-render-deep-dive.md)
   — full engine: 3 effect classes + vtables, `.str` parser/keyframe-interp/draw, particle

@@ -1,0 +1,417 @@
+# StateIconList (n=416) from stateiconinfo.lub
+EFST_2011RWC	{descript=[[응원 폭죽,[155,202,155]],[%s,[255,176,98]],[모든 스테이터스 증가],[ATK, MATK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_2011RWC_SCROLL	{descript=[[레드 부스터,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가],[공격속도 증가],[변동 캐스팅 감소],[물리, 마법 공격 시 일정 확률로],[집중력 향상 스킬 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_2013_VALENTINE1	{descript=[[LUK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_2013_VALENTINE2	{descript=[[ATK, MATK %증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_2013_VALENTINE3	{descript=[[HP, SP 회복력 향상],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ABUNDANCE	{descript=[[우르즈 룬 스톤 ;  어번던스 (Abundance),[155,202,155]],[%s,[255,176,98]],[10초당 일정량의 SP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_AB_SECRAMENT	{descript=[[세크라멘트 (SECRAMENT / 성사 ; 聖事),[155,202,155]],[%s,[255,176,98]],[캐스팅 시간 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ACARAJE	{descript=[[아까라제,[155,202,155]],[%s,[255,176,98]],[공격속도, HIT 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ACCELERATION	{descript=[[액셀레이션,[155,202,155]],[%s,[255,176,98]],[마도 기어의 이동속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ACUO_MINT_GUM	{descript=[[ACUO 껌,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ADORAMUS	{descript=[[아도라무스 (ADORAMUS / 찬미가),[155,202,155]],[%s,[255,176,98]],[암흑과 민첩성 감소 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ADRENALINE	{descript=[[아드레날린 러쉬(Adrenaline Rush),[155,202,155]],[%s,[255,176,98]],[도끼와 둔기류 무기],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ADRENALINE2	{descript=[[풀 아드레날린러쉬,[155,202,155]],[%s,[255,176,98]],[활을 제외한 무기의 공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_AKAITSUKI	{descript=[[불길한 붉은 달빛,[250,100,100]],[%s,[255,176,98]],[특정 HP 회복 스킬이],[회복 대신 데미지를 입는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ALL_RIDING	{descript=[[탑승 상태,[190,190,250]]]}
+EFST_ALMIGHTY	{descript=[[올마이티,[155,202,155]],[ATK, MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_ANALYZE	{descript=[[애널라이즈,[155,202,155]],[%s,[255,176,98]],[물리, 마법 방어력 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ANGELUS	{descript=[[안젤루스(Angelus),[155,202,155]],[%s,[255,176,98]],[방어력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ANGEL_PROTECT	{descript=[[천사의 수호,[155,202,155]],[%s,[255,176,98]],[HP, SP 회복속도 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ANTI_M_BLAST	{descript=[[안티 매터리얼 블래스트,[250,100,100]],[%s,[255,176,98]],[무속성 내성 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ARCWANDCLAN	{descript=[[아크완드 클랜,[155,202,155]],[INT + 1, DEX + 1],[MHP + 30, MSP + 10]]}
+EFST_ARMOR_PROPERTY	{descript=[[속성 변화 스크롤,[155,202,155]],[%s,[255,176,98]],[속성 변화 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ASPERSIO	{descript=[[아스페르시오(Aspersio),[155,202,155]],[%s,[255,176,98]],[무기에 성속성 부여]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ASSUMPTIO	{descript=[[아숨프티오 (Assumptio),[155,202,155]],[%s,[255,176,98]],[방어력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ASSUMPTIO2	{descript=[[아숨프티오 (Assumptio),[155,202,155]],[%s,[255,176,98]],[방어력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATKER_ASPD	{descript=[[대환단,[155,202,155]],[%s,[255,176,98]],[MHP 증가],[HP 회복력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATKER_BLOOD	{descript=[[SP 소모량 감소포션,[155,202,155]],[%s,[255,176,98]],[스킬 사용 SP 소모량 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATKER_MOVESPEED	{descript=[[태청단,[155,202,155]],[%s,[255,176,98]],[MSP 증가],[SP 회복력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATTHASTE_CASH	{descript=[[ASPD 강화 포션,[155,202,155]],[%s,[255,176,98]],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATTHASTE_POTION1	{descript=[[집중의 포션,[155,202,155]],[%s,[255,176,98]],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATTHASTE_POTION2	{descript=[[각성의 포션,[155,202,155]],[%s,[255,176,98]],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ATTHASTE_POTION3	{descript=[[%s,[255,176,98]],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_AUTOBERSERK	{descript=[[오토 버서크 (Auto Berserk),[155,202,155]],[빈사 상태 시 분노]]}
+EFST_AUTOGUARD	{descript=[[오토 가드 (Auto Guard),[155,202,155]],[%s,[255,176,98]],[근거리, 원거리 물리공격을 일정 확률로 막음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_AUTOSHADOWSPELL	{descript=[[오토 섀도우 스펠,[155,202,155]],[%s,[255,176,98]],[도작, 리프로듀스로 배운],[마법 스킬 사용 가능]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_AUTOSPELL	{descript=[[오토 스펠 (Auto Spell),[155,202,155]],[%s,[255,176,98]],[일반 공격 중 확률에 따라],[선택된 스킬이 캐스팅 시간 없이 자동 발사],[SP 소모는 일반 사용 시의 2/3],[SP 부족 시 스킬 발동 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BANDING	{descript=[[밴딩,[155,202,155]],[%s,[255,176,98]],[밴딩 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BEEF_RIB_STEW	{descript=[[소갈비찜,[155,202,155]],[%s,[255,176,98]],[변동 캐스팅 감소.],[SP 소모량 감소.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BENEDICTIO	{descript=[[%s,[255,176,98]],[방어구에 성속성 부여]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_BEYOND_OF_WARCRY	{descript=[[비욘드 오브 워 크라이,[155,202,155]],[%s,[255,176,98]],[물리 공격력 향상],[마법 공격력 하락]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BLESSING	{descript=[[블레싱(Blessing),[155,202,155]],[%s,[255,176,98]],[DEX, INT, STR 증가],[사용 순간 저주나 석화상태 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BLOODING	{descript=[[출혈 상태,[155,202,155]],[%s,[255,176,98]],[HP, SP 회복 불가],[10초당 일정량의 HP 소실]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BODYPAINT	{descript=[[바디 페인팅,[155,202,155]],[%s,[255,176,98]],[클로킹 상태 해제],[확률에 따라 암흑 발생],[확률에 따라 공격속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_BROKENARMOR	{descript=[[방어구 파괴 상태,[250,100,100]]]}
+EFST_BROKENWEAPON	{descript=[[무기 파괴 상태,[250,100,100]]]}
+EFST_BURNT	{descript=[[화상,[250,100,100]],[화속성 몬스터에게],[받는 데미지 증가],[화속성 내성 감소],[주기적인 화속성 데미지],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=6}
+EFST_B_TRAP	{descript=[[바인드 트랩,[250,100,100]],[%s,[255,176,98]],[이동 속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CARTBOOST	{descript=[[카트 부스트 (Cart Boost),[155,202,155]],[%s,[255,176,98]],[카트 이용 시의 이동속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CASH_DEATHPENALTY	{descript=[[%s,[255,176,98]],[사망 시 경험치 소실 없음]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_CASH_PLUSEXP	{descript=[[%s,[255,176,98]],[획득 경험치 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_CASH_PLUSONLYJOBEXP	{descript=[[%s,[255,176,98]],[몬스터 사냥 시 JOB 경험치 추가 획득]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_CASH_RECEIVEITEM	{descript=[[%s,[255,176,98]],[몬스터 사냥 시],[기본 아이템의 드롭률 2배 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_CHASEWALK2	{descript=[[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_CHILL	{descript=[[냉기,[250,100,100]],[화상 효과에 걸리지 않는다],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_CHUSEOK_FRIDAY	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[수속성 몬스터 추가 데미지.],[풍속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CHUSEOK_MONDAY	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[암속성 몬스터 추가 데미지.],[성속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CHUSEOK_THURSDAY	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[풍속성 몬스터 추가 데미지.],[지속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CHUSEOK_TUESDAY	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[지속성 몬스터 추가 데미지.],[화속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CHUSEOK_WEDNESDAY	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[화속성 몬스터 추가 데미지.],[수속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CHUSEOK_WEEKEND	{descript=[[추석,[155,202,155]],[%s,[255,176,98]],[무속성 몬스터 추가 데미지.],[무속성 내성 증가.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CLOAKING	{descript=[[클로킹(Cloaking),[155,202,155]],[%s,[255,176,98]],[다른 사람에게 보이지 않는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CLOAKINGEXCEED	{descript=[[클로킹 익시드 (CLOAKING EXCEED / 향상된 클로킹),[155,202,155]],[곤충형, 악마형에게도 보이지 않음],[일정 횟수 데미지까지 풀리지 않음],[이동속도 증가]]}
+EFST_COCKTAIL_WARG_BLOOD	{descript=[[칵테일 워그 블러드,[155,202,155]],[%s,[255,176,98]],[INT 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_COLD	{descript=[[냉동 상태,[250,100,100]],[%s,[255,176,98]],[이동, 공격, 스킬, 아이템 사용 불가],[지속적인 HP, SP 감소],[둔기, 도끼, 양손 도끼에 의한 피해 증가],[풍속성 마법에 의한 피해 증가],[단검, 검, 양손검, 화살에 의한 피해 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CONCENTRATION	{descript=[[집중력 향상(Attention concentrate),[155,202,155]],[%s,[255,176,98]],[DEX, AGI 증가],[사용 순간 가까이 숨은 적 발견]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_COUNTER_ON	{descript=[[카운터 준비,[155,202,155]],[적에게 공격 명중 시],[확률에 따라 카운터차기 준비 자세]]}
+EFST_CRITICALPERCENT	{descript=[[연마제,[155,202,155]],[%s,[255,176,98]],[크리티컬 확률 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CRITICALWOUND	{descript=[[치명적인 상처,[250,100,100]],[%s,[255,176,98]],[받게 되는 회복계 스킬의 효과 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CROSSBOWCLAN	{descript=[[크로스보우 클랜,[155,202,155]],[DEX + 1, AGI + 1],[MHP + 30, MSP + 10]]}
+EFST_CRUCIS	{descript=[[시그넘 크루시스(Signum Crucis),[155,202,155]],[%s,[255,176,98]],[언데드, 암계열 몬스터의 방어력 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CR_SHRINK	{descript=[[슈링크(Shrink),[155,202,155]],[%s,[255,176,98]],[오토가드 스킬로 방어 시],[확률에 따라 상대방을 밀어냄]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_CUP_OF_BOZA	{descript=[[보자의 컵,[155,202,155]],[vit 증가],[화속성에 대한 내성 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_C_MARKER	{descript=[[크림즌 마커,[250,100,100]],[%s,[255,176,98]],[FLEE 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DANCE_WITH_WUG	{descript=[[워그와 함께 춤을,[155,202,155]],[%s,[255,176,98]],[공격속도 증가],[고정 캐스팅 시간 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DARKCROW	{descript=[[검은 손톱,[250,100,100]],[근접 물리피해 증폭],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_DEADLYINFECT	{descript=[[데들리 인펙트,[155,202,155]],[%s,[255,176,98]],[자신이 공격하거나],[자신을 공격하는 적에게],[모든 상태이상을 전염]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DEATHHURT	{descript=[[데스 허트 (상처오염 독),[250,100,100]],[%s,[255,176,98]],[회복 스킬을 받을 때 효과 저하]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DEC_AGI	{descript=[[민첩성 감소(Decrease agility),[250,100,100]],[%s,[255,176,98]],[이동속도 감소],[공격속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DEEP_SLEEP	{descript=[[깊은 잠 상태,[155,202,155]],[%s,[255,176,98]],[통상 데미지의 1.5배 피해],[2초당 일정량의 HP/SP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DEFENDER	{descript=[[디펜더 (Defender),[155,202,155]],[%s,[255,176,98]],[원거리 물리공격에 대한 데미지 감소],[이동속도, 공격속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DODGE_ON	{descript=[[낙법,[155,202,155]],[날라차기 준비 자세],[적의 원거리, 마법 공격을 받을 시],[확률에 따라 공격 회피],[스퍼트 상태 시],[근거리 공격에도 발동]]}
+EFST_DOUBLECASTING	{descript=[[더블캐스팅 (Double Casting),[155,202,155]],[%s,[255,176,98]],[볼트류 스킬 사용 시],[확률에 따라 볼트류 스킬 한번 더 시전]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_DOWNKICK_ON	{descript=[[찍기 준비,[155,202,155]],[적에게 공격 명중 시],[확률에 따라 찍기 준비 자세]]}
+EFST_DROCERA_HERB_STEAMED	{descript=[[드로세라 허브 찜,[155,202,155]],[%s,[255,176,98]],[AGI 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_EARTHSCROLL	{descript=[[즐거운 휴식,[155,202,155]],[%s,[255,176,98]],[어스 스파이크 주문서 사용 시],[일정량의 SP 소모],[낮은 확률로 주문서 소비]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ECHOSONG	{descript=[[메아리의 노래,[155,202,155]],[%s,[255,176,98]],[방어력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_EDP	{descript=[[치명적인 독 부여 (Enchant Deadly Poison),[155,202,155]],[%s,[255,176,98]],[이 무기에 맞으면 확률에 따라 강한 독 걸림],[보스형 몬스터에게는 증가데미지 무효,[255,255,0]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ENCHANTBLADE	{descript=[[엔첸트 블레이드 (Enchant Blade),[155,202,155]],[%s,[255,176,98]],[근접 물리 공격에 마법 공격력 추가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ENCHANTPOISON	{descript=[[인챈트 포이즌(Enchant Poison),[155,202,155]],[%s,[255,176,98]],[무기에 독속성 부여]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ENDURE	{descript=[[인듀어(Endure),[155,202,155]],[%s,[255,176,98]],[공격당해도 이동이나 공격 가능],[일정 횟수 이상 공격 당할 경우 상태 해제]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ENERGYCOAT	{descript=[[에너지 코트 (Energy Coat),[155,202,155]],[%s,[255,176,98]],[현재 SP 양에 비례하여],[적으로부터의 피해 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ENERVATION	{descript=[[마스커레이드 : 이너베이션 (가면 : 탈력),[250,100,100]],[%s,[255,176,98]],[공격력 감소],[피해 순간 기 구체 소실]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_EXTREMITYFIST	{descript=[[아수라 패황권,[250,100,100]],[%s,[255,176,98]],[SP 회복 불가 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_E_CHAIN	{descript=[[이터널 체인,[155,202,155]],[%s,[255,176,98]],[일정 확률로 체인액션 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FALCON	{descript=[[팔콘리 마스터리(Falconry Mastery),[190,190,250]],[팔콘 대여 중]]}
+EFST_FEARBREEZE	{descript=[[피어 브리즈 (FEAR BREEZE / 산들바람의 공포),[155,202,155]],[%s,[255,176,98]],[활 공격 시 확률에 따라],[추가 공격 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FENRIR_CARD	{descript=[[펜릴의 힘,[155,202,155]],[MATK 증가],[고정 캐스팅 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_FIGHTINGSPIRIT	{descript=[[에이시르 룬 스톤 ; 파이팅 스피릿 (Fighting Spirit),[155,202,155]],[%s,[255,176,98]],[ATK 상승],[시전자는 공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FLOWER_LEAF	{descript=[[풍성한 꽃가지,[155,202,155]],[%s,[255,176,98]],[Flee 증가],[완전회피 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FOOD_AGI	{descript=[[%s,[255,176,98]],[AGI 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_AGI_CASH	{descript=[[%s,[255,176,98]],[AGI 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_BASICAVOIDANCE	{descript=[[%s,[255,176,98]],[회피율 향상]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_BASICHIT	{descript=[[%s,[255,176,98]],[명중률 향상]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_CRITICALSUCCESSVALUE	{descript=[[%s,[255,176,98]],[크리티컬 확률 향상]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_DEX	{descript=[[%s,[255,176,98]],[DEX 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_DEX_CASH	{descript=[[%s,[255,176,98]],[DEX 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_INT	{descript=[[%s,[255,176,98]],[INT 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_INT_CASH	{descript=[[%s,[255,176,98]],[INT 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_LUK	{descript=[[%s,[255,176,98]],[LUK 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_LUK_CASH	{descript=[[%s,[255,176,98]],[LUK 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_STR	{descript=[[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_STR_CASH	{descript=[[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_VIT	{descript=[[%s,[255,176,98]],[VIT 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FOOD_VIT_CASH	{descript=[[%s,[255,176,98]],[VIT 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_FORCEOFVANGUARD	{descript=[[포스 오브 뱅가드,[155,202,155]],[%s,[255,176,98]],[MHP, 방어력 상승],[데미지를 입을 때마다 분노 카운터 누적],[활성화 중 지속적으로 SP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FRIGG_SONG	{descript=[[풍요의 노래,[155,202,155]],[MHP 증가],[1초당 일정량의 HP 회복],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_FROSTMISTY	{descript=[[빙결 상태,[250,100,100]],[%s,[255,176,98]],[방어력, 이동속도, 공격속도 감소],[고정 캐스팅 시간 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_FULL_THROTTLE	{descript=[[풀 스로틀,[155,202,155]],[이동속도 증가],[All State 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_GEFFEN_MAGIC1	{descript=[[인간형 몬스터에게 주는],[물리데미지 추가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GEFFEN_MAGIC2	{descript=[[인간형 몬스터에게 주는],[마법데미지 추가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GEFFEN_MAGIC3	{descript=[[인간형 몬스터에게서],[받는 데미지 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GENSOU	{descript=[[흐린 달빛의 환상,[155,202,155]],[%s,[255,176,98]],[HP와 SP가 랜덤으로 증가 또는 감소],[마법 공격을 받을 시,],[데미지의 절반을 다른 대상이 받음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GENTLETOUCH_CHANGE	{descript=[[점혈 - 반(點穴-反),[155,202,155]],[%s,[255,176,98]],[체력, 마법 방어력 하락],[공격력, 공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GENTLETOUCH_ENERGYGAIN	{descript=[[점혈 - 구(點穴-球),[155,202,155]],[%s,[255,176,98]],[근접 물리 공격을 하거나 데미지를 입을 시],[기 구체 하나 생성]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GENTLETOUCH_REVITALIZE	{descript=[[점혈 - 활(點穴-活),[155,202,155]],[%s,[255,176,98]],[VIT, MHP 상승],[물리 방어력 상승],[HP 자연 회복속도 증가],[이동, 공격 중에도 HP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GIANTGROWTH	{descript=[[튜리서드 룬 스톤 ; 자이언트 그로스 (Giant Growth),[155,202,155]],[%s,[255,176,98]],[STR 증가],[근접 물리 공격 시],[확률에 따라 큰 데미지],[확률에 따라 자신의 무기 파괴]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GLASTHEIM_ATK	{descript=[[강력한 힘이 내 몸에서],[일렁이는 것을 느낄 수 있습니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_DEF	{descript=[[만들어 준 마법방패로],[보호받고 있습니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_HEAL	{descript=[[성스러운 마법이],[치유의 힘을],[극대화 해 줍니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_GLASTHEIM_HIDDEN	{descript=[[대마법 방어 에너지가],[수없이 겹쳐있습니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_HPSP	{descript=[[MHP와 MSP가],[급격히 상승합니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_ITEMDEF	{descript=[[모든 방어력이],[급격히 상승합니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_STATE	{descript=[[모든 능력치가],[급격히 상승합니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLASTHEIM_TRANS	{descript=[[산 자와 죽은 자의 경계에 있습니다!,[250,100,100]],[정신력이 50% 감소합니다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GLOOMYDAY	{descript=[[수줍은 하루의 우울,[155,202,155]],[%s,[255,176,98]],[특정 스킬의 데미지 상승],[회피율과 공격속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GLORIA	{descript=[[글로리아(Gloria),[155,202,155]],[%s,[255,176,98]],[LUK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GM_BATTLE	{descript=[[전투약,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가],[MHP, MSP 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GM_BATTLE2	{descript=[[고급전투약,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가],[MHP, MSP 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GN_CARTBOOST	{descript=[[카트 부스트,[155,202,155]],[%s,[255,176,98]],[카트 장착 시의 속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GOLDENMACECLAN	{descript=[[골든메이스 클랜,[155,202,155]],[LUK + 1, INT + 1],[MHP + 30, MSP + 10]]}
+EFST_GRANITIC_ARMOR	{descript=[[그래니틱 아머,[155,202,155]],[%s,[255,176,98]],[디이터와 주인이 받는 데미지 감소],[지속시간 종료 시 HP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GRIFFON	{descript=[[그리폰 탑승 중,[190,190,250]]]}
+EFST_GROOMY	{descript=[[마스커레이드 : 그루미 (가면 : 우울),[250,100,100]],[%s,[255,176,98]],[공격 속도, 명중률 감소],[피해 순간 퍼밀리어 해제],[퍼밀리어 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GROUNDMAGIC	{descript=[[%s,[255,176,98]],[지면 스킬의 효과 적용]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_GS_ACCURACY	{descript=[[인크리징 어큐러시(Increasing Accuracy),[155,202,155]],[%s,[255,176,98]],[명중률 증가],[DEX 증가],[AGI 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GS_ADJUSTMENT	{descript=[[애드저스트먼트(Adjustment),[155,202,155]],[%s,[255,176,98]],[명중률 감소],[회피율 증가],[원거리 물리 공격으로 받는 데미지 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GS_GATLINGFEVER	{descript=[[개틀링 피버(Gatling Fever),[155,202,155]],[%s,[255,176,98]],[공격속도, 데미지 향상],[회피율, 이동속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GS_MADNESSCANCEL	{descript=[[매드니스 캔슬러(Madness Canceler),[155,202,155]],[%s,[255,176,98]],[ATK 증가],[공격속도 증가],[이동 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_GVG_BLIND	{descript=[[요정의눈물(암흑),[155,202,155]],[암흑 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_CURSE	{descript=[[요정의눈물(저주),[155,202,155]],[저주 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_FREEZ	{descript=[[요정의눈물(동빙),[155,202,155]],[동빙 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_GIANT	{descript=[[서리거인의 피,[155,202,155]],[플레이어형 적에게 주는 데미지 추가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_GOLEM	{descript=[[골렘의 핵,[155,202,155]],[플레이어형 적에게 받는 데미지 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_SILENCE	{descript=[[요정의눈물(침묵),[155,202,155]],[침묵 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_SLEEP	{descript=[[요정의눈물(수면),[155,202,155]],[수면 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_STONE	{descript=[[요정의눈물(석화),[155,202,155]],[석화 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_GVG_STUN	{descript=[[요정의눈물(스턴),[155,202,155]],[스턴 면역],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_G_LIFEPOTION	{descript=[[신속한 생명수,[155,202,155]],[%s,[255,176,98]],[3초당 일정량의 HP 회복],[버서크 상태 중 효과 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HALLUCINATIONWALK	{descript=[[할루시네이션 워크 (HALLUCINATIONWALK / 환영보),[155,202,155]],[%s,[255,176,98]],[회피율 향상],[확률에 따라 마법 데미지 무시]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HANDICAPSTATE_ICEEXPLO	{descript=[[동빙폭탄,[250,100,100]],[이동속도 감소],[일정 시간 뒤에 폭발하여],[주변에 큰 데미지를 준다.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=5}
+EFST_HANDICAPSTATE_NORECOVER	{descript=[[회복 불가 상태,[250,100,100]],[%s,[255,176,98]],[HP, SP 회복 불가 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HANDICAPTOLERANCE_LEVELGAP	{descript=[[%s,[255,176,98]],[상태이상 내성 레벨 패널티 감소]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_HARMONIZE	{descript=[[하모나이즈,[155,202,155]],[%s,[255,176,98]],[스테이터스 가중치 조정]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HEALPLUS	{descript=[[회복력 향상포션,[155,202,155]],[%s,[255,176,98]],[받는 힐과 일부 회복 아이템의],[사용 효과 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HEAT_BARREL	{descript=[[히트 배럴,[155,202,155]],[%s,[255,176,98]],[ATK 증가],[공격 후딜레이 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HEAT_BARREL_AFTER	{descript=[[후유증,[250,100,100]],[%s,[255,176,98]],[아이템 사용불가],[스킬 사용불가],[공격 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HELLPOWER	{descript=[[지옥의 권능,[155,202,155]],[%s,[255,176,98]],[부활 불가],[새크리파이스 사용 불가],[지그프리드의 증표 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HIDING	{descript=[[하이딩(Hiding),[155,202,155]],[%s,[255,176,98]],[땅 속에 숨어 적의 공격 회피],[적의 탐색 스킬로 발견 가능]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_HOVERING	{descript=[[호버링,[155,202,155]],[%s,[255,176,98]],[트랩 및 일부 지면 대상 마법의 효과를 받지 않음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_IGNORANCE	{descript=[[마스커레이드 : 이그노어런스 (가면 : 무지),[250,100,100]],[%s,[255,176,98]],[피해 순간 일정량의 SP 소실],[스킬, 마법 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ILLUSION	{descript=[[환각 상태,[250,100,100]],[%s,[255,176,98]],[화면 뒤틀림],[데미지 표시 이상],[경직에 의한 캐스팅 끊김]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_IMPOSITIO	{descript=[[임포시티오 마누스(Impositio Manus),[155,202,155]],[%s,[255,176,98]],[무기의 공격력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_INC_AGI	{descript=[[민첩성 증가(Increase agility),[155,202,155]],[%s,[255,176,98]],[이동속도 증가],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_INFRAREDSCAN	{descript=[[인프라레드 스캔,[155,202,155]],[%s,[255,176,98]],[숨어있는 적 발견],[확률에 따라 범위 내 모든 대상의 회피율 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_INSPIRATION	{descript=[[인스피레이션,[155,202,155]],[%s,[255,176,98]],[명중률, 스탯 상승, 공격력, MHP 증가],[특정 버프, 상태이상 무효화],[지속적으로 HP, SP 감소],[발동 시 모든 버프 및 상태이상 해제],[발동 시 일정량의 경험치 소실]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_INT_SCROLL	{descript=[[%s,[255,176,98]],[INT 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_INVISIBILITY	{descript=[[인비지빌리티 (투명화),[155,202,155]],[%s,[255,176,98]],[보이지 않는 상태에서 공격 가능],[공격 속성이 염속성 1레벨로 변화],[지속적인 SP 감소],[스킬, 아이템 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ITEM_ATKMAX	{descript=[[MAX ATK,[190,190,250]],[최대 물리데미지]]}
+EFST_ITEM_ATKMIN	{descript=[[MIN ATK,[190,190,250]],[최소 물리데미지]]}
+EFST_ITEM_MATKMAX	{descript=[[MAX MATK,[190,190,250]],[최대 마법데미지]]}
+EFST_ITEM_MATKMIN	{descript=[[MIN MATK,[190,190,250]],[최소 마법데미지]]}
+EFST_IZAYOI	{descript=[[열 여섯번째의 밤,[155,202,155]],[%s,[255,176,98]],[고정 캐스팅 삭제],[변동 캐스팅 감소],[아이템 MATK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_JITTER_BUFF1	{descript=[[뉴오즈의 엉뚱함,[155,202,155]],[ATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF10	{descript=[[멜로디잭의 불필요함,[155,202,155]],[회피율 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF2	{descript=[[아이구의 의지,[155,202,155]],[MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF3	{descript=[[로테르트의 허세,[155,202,155]],[공격 후딜레이 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF4	{descript=[[겔카의 수줍음,[155,202,155]],[SP 소모량 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF5	{descript=[[아랑의 천진난만함,[155,202,155]],[스킬 후딜레이 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF6	{descript=[[밍민의 세밀함,[155,202,155]],[명중률 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF7	{descript=[[로엘의 진지함,[155,202,155]],[DEF 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF8	{descript=[[루나인의 세침함,[155,202,155]],[힐량 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JITTER_BUFF9	{descript=[[라기의 썰렁함,[155,202,155]],[MDEF 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JOINTBEAT	{descript=[[조인트 비트(Joint Beat),[155,202,155]],[%s,[255,176,98]],[관절 파괴에 따른],[상태 이상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_JP_EVENT01	{descript=[[어패류 몬스터에게 주는],[물리데미지 추가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JP_EVENT02	{descript=[[어패류 몬스터에게 주는],[마법데미지 추가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JP_EVENT03	{descript=[[어패류 몬스터에게서],[받는 데미지 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JP_EVENT04	{descript=[[어패류 몬스터에게서],[얻는 경험치 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_JP_OTP	{descript=[[OTP 가입자 특전,[155,202,155]],[몬스터 사냥 시],[경험치, JOB 경험치 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_JUMPINGCLAN	{descript=[[점핑 클랜,[155,202,155]],[All State + 1.]]}
+EFST_KAAHI	{descript=[[카아히,[155,202,155]],[%s,[255,176,98]],[스킬을 제외한 공격을 받을 때마다],[SP를 소모하며 HP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KAGEMUSYA	{descript=[[그림자무사,[155,202,155]],[%s,[255,176,98]],[더블 어택 효과 부여],[매 초당 일정량의 SP 소실],[일정 횟수 만큼 공격 당할 경우 상태 해제]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KAIZEL	{descript=[[카이젤,[155,202,155]],[%s,[255,176,98]],[캐스팅시간이 DEX에 영향을 받지않음],[사망 시 곧바로 부활, 2초간 기리에 상태 유지]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KAUPE	{descript=[[카우프,[155,202,155]],[%s,[255,176,98]],[확률에 따라 적의 공격을 회피]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KG_KAGEHUMI	{descript=[[그림자 밟기,[250,100,100]],[%s,[255,176,98]],[이동 불가],[특정 스킬 해제],[은신이나 텔레포트 스킬 및 아이템 사용 불가],[긴급호출 스킬 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KINGS_GRACE	{descript=[[왕의 가호,[155,202,155]],[무적상태],[아이템 사용불가],[이동 및 공격 불가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=5}
+EFST_KYOMU	{descript=[[허무의 그림자,[250,100,100]],[%s,[255,176,98]],[물리 및 마법 공격 반사 효과 무효화],[스킬 사용 시 일정확률로 스킬 실패]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_KYRIE	{descript=[[기리에 엘레이손(Kyrie Eleison),[155,202,155]],[%s,[255,176,98]],[배리어가 정해진 공격 횟수만큼 방어]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LAZINESS	{descript=[[마스커레이드 : 레이지네스 (가면 : 게으름),[250,100,100]],[%s,[255,176,98]],[이동 속도, 회피율 감소],[캐스팅 시간 증가],[스킬 사용 시 일정량의 SP 추가 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LEECHESEND	{descript=[[리치 엔드 (거머리 독),[155,202,155]],[%s,[255,176,98]],[매초 일정량의 HP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LERADS_DEW	{descript=[[레라드의 이슬,[155,202,155]],[%s,[255,176,98]],[MHP 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LEXAETERNA	{descript=[[렉스 에테르나(Lex Aeterna),[250,100,100]],[%s,[255,176,98]],[1회 공격에 두 배 데미지를 받는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LG_REFLECTDAMAGE	{descript=[[리플렉트 데미지,[190,190,250]],[%s,[255,176,98]],[받은 데미지의 일부를 주변에 되돌림],[매초 일정량의 SP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LIGHTNINGWALK	{descript=[[섬전보(閃電步),[155,202,155]],[%s,[255,176,98]],[원거리 물리, 마법 공격의 타겟일 때],[일정 확률로 공격 회피 후],[공격한 대상의 바로 앞까지 이동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_LIGHT_OF_REGENE	{descript=[[재생의 빛,[155,202,155]],[%s,[255,176,98]],[주인 사망 시],[에이라가 사망하며 주인을 살림]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_L_LIFEPOTION	{descript=[[중형 생명수,[155,202,155]],[%s,[255,176,98]],[4초당 일정량의 HP 회복],[버서크 상태 중 효과 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MACRO_PERMIT	{descript=[[매크로 사용,[255,255,0]],[%s,[255,176,98]],[매크로 사용 중]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MACRO_POSTDELAY	{descript=[[매크로 후딜레이,[255,255,0]],[%s,[255,176,98]],[매크로 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MAGICMUSHROOM	{descript=[[매직 머쉬룸 (웃음 버섯 독),[155,202,155]],[%s,[255,176,98]],[웃음 이모티콘],[4초당 랜덤 스킬 사용],[4초당 일정량의 HP 소실]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MAGIC_CANDY	{descript=[[마법캔디,[155,202,155]],[%s,[255,176,98]],[MATK 상승],[고정 캐스팅 시간 감소],[캐스팅 끊기지 않음],[10초당 일정량의 SP 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MAGMA_FLOW	{descript=[[마그마 플로,[155,202,155]],[%s,[255,176,98]],[데미지 받을 시],[일정 확률로 몸에서 마그마 분출]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MAGNIFICAT	{descript=[[마니피캇(Magnificat),[155,202,155]],[%s,[255,176,98]],[SP 회복속도 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MANU_ATK	{descript=[[마누크의 호기,[155,202,155]],[%s,[255,176,98]],[마누크 필드지역 몬스터에게],[물리공격 데미지 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MANU_DEF	{descript=[[마누크의 의지,[155,202,155]],[%s,[255,176,98]],[마누크 필드지역 몬스터에게 받는],[물리, 마법 데미지 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MANU_MATK	{descript=[[마누크의 신념,[155,202,155]],[%s,[255,176,98]],[마누크 필드지역 몬스터에게],[마법공격 데미지 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MARIONETTE	{descript=[[마리오네뜨 컨트롤 (대상),[155,202,155]],[%s,[255,176,98]],[시전 플레이어에게],[스테이터스를 받은 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MARIONETTE_MASTER	{descript=[[마리오네뜨 컨트롤 (시전),[155,202,155]],[%s,[255,176,98]],[대상 플레이어에게],[스테이터스를 넘긴 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MARSHOFABYSS	{descript=[[마쉬 오브 어비스 (MARSH OF ABYSS / 심연의 늪),[250,100,100]],[%s,[255,176,98]],[이동속도 저하],[방어력, 회피율 저하]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MAXIMIZE	{descript=[[맥시마이즈 파워(Maximize Power),[155,202,155]],[%s,[255,176,98]],[무기의 최대 성능을 이끌어냄],[지속적으로 SP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MEIKYOUSISUI	{descript=[[명경지수 (明鏡止水),[155,202,155]],[%s,[255,176,98]],[일정량의 HP 회복],[일정량의 SP 회복],[이동 불가],[일정확률로 데미지를 입지 않음],[스킬 사용 시, 디버프가 랜덤으로 해제],[데미지를 입을 시, 효과 해제]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MELODYOFSINK	{descript=[[멜로디 오브 싱크,[155,202,155]],[%s,[255,176,98]],[마법 공격력 향상],[물리 공격력 하락]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MELTDOWN	{descript=[[멜트다운 (Meltdown),[155,202,155]],[%s,[255,176,98]],[플레이어를 공격할 때],[플레이어의 무기나 방어구를 일정 확률로 파괴],[몬스터를 공격할 때],[몬스터의 공격력이나 방어력이 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MINOR_BBQ	{descript=[[마이너 양지머리,[155,202,155]],[%s,[255,176,98]],[VIT 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MONSTER_TRANSFORM	{descript=[[몬스터 변신,[155,202,155]],[%s,[255,176,98]],[몬스터로 변신 중인 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MOONLIT_SERENADE	{descript=[[달빛의 세레나데,[155,202,155]],[%s,[255,176,98]],[마법 공격력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MOON_COMFORT	{descript=[[달의 안락함,[155,202,155]],[%s,[255,176,98]],[회피율 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MORA_BUFF	{descript=[[모라 베리,[155,202,155]],[%s,[255,176,98]],[모라마을 인근 필드],[고유 몬스터들에 대한 내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MOVHASTE_HORSE	{descript=[[%s,[255,176,98]],[이동속도 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_MOVHASTE_INFINITY	{descript=[[이동속도 증가]]}
+EFST_MOVHASTE_POTION	{descript=[[%s,[255,176,98]],[이동속도 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_MVPCARD_MISTRESS	{descript=[[미스트레스 스크롤,[155,202,155]],[%s,[255,176,98]],[젬스톤 소모없이 마법 사용 가능],[SP 소모량 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MVPCARD_ORCHERO	{descript=[[오크히어로 스크롤,[155,202,155]],[%s,[255,176,98]],[스턴 상태에 걸리지 않음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MVPCARD_ORCLORD	{descript=[[오크로드 스크롤,[155,202,155]],[%s,[255,176,98]],[근접 물리공격의 일부를 반사]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MVPCARD_TAOGUNKA	{descript=[[타오군 카 스크롤,[155,202,155]],[%s,[255,176,98]],[MHP 증가],[DEF/MDEF 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_MYSTICPOWDER	{descript=[[미스틱 파우더,[155,202,155]],[%s,[255,176,98]],[FLEE, LUK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_M_LIFEPOTION	{descript=[[신묘한 생명수,[155,202,155]],[%s,[255,176,98]],[3초당 일정량의 HP 회복],[버서크 상태 중 효과 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NEUTRALBARRIER	{descript=[[뉴트럴 배리어,[155,202,155]],[%s,[255,176,98]],[물리, 마법 방어력 향상],[원거리 공격 무효화]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NJ_BUNSINJYUTSU	{descript=[[환영분신,[155,202,155]],[%s,[255,176,98]],[일정 횟수만큼 근거리, 원거리 물리 공격을 회피],[마법 공격 방어 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NJ_NEN	{descript=[[염(念),[155,202,155]],[%s,[255,176,98]],[STR, INT 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NJ_UTSUSEMI	{descript=[[매미허물 벗기,[155,202,155]],[%s,[255,176,98]],[일정 횟수만큼 공격을 회피],[공격자의 반대 방향으로 이동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NOEQUIPARMOR	{descript=[[갑옷 장착해제 상태,[250,100,100]],[%s,[255,176,98]],[갑옷 장착 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NOEQUIPHELM	{descript=[[투구 장착해제 상태,[250,100,100]],[%s,[255,176,98]],[투구 장착 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NOEQUIPSHIELD	{descript=[[방패 장착해제 상태,[250,100,100]],[%s,[255,176,98]],[방패 장착 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_NOEQUIPWEAPON	{descript=[[무기 장착해제 상태,[250,100,100]],[%s,[255,176,98]],[무기 장착 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OBLIVIONCURSE	{descript=[[오블리비언 커즈 (망각의 재),[250,100,100]],[%s,[255,176,98]],[망각 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ODINS_POWER	{descript=[[오딘의 힘,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 상승],[DEF, MDEF 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OFFERTORIUM	{descript=[[오페르토리움,[155,202,155]],[자신이 사용하는 힐량 증가],[모든 스킬의 SP 소모량 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_ONEHANDQUICKEN	{descript=[[원핸드 퀴큰,[155,202,155]],[%s,[255,176,98]],[한손검 사용 시],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OVERED_BOOST	{descript=[[오버드 부스트,[155,202,155]],[%s,[255,176,98]],[에이라와 주인의],[공격 속도, 회피율 상향 고정]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OVERHEAT	{descript=[[오버 히트 (Over Heat),[155,202,155]],[마도 기어 오버 히트 상태],[매초 일정량의 HP 감소]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_OVERLAPEXPUP	{descript=[[말랑도 고양이 캔,[155,202,155]],[%s,[255,176,98]],[몬스터 사냥 시],[경험치, JOB 경험치 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OVERSEAEXPUP	{descript=[[%s,[255,176,98]],[획득 경험치 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_OVERTHRUST	{descript=[[오버 트러스트(Over Thrust),[155,202,155]],[%s,[255,176,98]],[무기의 공격력 증가],[무기가 파괴될 가능성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_OVERTHRUSTMAX	{descript=[[오버트러스트 맥스 (Overthrust Max),[155,202,155]],[%s,[255,176,98]],[무기의 공격력 증가],[무기가 파괴될 가능성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PACKING_ENVELOPE1	{descript=[[강력한 30초,[155,202,155]],[ATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE10	{descript=[[잘맞는 30초,[155,202,155]],[HIT 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE2	{descript=[[똑똑한 30초,[155,202,155]],[MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE3	{descript=[[체력의 30초,[155,202,155]],[MHP 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE4	{descript=[[마력의 30초,[155,202,155]],[MSP 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE5	{descript=[[가벼운 30초,[155,202,155]],[FLEE 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE6	{descript=[[빨라진 30초,[155,202,155]],[ASPD 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE7	{descript=[[든든한 30초,[155,202,155]],[DEF 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE8	{descript=[[안전한 30초,[155,202,155]],[MDEF 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PACKING_ENVELOPE9	{descript=[[운좋은 30초,[155,202,155]],[CRI 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_PAD_READER_ALCHEMIST	{descript=[[알케미스트,[155,202,155]],[%s,[255,176,98]],[보스형 몬스터에게],[받는 데미지 20% 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_ASSASSIN	{descript=[[어쌔신,[155,202,155]],[%s,[255,176,98]],[중형 몬스터에게],[주는 데미지 10% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_BARD	{descript=[[바드,[155,202,155]],[%s,[255,176,98]],[HP 5초당 2% 자동회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_BLACKSMITH	{descript=[[블랙스미스,[155,202,155]],[%s,[255,176,98]],[대형 몬스터에게],[주는 데미지 20% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_CRUSADER	{descript=[[크루세이더,[155,202,155]],[%s,[255,176,98]],[대형 몬스터에게],[받는 데미지 20% 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_DANCER	{descript=[[댄서,[155,202,155]],[%s,[255,176,98]],[SP 5초당 1% 자동회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_GUNSLINGER	{descript=[[건슬링거,[155,202,155]],[소형 몬스터에게],[받는 데미지 20% 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_HUNTER	{descript=[[헌터,[155,202,155]],[%s,[255,176,98]],[원거리 물리 공격력 10% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_KNIGHT	{descript=[[나이트,[155,202,155]],[%s,[255,176,98]],[ATK 10% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_MONK	{descript=[[몽크,[155,202,155]],[%s,[255,176,98]],[보스형 몬스터에게],[주는 데미지 20% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_NINJA	{descript=[[닌자,[155,202,155]],[중형 몬스터에게],[받는 데미지 20% 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_PRIEST	{descript=[[프리스트,[155,202,155]],[%s,[255,176,98]],[주는 힐량 증가 10% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_ROGUE	{descript=[[로그,[155,202,155]],[%s,[255,176,98]],[소형 몬스터에게],[주는 데미지 20% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_SAGE	{descript=[[세이지,[155,202,155]],[%s,[255,176,98]],[오토스펠 : 파이어볼 10Lv]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_SUPERNOVICE	{descript=[[슈퍼노비스,[155,202,155]],[%s,[255,176,98]],[All Stat + 5]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_TAEKWON	{descript=[[태권,[155,202,155]],[%s,[255,176,98]],[획득 경험치 20% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAD_READER_WIZARD	{descript=[[위자드,[155,202,155]],[%s,[255,176,98]],[MATK 10% 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PAIN_KILLER	{descript=[[페인 킬러,[155,202,155]],[%s,[255,176,98]],[공격 속도 감소],[데미지 받을 시 모션 딜레이 없음],[받는 데미지 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PARALYSE	{descript=[[패럴라이즈 (감각마비 독),[155,202,155]],[%s,[255,176,98]],[공격속도 감소],[회피 감소],[이동속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PARRYING	{descript=[[패링 (Parrying),[155,202,155]],[%s,[255,176,98]],[확률에 따라 상대방의 공격을 칼로 방어]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PARTYFLEE	{descript=[[%s,[255,176,98]],[회피율 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_PHI_DEMON	{descript=[[고대 정령의 대부적,[155,202,155]],[%s,[255,176,98]],[악마형 몬스터에게 주는],[물리, 마법 데미지 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PLUSATTACKPOWER	{descript=[[%s,[255,176,98]],[ATK 상승]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_PLUSAVOIDVALUE	{descript=[[환영의 술잔,[155,202,155]],[%s,[255,176,98]],[완전 회피 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PLUSMAGICPOWER	{descript=[[%s,[255,176,98]],[MATK 상승]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_POISONINGWEAPON	{descript=[[포이즈닝 웨폰 (POISONING WEAPON / 맹독 무기),[155,202,155]],[%s,[255,176,98]],[공격 시 대상에게 무기에 바른 독 효과를 입힘]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_POISONREACT	{descript=[[포이즌 리액트(Poison React),[155,202,155]],[%s,[255,176,98]],[독속성의 공격을 되돌려주는 상태],[일반공격에 의해 데미지를 입을 경우],[상대에게 인베넘 스킬 사용]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_POPECOOKIE	{descript=[[교황 쿠키,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가],[모든 속성 내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PORK_RIB_STEW	{descript=[[돼지갈비찜,[155,202,155]],[%s,[255,176,98]],[공격속도 증가.],[SP 소모량 감소.]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PRESERVE	{descript=[[프리저브 (Preserve),[155,202,155]],[%s,[255,176,98]],[스킬을 맞아도 도작 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PRESTIGE	{descript=[[프레스티지,[155,202,155]],[%s,[255,176,98]],[스탯에 따른 마법 회피율 적용],[방어력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROPERTYDARK	{descript=[[%s,[255,176,98]],[암속성 적용]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_PROPERTYFIRE	{descript=[[프레임 런쳐 (Flame Launcher),[155,202,155]],[%s,[255,176,98]],[무기에 화속성 부여]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROPERTYGROUND	{descript=[[사이즈믹 웨폰 (Seismic Weapon),[155,202,155]],[%s,[255,176,98]],[무기에 지속성 적용]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROPERTYTELEKINESIS	{descript=[[%s,[255,176,98]],[염속성 적용]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_PROPERTYUNDEAD	{descript=[[언데드 속성 적용]];haveTimeLimit=0}
+EFST_PROPERTYWATER	{descript=[[프로스트 웨폰 (Frost Weapon),[155,202,155]],[%s,[255,176,98]],[무기에 수속성 적용]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROPERTYWIND	{descript=[[라이트닝 로더 (Lightning Loader),[155,202,155]],[%s,[255,176,98]],[무기에 풍속성 적용]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECTARMOR	{descript=[[케미칼 프로텍션(아머) (Chemical Protection armor),[155,202,155]],[%s,[255,176,98]],[갑옷이 절대로 손상되지 않는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECTEXP	{descript=[[엄마 아빠 사랑해요,[155,202,155]],[%s,[255,176,98]],[죽더라도 경험치 소실 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECTHELM	{descript=[[케미칼 프로텍션(헬름) (Chemical Protection Helm),[155,202,155]],[%s,[255,176,98]],[투구가 절대로 손상되지 않는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECTSHIELD	{descript=[[케미칼 프로텍션(쉴드) (Chemical Protection Shield),[155,202,155]],[%s,[255,176,98]],[방패가 절대로 손상되지 않는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECTWEAPON	{descript=[[케미칼 프로텍션(웨폰) (Chemical Protection Weapon),[155,202,155]],[%s,[255,176,98]],[무기가 절대로 손상되지 않는 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECT_DEF	{descript=[[물리 방어 포션,[155,202,155]],[%s,[255,176,98]],[물리 공격 내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROTECT_MDEF	{descript=[[마법 방어 포션,[155,202,155]],[%s,[255,176,98]],[마법 공격 내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROVIDENCE	{descript=[[신의 뜻 (Providence),[155,202,155]],[%s,[255,176,98]],[악마형, 성속성 몬스터에 대한],[내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PROVOKE	{descript=[[프로보크(Provoke),[155,202,155]],[%s,[255,176,98]],[방어력 하락],[공격력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PUTTI_TAILS_NOODLES	{descript=[[쁘띠 꼬리 국수,[155,202,155]],[%s,[255,176,98]],[LUK 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PYREXIA	{descript=[[파이렉시아 (열병 독),[155,202,155]],[%s,[255,176,98]],[암흑, 환각 상태]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_PYROCLASTIC	{descript=[[파이로클래스틱,[155,202,155]],[%s,[255,176,98]],[디이터와 주인의 무기가],[화속성으로 변화],[무기 공격력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_P_ALTER	{descript=[[플래티넘 알터,[155,202,155]],[%s,[255,176,98]],[ATK 증가],[불사속성 내성 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_QUAGMIRE	{descript=[[콰그마이어(Quagmire),[250,100,100]],[%s,[255,176,98]],[이동속도 감소],[AGI, DEX 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_QUEST_BUFF1	{descript=[[에너지 축적 중,[155,202,155]],[ATK, MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_QUEST_BUFF2	{descript=[[에너지 축적 중,[155,202,155]],[ATK, MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_QUEST_BUFF3	{descript=[[에너지 축적 중,[155,202,155]],[ATK, MATK 증가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}
+EFST_RAISINGDRAGON	{descript=[[잠룡승천(潛龍昇天),[155,202,155]],[최대 기 구체 수 증가],[최대 HP와 SP 증가],[공격속도 증가],[폭기 상태 유지],[매초 일정량의 HP 소실]]}
+EFST_RAY_OF_PROTECTION	{descript=[[수호의 빛,[155,202,155]],[%s,[255,176,98]],[특정 상태이상 해제],[특정 상태이상 면역]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_REBOUND	{descript=[[리바운드,[250,100,100]],[이동속도 감소],[HP, SP 자연회복 불가],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_RECOGNIZEDSPELL	{descript=[[리코그나이즈드 스펠 (RECOGNIZED SPELL / 마법의 이해),[155,202,155]],[%s,[255,176,98]],[최대의 마법 데미지로 공격],[SP 소모량 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_REFLECTSHIELD	{descript=[[리플렉트 쉴드 (Reflect Shield),[155,202,155]],[%s,[255,176,98]],[자신을 근거리 물리 공격한 적에게],[일정한 데미지를 되돌림]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_REFRESH	{descript=[[노씨즈 룬 스톤 ; 리플래쉬 (Refresh),[155,202,155]],[%s,[255,176,98]],[사용 시 모든 상태이상, 디버프 해제],[어떤 상태이상, 디버프에도 걸리지 않음],[일정량의 HP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_RENOVATIO	{descript=[[레노바티오 (RENOVATIO / 정화),[155,202,155]],[%s,[255,176,98]],[5초당 일정량의 HP 회복],[언데드 몬스터에게 사용 시],[시전자 레벨에 따라 일정한 데미지를 줌]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_REPRODUCE	{descript=[[리프로듀스,[155,202,155]],[활성화 중 자신이 목표가 된 스킬을 배움],[배움 가능한 스킬은 단 1개]]}
+EFST_REWARD_PLUSONLYJOBEXP	{descript=[[%s,[255,176,98]],[JOB 경험치 추가 획득]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_RG_CCONFINE_M	{descript=[[클로즈 컨파인(Close Confine),[155,202,155]],[%s,[255,176,98]],[적 대상 1인과 함께 이동 불가 상태],[회피율 증가],[보스 몬스터에게 사용 불가,[255,255,0]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_RG_CCONFINE_S	{descript=[[클로즈 컨파인(Close Confine),[155,202,155]],[%s,[255,176,98]],[적 대상 1인과 함께 이동 불가 상태],[회피율 증가],[보스 몬스터에게 사용 불가,[255,255,0]]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_RIDING	{descript=[[탈 것 대여 중,[190,190,250]]]}
+EFST_RUSH_WINDMILL	{descript=[[풍차를 향해 돌격,[155,202,155]],[%s,[255,176,98]],[공격력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SATURDAY_NIGHT_FEVER	{descript=[[광란,[250,100,100]],[%s,[255,176,98]],[3초당 HP, SP 소실],[공격력 상승, 방어력, 회피율 하락],[아이템 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SAVAGE_STEAK	{descript=[[세비지 통구이,[155,202,155]],[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SET_NUM_DEF	{descript=[[%s,[255,176,98]],[DEF가 특정 수치로 고정]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SET_NUM_MDEF	{descript=[[%s,[255,176,98]],[MDEF가 특정 수치로 고정]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SET_PER_DEF	{descript=[[DEF가 특정 퍼센트로 고정]]}
+EFST_SET_PER_MDEF	{descript=[[MDEF가 특정 퍼센트로 고정]]}
+EFST_SHADOWFORM	{descript=[[섀도우 폼,[155,202,155]],[%s,[255,176,98]],[일정 횟수만큼 자신의 데미지를],[목표 플레이어에게 대신 입힘]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SHAPESHIFT	{descript=[[셰이프 쉬프트,[155,202,155]],[%s,[255,176,98]],[마도기어의 동체 속성 변환]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SHIELDSPELL_DEF	{descript=[[쉴드 스펠 - 防,[155,202,155]],[%s,[255,176,98]],[방패 방어도에 따른 마법 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SHIELDSPELL_MDEF	{descript=[[쉴드 스펠 - 魔,[155,202,155]],[%s,[255,176,98]],[방패 마법 방어도에 따른 마법 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SHIELDSPELL_REF	{descript=[[쉴드 스펠 - 鍊,[155,202,155]],[%s,[255,176,98]],[방패 제련도에 따른 마법 발동]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SHOUT	{descript=[[고성방가,[155,202,155]],[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SIRCLEOFNATURE	{descript=[[순환하는 자연의 소리,[155,202,155]],[%s,[255,176,98]],[매초 일정량의 SP 소모, HP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SIROMA_ICE_TEA	{descript=[[시로마 아이스티,[155,202,155]],[%s,[255,176,98]],[DEX 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SIT	{descript=[[앉기,[190,190,250]]]}
+EFST_SKF_ASPD	{descript=[[%s,[255,176,98]],[공격 속도 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SKF_ATK	{descript=[[%s,[255,176,98]],[ATK 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SKF_CAST	{descript=[[%s,[255,176,98]],[변동 캐스팅 시간 감소]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SKF_MATK	{descript=[[%s,[255,176,98]],[MATK 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_SLOWCAST	{descript=[[슬로우 캐스트,[250,100,100]],[%s,[255,176,98]],[캐스팅 시간 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SLOWPOISON	{descript=[[슬로우 포이즌(Slow Poison),[155,202,155]],[%s,[255,176,98]],[독의 진행을 일시 멈춤]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SONG_OF_MANA	{descript=[[마나의 노래,[155,202,155]],[%s,[255,176,98]],[5초당 SP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SPEARQUICKEN	{descript=[[스피어 퀴큰 (Spear Quicken),[155,202,155]],[%s,[255,176,98]],[창 사용 시],[공격속도 증가],[크리티컬 상승],[회피확률 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SPL_ATK	{descript=[[핀귀큘라의 열매절임,[155,202,155]],[%s,[255,176,98]],[스플랑디드 필드지역 몬스터에게],[물리공격 데미지 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SPL_DEF	{descript=[[루시올라의 꿀쨈,[155,202,155]],[%s,[255,176,98]],[스플랑디드 필드지역 몬스터에게 받는],[물리, 마법 데미지 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SPL_MATK	{descript=[[코르누스의 눈물,[155,202,155]],[%s,[255,176,98]],[스플랑디드 필드지역 몬스터에게],[마법공격 데미지 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STAR_COMFORT	{descript=[[별의 안락함,[155,202,155]],[%s,[255,176,98]],[공격속도 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STEALTHFIELD	{descript=[[스텔스 필드,[155,202,155]],[%s,[255,176,98]],[주변의 모든 대상을 클로킹 상태로 만듬],[지속적으로 SP 소모],[이동속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STEELBODY	{descript=[[금강불괴 (金剛不壞),[155,202,155]],[%s,[255,176,98]],[DEF, MDEF 높은 수치로 고정],[이동 속도, 공격 속도 감소],[스킬 사용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STOMACHACHE	{descript=[[복통,[155,202,155]],[%s,[255,176,98]],[All Status 가중치 감소],[이동속도 감소],[10초당 한 번씩 /앉기 발생],[10초당 일정량의 SP 소모]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STONEHARDSKIN	{descript=[[하갈라즈 룬 스톤 ; 스톤 하드 스킨 (Stone Hard Skin),[155,202,155]],[%s,[255,176,98]],[일정량의 HP 소실 후 그 만큼의 방어막 생성],[다른 플레이어가 근접 물리 공격 시],[확률에 따라 공격한 플레이어 무기 파괴],[몬스터의 경우 확률에 따라 10초간 ATK 하락]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STORMKICK_ON	{descript=[[회오리 준비,[155,202,155]],[적에게 공격 명중 시],[확률에 따라 회오리차기 준비 자세]]}
+EFST_STRIKING	{descript=[[스트라이킹,[155,202,155]],[%s,[255,176,98]],[무기 공격력, 크리티컬 확률 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STRIPACCESSARY	{descript=[[액세서리 장착해제 상태,[250,100,100]],[%s,[255,176,98]],[액세서리 장착 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STRUP	{descript=[[스퍼트,[155,202,155]],[%s,[255,176,98]],[STR 증가],[무기 미착용 시],[달리기 레벨에 따라 공격력 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_STR_SCROLL	{descript=[[%s,[255,176,98]],[STR 증가]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_STYLE_CHANGE	{descript=[[파이터 모드,[190,190,250]],[에레노아의 파이터 상태]];haveTimeLimit=0}
+EFST_SUFFRAGIUM	{descript=[[수프라기움(Suffragium),[155,202,155]],[%s,[255,176,98]],[시전속도 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SUN_COMFORT	{descript=[[태양의 안락함,[155,202,155]],[%s,[255,176,98]],[방어력 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SWING	{descript=[[스윙 댄스,[155,202,155]],[%s,[255,176,98]],[이동속도 증가],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_SWORDCLAN	{descript=[[소드 클랜,[155,202,155]],[STR + 1, VIT + 1],[MHP + 30, MSP + 10]]}
+EFST_SWORDREJECT	{descript=[[소드 리젝트,[155,202,155]],[상대 플레이어의 검계열 무기 공격에 대해],[(상대 몬스터의 모든 공격에 대해)],[확률에 따라 받는 데미지 1/2로 감소],[나머지 1/2은 상대에게 되돌림]]}
+EFST_SYMPHONY_LOVE	{descript=[[연인들을 위한 심포니,[155,202,155]],[%s,[255,176,98]],[마법 방어력 상승]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_S_HEALPOTION	{descript=[[회복력 특효포션,[155,202,155]],[%s,[255,176,98]],[10초당 일정량의 HP, SP 회복],[버서크 상태 중 효과 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_S_LIFEPOTION	{descript=[[소형 생명수,[155,202,155]],[%s,[255,176,98]],[5초당 일정량의 HP 회복],[버서크 상태 중 효과 없음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TARGET_ASPD	{descript=[[%s,[255,176,98]],[MSP 증가, SP 소모량 감소]];haveTimeLimit=1;posTimeLimitStr=1}
+EFST_TARGET_BLOOD	{descript=[[상태이상 저항포션,[155,202,155]],[%s,[255,176,98]],[아래 상태에 대한 저항력 증가],[스턴, 동빙, 석화, 수면, 침묵],[암흑, 저주, 독, 출혈, 혼란]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TAROTCARD	{descript=[[운명의 타로 카드 (Tarot Card of Fate),[155,202,155]],[%s,[255,176,98]],[적에게 14종류 카드 중 하나의 효과 부여]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TELEKINESIS_INTENSE	{descript=[[텔레키네시스 인텐스,[155,202,155]],[염속성 마법의 공격력 증가],[염속성 마법의 소모SP 감소],[변동 캐스팅 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=5}
+EFST_TENSIONRELAX	{descript=[[텐션 릴렉스 (Tension Relax),[155,202,155]],[%s,[255,176,98]],[HP 회복속도 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_THORNS_TRAP	{descript=[[가시나무 덫,[250,100,100]],[%s,[255,176,98]],[조금씩 데미지 입음]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TOXIN	{descript=[[톡신 (신경마비 독),[155,202,155]],[%s,[255,176,98]],[10초당캐스팅, 스킬 동작 방해],[휀 카드 옵션 무시],[10초당 일정량의 SP 소실]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TRICKDEAD	{descript=[[죽은척하기,[190,190,250]],[죽은척한 상태]]}
+EFST_TRUESIGHT	{descript=[[트루 사이트 (True Sight),[155,202,155]],[%s,[255,176,98]],[모든 스테이터스 증가],[명중률, 데미지, 크리티컬 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_TURNKICK_ON	{descript=[[차기 준비,[155,202,155]],[적에게 공격 명중 시],[확률에 따라 돌려차기 준비 자세]]}
+EFST_TWOHANDQUICKEN	{descript=[[투핸드 퀴큰(Two Hand Quicken),[155,202,155]],[%s,[255,176,98]],[양손검 사용 시],[공격속도 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_UNLIMIT	{descript=[[언리밋,[155,202,155]],[원거리 물리공격력 상승],[DEF, MDEF 대폭 감소],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=4}
+EFST_UNLIMITED_HUMMING_VOICE	{descript=[[언리미티드 허밍 보이스,[155,202,155]],[%s,[255,176,98]],[대상의 스킬, 마법 캐스팅이 끊기지 않음],[스킬 사용 시 소모 SP 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_UNLUCKY	{descript=[[마스커레이드 : 언럭키 (가면 : 불운),[250,100,100]],[%s,[255,176,98]],[크리티컬 확률 감소],[완전회피 확률 감소],[스킬 사용 시 일정량의 제니 소모],[피해 순간 특정 상태이상 발생]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_VENOMBLEED	{descript=[[베놈 블리드 (체력저하 독),[250,100,100]],[%s,[255,176,98]],[MHP 저하 고정]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_VITALITYACTIVATION	{descript=[[아이샤 룬 스톤 ; 바이탈리티 액티베이션 (Vitality Activation),[155,202,155]],[%s,[255,176,98]],[자신에게 또는 자신이 사용한],[HP 회복 스킬, 아이템의 효과 증가],[SP 자연회복 불가],[SP 회복 포션의 효과 감소]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_VITALIZE_POTION	{descript=[[활성화 포션,[155,202,155]],[%s,[255,176,98]],[ATK, MATK 증가],[힐과 아이템의 회복효능 증가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_VOLCANIC_ASH	{descript=[[화산재,[250,100,100]],[%s,[255,176,98]],[명중률 하락],[일정 확률로 스킬, 마법 실패]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WARMER	{descript=[[워머,[155,202,155]],[%s,[255,176,98]],[냉동, 동빙, 빙결 상태 해제],[냉동, 동빙, 빙결 상태에 걸리지 않음],[3초당 일정량의 HP 회복]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WEAKNESS	{descript=[[마스커레이드 : 위크니스 (가면 : 쇠약),[250,100,100]],[%s,[255,176,98]],[일정량의 MHP 감소],[피해 순간 무기, 방패 착용 해제],[무기, 방패 착용 불가]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WEAPONBLOCKING	{descript=[[웨폰 블로킹 (WEAPON BLOCKING / 튕겨내기),[155,202,155]],[%s,[255,176,98]],[근접 물리 공격을 받을 시],[확률에 따라 데미지 완전 무효]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WEAPONPERFECT	{descript=[[웨폰 퍼펙션(Weapon Perfection),[155,202,155]],[%s,[255,176,98]],[소형, 중형, 대형 몬스터에게],[각각 100%씩의 데미지]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WEAPONPROPERTY	{descript=[[무기에 속성 부여]];haveTimeLimit=0}
+EFST_WEIGHTOVER50	{descript=[[무게 50% 이상,[250,100,100]],[HP, SP 자연회복 불가]]}
+EFST_WEIGHTOVER90	{descript=[[무게 90% 이상,[250,100,100]],[HP, SP 자연회복 불가],[공격, 스킬 사용 불가]]}
+EFST_WINDWALK	{descript=[[윈드 워크 (Wind Walk),[155,202,155]],[%s,[255,176,98]],[이동속도, 회피율 향상]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WUGRIDER	{descript=[[워그 라이더 (WUG RIDER / 늑대 기수),[155,202,155]],[%s,[255,176,98]],[활 사용 불가],[워그 전용 스킬만 사용 가능]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_WZ_SIGHTBLASTER	{descript=[[사이트 블래스터(Sight Blaster),[155,202,155]],[%s,[255,176,98]],[붙은 적에게 마법 공격력 만큼의],[데미지를 주며 밀어냄]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ZANGETSU	{descript=[[일그러진 초승달,[155,202,155]],[%s,[255,176,98]],[베이스 레벨에 따른 효과 부여]];haveTimeLimit=1;posTimeLimitStr=2}
+EFST_ZONGZI_POUCH_TRANS	{descript=[[단오절 축제,[155,202,155]],[모든 스테이터스 증가.],[%s,[255,176,98]]];haveTimeLimit=1;posTimeLimitStr=3}

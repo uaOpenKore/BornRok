@@ -24,6 +24,7 @@ skillId	SKID	name	target	castMs	actDelayMs	dur1Ms	effectFn	effectId	textures	cas
 33	AL_ANGELUS	Angelus	4	500	3500	30000	FUN_005d77a0	0x29	(halo .str)	EF_Angelus	torso	999
 34	AL_BLESSING	Blessing	16	0	0	60000	FUN_005c6af0	-	alpha_down.tga (halo) + blue runes	EF_Blessing	target: halo ring + orbiting motes	(ext .str)
 35	AL_CURE	Cure	16	0	1000	0	FUN_005d7c50	0x42	(.str)	Acolyte_cure	target torso	999
+42	MC_MAMMONITE	Mammonite	enemy	-	-	-	FUN_005c9ff0	0xa	coin_a.bmp	EF_Coin_%d	5 bouncing coins, caster (f20)	100
 50	TF_STEAL	Steal	1	-	-	-	FUN_005c8400	-	sparkle (DAT_006dc110, type6)	EF_Steal	10 gold sparkle motes, caster	(ext .str)
 52	TF_POISON	Envenom	1	0	0	0	FUN_005d7cc0	-	(.str)	thief\invenom	torso	(ext .str)
 53	TF_DETOXIFY	Detoxify	16	-	-	-	FUN_005c8710	-	green motes (DAT_006dc060, type5)	EF_Detoxication	40 green cure motes, caster	(ext .str)
@@ -68,16 +69,36 @@ skillId	SKID	name	target	castMs	actDelayMs	dur1Ms	effectFn	effectId	textures	cas
 135	AS_CLOAKING	Cloaking	4	0	0	500	FUN_005d37d0	-	(white fade)	cloaking	50f white fade, caster	(ext .str)
 136	AS_SONICBLOW	Sonic Blow	1	0	2000	0	FUN_005d3a10	-	magic_red.tga	assasin\sonicblow	12 red slash motes, caster	(ext .str)
 138	AS_ENCHANTPOISON	Enchant Poison	16	0	0	30000	FUN_005d43b0	-	green poison motes (DAT_006dc950, type5)	enchantpoison	40 rising green motes/5f, caster	(ext .str)
+153	MC_CARTREVOLUTION	Cart Revolution	enemy	-	-	-	FUN_005d9810	0xaa	ring_yellow.tga + shock bmp	EF_MagnumBreak	2 expanding rings, caster (f7/f20)	999
 211	RG_STEALCOIN	Mug	1	-	-	-	FUN_005bd3d0 (case 0x112)	0x112	coin_a.bmp	rog_steal_coin	30 coin sprites fountain, caster feet	300
 212	RG_BACKSTAP	Back Stab	1	0	500	0	FUN_005bd3d0 (case 0x113)	0x113	thunder_center.bmp	rog_back_stap	white flash burst, sound @ f20, target	300
 219	RG_INTIMIDATE	Snatch	1	-	-	-	FUN_005bd3d0 (case 0xe3)	0xe3	white01.bmp	EF_Bash + rog_intimidate	20 white ground streaks, caster feet	999
+231	AM_POTIONPITCHER	Aid Potion	support	0	500	0	FUN_005e2950	0x12a	thrown-bottle bmp	(data)	ballistic bottle caster→target (f5)	300
 251	CR_SHIELDBOOMERANG	Shield Boomerang	1	0	700	0	FUN_005e1b60	0x3	shield_boomerang.bmp / 토마.bmp	cru\shield_boomerang	spinning shield caster→target	50
 253	CR_HOLYCROSS	Holy Cross	1	0	0	0	None	0xf5	(.str)	cru\holy_cross	data-driven	499
 254	CR_GRANDCROSS	Grand Cross	4	2000	1500	900	FUN_005feeb0	0xe2	ring_white/black + cross_old.bmp + explosive_1_128.bmp + alpha_center.tga	cru\grand_cross	4 crosses N/E/S/W + beams + blast + flash, ground	999
 271	MO_EXTREMITYFIST	Asura Strike	1	4000	3000	0	FUN_005db010	0x148	ring_white.tga (2 circles) + asura1..16.tga	apocalips_attack + EF_BeginSpell	16-tile Asura wall sheets, upright additive, param mirror; life ~350	1000
 276	SA_MAGICROD	Magic Rod	4	0	0	400	FUN_0060f330	-	(none)	sage_magic_rod	sound + position lock only	(ext .str)
+306	BD_LULLABY	Lullaby	self	0	0	60000	FUN_005fd800	0x116	zz.bmp	(ensemble)	flat ground quad, AoE	29999
+307	BD_RICHMANKIM	Mental Sensing	self	0	0	60000	FUN_005fd800	0x117	pocket.bmp	(ensemble)	flat ground quad	29999
+308	BD_ETERNALCHAOS	Down Tempo	self	0	0	60000	FUN_005fd250	0x118	twirl.bmp	(ensemble)	flat ground quad	29999
+309	BD_DRUMBATTLEFIELD	Battle Theme	self	0	0	60000	FUN_005fd800	0x119	(default)	(ensemble)	flat ground quad	29999
+310	BD_RINGNIBELUNGEN	Harmonic Lick	self	0	0	60000	FUN_005fd800	0x11a	twirl.bmp	(ensemble)	flat ground quad	29999
+311	BD_ROKISWEIL	Classical Pluck	self	0	0	60000	FUN_005fe760	0x11b	safeline.bmp	(ensemble)	flat ground quad	29999
+312	BD_INTOABYSS	Power Chord	self	0	0	60000	FUN_005fd800	0x11c	(default)	(ensemble)	flat ground quad	29999
+313	BD_SIEGFRIED	Acoustic Rhythm	self	0	0	60000	FUN_005fd250	0x11d	twirl.bmp	(ensemble)	flat ground quad	29999
+317	BA_DISSONANCE	Unchained Serenade	self	0	0	30000	FUN_005fd430	0x115	ring_blue.tga	(song)	flat ground quad + note sub-particles	29999
+319	BA_WHISTLE	Perfect Tablature	self	0	0	60000	FUN_005fd800	0x11e	melody_b.bmp	(song)	flat ground quad	29999
+320	BA_ASSASSINCROSS	Impressive Riff	self	0	0	120000	FUN_005fd430	0x11f	ring_red.tga	(song)	flat ground quad	29999
+321	BA_POEMBRAGI	Magic Strings	self	0	0	180000	FUN_005fd800	0x120	(default)	(song)	flat ground quad	29999
+322	BA_APPLEIDUN	Song of Lutie	self	0	0	180000	FUN_005fd800	0x121	idun_apple.bmp	(song)	flat ground quad	29999
+325	DC_UGLYDANCE	Hip Shaker	self	0	0	30000	FUN_005fd430	0x122	ring_red.tga	(dance)	flat ground quad	29999
+327	DC_HUMMING	Focus Ballet	self	0	0	60000	FUN_005fd800	0x123	melody_a.bmp	(dance)	flat ground quad	29999
+328	DC_DONTFORGETME	Slow Grace	self	0	0	180000	FUN_005fd430	0x124	magic_green.tga	(dance)	flat ground quad	29999
+329	DC_FORTUNEKISS	Lady Luck	self	0	0	120000	FUN_005fd800	0x125	kiss.bmp	(dance)	flat ground quad	29999
+330	DC_SERVICEFORYOU	Gypsy's Kiss	self	0	0	180000	FUN_005fd430	0x126	safeline.bmp	(dance)	flat ground quad	29999
+378	ASC_EDP	Enchant Deadly Poison	self	0	2000	40000	FUN_005d43b0	-	green poison motes (DAT_006dc950)	assasin\enchantpoison + EF_PoisonAttack	40 green motes/5f, caster	(ext .str)
 379	ASC_BREAKER	Soul Destroyer	1	700	1000	0	FUN_005db750	-	soul_s/o/u/l + soul_k/n/i/l.tga	(soul breaker)	2 upright glyph-strip sheets streaking to target	(ext .str)
-9999	AL_SIGNUMCRUCIS	AL_SIGNUMCRUCIS	?	-	-	-	FUN_005d7810	0x28	alpha_down.tga (column) + alpha_center.tga (14 motes)	EF_Signum + EF_Bash	caster, fires @ f30	999
-9999	SA_INCREASEAGI	SA_INCREASEAGI	?	-	-	-	FUN_005c6f80	-	dex_agi_up.bmp + ac_center2.tga	EF_IncAgiDex	target: rising plume	(ext .str)
-9999	AS_VENOMSPLASHER	AS_VENOMSPLASHER	?	-	-	-	FUN_005d9480	0x81	VenomSplasher.str	venomsplasher	.str, sound @ f10, torso	9999
+387	WS_CARTBOOST	Cart Boost	self	0	0	60000	FUN_005c2630 (cart.str)	0x187	cart.str	EF_IncAgility	torso .str one-shot	150
+486	WS_OVERTHRUSTMAX	Maximum Power Thrust	self	0	0	180000	FUN_005d4850	-	alpha_center.tga	black_overthrust + EF_StoneCurse	white flare buff, life 9999, caster	(ext .str)
 9999	PR_KYRIE_GUARD	PR_KYRIE_GUARD	?	-	-	-	FUN_00603b30	0x24	guardK.tga + guardK2.tga	kyrie_guard	shield disc at target, 2-tex blend	100

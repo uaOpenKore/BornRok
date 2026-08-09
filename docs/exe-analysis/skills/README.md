@@ -31,4 +31,11 @@ Shared conventions used throughout (from the reversed engine):
 - [Assassin / Thief / Rogue](assassin-thief-rogue.md)
 - [Swordman / Knight / Crusader](knight-crusader.md)
 - [Hunter / Blacksmith / Sage / Monk](hunter-blacksmith-sage-monk.md)
+- [Merchant / Alchemist / Bard / Dancer](merchant-alchemist-bard-dancer.md)
+- [Transcendent & expanded classes](transcendent-expanded.md) — incl. the key finding that
+  the exe's hardcoded effect engine covers only classic 1st/2nd-job skills; advanced skills
+  are data-driven, with only status-icon overlays hardcoded
 - [Statuses / generic hits / level-up / cast-circle geometry](status-generic-rings.md)
+
+**Consolidated index:** [`../16-skill-master-table.md`](../16-skill-master-table.md) — one
+row per skill (effect fn + textures + sound + geometry + client & server timings).

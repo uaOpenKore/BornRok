@@ -388,14 +388,70 @@ float babyScale(u16 cls) {
 }
 
 u16 groundUnitSkillId(u8 unitId) {
+    // Full UNT_* -> owning skillId map, generated from the server skill_unit_db.txt (authoritative).
+    // The render loop resolves this skillId through skillFxDef() -> ground .str; a unit whose skill has
+    // no skillFxDef entry simply draws nothing (safe). Warp waiting/active (0x80/0x81) are handled
+    // separately as an animated sprite and are intentionally not here. (P2, 2026-08-09.)
     switch (unitId) {
-        case 0x7e: return 12;   // UNT_SAFETYWALL -> MG_SAFETYWALL
-        case 0x7f: return 18;   // UNT_FIREWALL   -> MG_FIREWALL
-        case 0x83: return 70;   // UNT_SANCTUARY  -> PR_SANCTUARY
-        case 0x84: return 79;   // UNT_MAGNUS     -> PR_MAGNUS
-        case 0x85: return 25;   // UNT_PNEUMA     -> AL_PNEUMA
-        case 0x8e: return 92;   // UNT_QUAGMIRE   -> WZ_QUAGMIRE
-        case 0x92: return 140;  // UNT_VENOMDUST  -> AS_VENOMDUST
+        case 0x7e: return 12;   // MG_SAFETYWALL
+        case 0x7f: return 18;   // MG_FIREWALL
+        case 0x83: return 70;   // PR_SANCTUARY
+        case 0x84: return 79;   // PR_MAGNUS
+        case 0x85: return 25;   // AL_PNEUMA
+        case 0x86: return 21;   // MG_THUNDERSTORM (shared unit: also AC_SHOWER etc.)
+        case 0x87: return 80;   // WZ_FIREPILLAR
+        case 0x88: return 80;   // WZ_FIREPILLAR (active)
+        case 0x8d: return 87;   // WZ_ICEWALL
+        case 0x8e: return 92;   // WZ_QUAGMIRE
+        case 0x8f: return 122;  // HT_BLASTMINE
+        case 0x90: return 115;  // HT_SKIDTRAP
+        case 0x91: return 117;  // HT_ANKLESNARE
+        case 0x92: return 140;  // AS_VENOMDUST
+        case 0x93: return 116;  // HT_LANDMINE
+        case 0x94: return 118;  // HT_SHOCKWAVE
+        case 0x95: return 119;  // HT_SANDMAN
+        case 0x96: return 120;  // HT_FLASHER
+        case 0x97: return 121;  // HT_FREEZINGTRAP
+        case 0x98: return 123;  // HT_CLAYMORETRAP
+        case 0x99: return 125;  // HT_TALKIEBOX
+        case 0x9a: return 285;  // SA_VOLCANO
+        case 0x9b: return 286;  // SA_DELUGE
+        case 0x9c: return 287;  // SA_VIOLENTGALE
+        case 0x9d: return 288;  // SA_LANDPROTECTOR
+        case 0x9e: return 306;  // BD_LULLABY
+        case 0x9f: return 307;  // BD_RICHMANKIM
+        case 0xa0: return 308;  // BD_ETERNALCHAOS
+        case 0xa1: return 309;  // BD_DRUMBATTLEFIELD
+        case 0xa2: return 310;  // BD_RINGNIBELUNGEN
+        case 0xa3: return 311;  // BD_ROKISWEIL
+        case 0xa4: return 312;  // BD_INTOABYSS
+        case 0xa5: return 313;  // BD_SIEGFRIED
+        case 0xa6: return 317;  // BA_DISSONANCE
+        case 0xa7: return 319;  // BA_WHISTLE
+        case 0xa8: return 320;  // BA_ASSASSINCROSS
+        case 0xa9: return 321;  // BA_POEMBRAGI
+        case 0xaa: return 322;  // BA_APPLEIDUN
+        case 0xab: return 325;  // DC_UGLYDANCE
+        case 0xac: return 327;  // DC_HUMMING
+        case 0xad: return 328;  // DC_DONTFORGETME
+        case 0xae: return 329;  // DC_FORTUNEKISS
+        case 0xaf: return 330;  // DC_SERVICEFORYOU
+        case 0xb0: return 220;  // RG_GRAFFITI
+        case 0xb1: return 229;  // AM_DEMONSTRATION
+        case 0xb2: return 336;  // WE_CALLPARTNER
+        case 0xb3: return 369;  // PA_GOSPEL
+        case 0xb4: return 362;  // HP_BASILICA
+        case 0xb5: return 395;  // CG_MOONLIT
+        case 0xb6: return 404;  // PF_FOGWALL
+        case 0xb7: return 405;  // PF_SPIDERWEB
+        case 0xb8: return 484;  // HW_GRAVITATION
+        case 0xb9: return 488;  // CG_HERMODE
+        case 0xba: return 516;  // GS_DESPERADO
+        case 0xbb: return 538;  // NJ_SUITON
+        case 0xbc: return 527;  // NJ_TATAMIGAESHI
+        case 0xbd: return 535;  // NJ_KAENSIN
+        case 0xbe: return 521;  // GS_GROUNDDRIFT
+        case 0xc7: return 670;  // NPC_EVILLAND
         default:   return 0;
     }
 }

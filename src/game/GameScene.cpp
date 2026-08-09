@@ -10778,6 +10778,51 @@ void GameScene::update(Application& app, double dt) {
             }
         }
     }
+    // Ground CAST CIRCLE under each caster while a cast bar is active (P3 / doc16 FUN_00644ed0: the exe
+    // spawns an element-tinted spinning rune ring under the caster on cast-begin and removes it on cast
+    // end/cancel). We have no ring .str, so port it as a flat rotating ring of element-coloured motes on
+    // the ground, re-emitted each ~0.09s while casting. Universal to every cast-time skill. (S.: "по
+    // оригиналу".)
+    {
+        auto elColor = [](u8 el, float& r, float& g, float& b) {
+            switch (el) {
+                case 1:  r = 0.40f; g = 0.70f; b = 1.00f; break;  // water blue
+                case 2:  r = 0.90f; g = 0.78f; b = 0.35f; break;  // earth yellow
+                case 3:  r = 1.00f; g = 0.50f; b = 0.20f; break;  // fire orange
+                case 4:  r = 0.45f; g = 1.00f; b = 0.55f; break;  // wind green
+                case 5:  r = 0.75f; g = 0.40f; b = 1.00f; break;  // poison purple
+                case 6:  r = 1.00f; g = 0.95f; b = 0.70f; break;  // holy gold
+                case 7:  r = 0.60f; g = 0.35f; b = 0.75f; break;  // shadow dark purple
+                case 8:  r = 0.60f; g = 0.90f; b = 0.90f; break;  // ghost pale cyan
+                case 9:  r = 0.60f; g = 0.80f; b = 0.45f; break;  // undead sickly green
+                default: r = 0.85f; g = 0.85f; b = 1.00f; break;  // neutral white
+            }
+        };
+        const u32 selfGid = app.session().accountId;
+        float cr, cg, cb;
+        for (auto& kv : castBars_) {
+            if (time_ >= kv.second.end) continue;                 // cast finished
+            if (time_ - kv.second.lastCircle < 0.09) continue;    // throttle the re-emit
+            kv.second.lastCircle = time_;
+            Vec3 pos;
+            if (kv.first == selfGid) pos = playerPos_;
+            else { auto it = actors_.find(kv.first); if (it == actors_.end() || it->second.dyingUntil > 0) continue; pos = it->second.pos; }
+            elColor(skillElement(kv.second.skillId), cr, cg, cb);
+            const int glow = codedFxTexId(app, "alpha_center.tga");
+            const float phase = static_cast<float>(time_ - kv.second.start) * 1.6f;  // slow spin
+            constexpr int kN = 24;
+            constexpr float kR = 0.9f;
+            for (int i = 0; i < kN; ++i) {
+                const float a = static_cast<float>(i) / kN * 6.2831853f + phase;
+                skillParticles_.setEmitter(Vec3{pos.x + std::cos(a) * kR, pos.y + 0.06f, pos.z + std::sin(a) * kR});
+                Particle p;
+                p.r = cr; p.g = cg; p.b = cb; p.a = 0.7f; p.da = -3.0f;  // short-lived, re-emitted each tick
+                p.size = 0.07f; p.growth = -0.01f; p.life = 0.22f; p.fxTex = glow;
+                p.groundFlat = true;
+                skillParticles_.emit(p);
+            }
+        }
+    }
     skillParticles_.update(static_cast<float>(dt));  // advance coded skill-effect particles
     updateAmbientFx(static_cast<float>(dt));         // map smoke/fireflies/sparkles (#32)
     updateClouds(app, static_cast<float>(dt));       // airship/sky-map drifting clouds (roBrowser Sky.js)

@@ -378,7 +378,7 @@ private:
     std::unordered_map<u32, int> mobHpPct_;            // gid -> mob HP% (parsed from 0x195 info)
     std::unordered_map<u32, double> nameReqAt_;         // gid -> last name-request time (throttle)
     // Active skill casts (ZC_USESKILL_ACK 0x13e): a progress bar under the caster until end/cancel.
-    struct CastBar { double start = 0.0, end = 0.0; u16 skillId = 0; };
+    struct CastBar { double start = 0.0, end = 0.0; u16 skillId = 0; double lastCircle = 0.0; };
     std::unordered_map<u32, CastBar> castBars_;        // gid -> in-progress cast
     // Overhead skill-name "shout" (S.: при касте над головой имя скилла на 1.5с) -> gid -> {name, until}.
     struct SkillShout { std::string name; double until = 0.0; };

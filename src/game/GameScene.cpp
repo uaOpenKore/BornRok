@@ -4572,6 +4572,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 251 &&  // Shield Boomerang: dedicated flying-shield branch below (don't draw a glow NOR steal the fx debounce)
                                  sd.skillId != 19 && sd.skillId != 14 &&  // Fire/Cold Bolt: dedicated falling-bolt branch below (must NOT draw the element kanji square NOR steal the fx debounce -- that collision ate the bolt sprite AND its damage numbers)
                                  sd.skillId != 20 &&  // Lightning Bolt: dedicated vertical thunder-strike branch below (doc16: planar bolt -> target, not a green wind puff)
+                                 sd.skillId != 11 && sd.skillId != 13 && sd.skillId != 15 &&  // Napalm/Soul Strike/Frost Diver: dedicated doc16 branches below
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4752,6 +4753,70 @@ void GameScene::pumpStream(Application& app) {
                         f.r = 0.88f; f.g = 0.94f; f.b = 1.0f; f.a = 0.9f; f.da = -3.6f;
                         f.size = 0.5f; f.growth = 1.2f; f.life = 0.25f; f.fxTex = glow;
                         skillParticles_.emit(f);
+                    }
+                    // Napalm Beat (11, MG_NAPALMBEAT): doc16/FUN_005cc300 -> scattered VIOLET motes
+                    // bursting outward from the target ground point with gravity (rand angle, radius
+                    // rand%50+10, 8-frame violet sprite, life 30f). Coded as ~24 violet motes fanning
+                    // out + falling. Ghost element, so it reads as the psychic-blast look.
+                    if (!romFx && haveDst && sd.skillId == 11 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 c{dstPos.x, dstPos.y + 0.4f, dstPos.z};
+                        constexpr int kN = 24;
+                        for (int i = 0; i < kN; ++i) {
+                            const float a = hh(i) * 6.2831853f;
+                            const float r = 0.9f + hh(i + 50) * 1.4f;  // outward speed
+                            skillParticles_.setEmitter(c);
+                            Particle p;
+                            p.vel = Vec3{std::cos(a) * r, 0.4f + hh(i + 90) * 0.6f, std::sin(a) * r};
+                            p.accel = Vec3{0.0f, -2.2f, 0.0f};  // gravity pulls the motes back down
+                            p.r = 0.62f; p.g = 0.30f; p.b = 0.92f; p.a = 0.85f; p.da = -1.4f;  // violet
+                            p.size = 0.06f; p.growth = -0.01f; p.life = 0.6f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                    }
+                    // Soul Strike (13, MG_SOULSTRIKE): doc16/FUN_005c7920 -> rising soul billboards that
+                    // converge onto the target, one per cast level (curved accelerating vertical path).
+                    // Coded as N pale white-blue "souls" rising past the target, N = clamp(div) = level.
+                    if (!romFx && haveDst && sd.skillId == 13 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
+                        for (int i = 0; i < n; ++i) {
+                            const float ox = (static_cast<float>(i) - (n - 1) * 0.5f) * 0.4f;  // fan across the target
+                            skillParticles_.setEmitter(Vec3{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z});
+                            Particle p;
+                            p.vel = Vec3{0.0f, 3.2f, 0.0f};                 // rise fast
+                            p.accel = Vec3{0.0f, -1.4f, 0.0f};             // decelerate -> curved arc
+                            p.r = 0.82f; p.g = 0.86f; p.b = 1.0f; p.a = 0.9f; p.da = -1.3f;  // pale soul
+                            p.size = 0.14f; p.growth = -0.02f; p.life = 0.7f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                    }
+                    // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
+                    // ice SHATTER on the frozen target (radial cosθ/-sinθ velocity, strong upward, big
+                    // ice-blue crystals, spin). Coded as 8 ice-blue shards bursting up + outward.
+                    if (!romFx && haveDst && sd.skillId == 15 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
+                        constexpr int kCrystals = 8;
+                        for (int i = 0; i < kCrystals; ++i) {
+                            const float a = static_cast<float>(i) / kCrystals * 6.2831853f;
+                            const float f = 1.1f;
+                            skillParticles_.setEmitter(c);
+                            Particle p;
+                            p.vel = Vec3{std::cos(a) * f, 2.6f, std::sin(a) * f};  // burst out + strong up
+                            p.accel = Vec3{0.0f, -3.0f, 0.0f};
+                            p.r = 0.62f; p.g = 0.86f; p.b = 1.0f; p.a = 0.92f; p.da = -1.6f;  // ice-blue
+                            p.size = 0.16f; p.growth = -0.05f; p.life = 0.55f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
                     }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --
                     // the normal damage number applies). Same 이펙트\fireball.spr the exe animates in

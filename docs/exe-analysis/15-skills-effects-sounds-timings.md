@@ -6,6 +6,10 @@ sprites/textures and sounds each effect uses, and the exact timings/delays — c
 from `skill_cast_db`). Anchored to real addresses in `winEXE/uaRO.exe`; effect visuals draw
 through the engine documented in `14-effects-particles-render-deep-dive.md`.
 
+**Per-skill dossiers** (minute detail — sounds, sprite sequence, geometry, anchor, phase
+timing for each named skill's effect class) live in [`skills/`](skills/README.md), one file
+per class.
+
 Bulk data lives next to this file:
 - [`data/effect-timing-table.tsv`](data/effect-timing-table.tsv) — every `effectId → lifespan(ms)` (from `DAT_006d9100`).
 - [`data/skill-server-table.tsv`](data/skill-server-table.tsv) — all 650 skills: `id, SKID, name, target, maxLv, cast, actDelay, walkDelay, dur1, dur2` (from server `skill_db`+`skill_cast_db`).

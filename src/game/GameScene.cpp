@@ -10764,6 +10764,23 @@ void GameScene::update(Application& app, double dt) {
         float sr, sg, sb;
         for (auto& kv : groundUnits_) {
             const u16 sid = groundUnitSkillId(kv.second.unitId);
+            if (sid == 87) {  // WZ_ICEWALL: a persistent cluster of ice-blue shards standing at the cell
+                // (doc16: stacked ground shards). Re-emitted short-lived so the wall looks solid.
+                if (time_ - kv.second.lastEmit < 0.15) continue;
+                kv.second.lastEmit = time_;
+                const int tex = codedFxTexId(app, "alpha_center.tga");
+                const Vec3& c = kv.second.pos;
+                for (int i = 0; i < 8; ++i) {
+                    const float jx = std::sin(static_cast<float>(i) * 2.3f) * 0.35f;
+                    const float jz = std::cos(static_cast<float>(i) * 1.7f) * 0.35f;
+                    skillParticles_.setEmitter(Vec3{c.x + jx, c.y + 0.1f + (i % 3) * 0.25f, c.z + jz});
+                    Particle p;
+                    p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.7f; p.da = -1.8f;  // ice blue
+                    p.size = 0.16f; p.growth = -0.02f; p.life = 0.4f; p.fxTex = tex;
+                    skillParticles_.emit(p);
+                }
+                continue;
+            }
             if (!sid || !songColor(sid, sr, sg, sb)) continue;
             if (time_ - kv.second.lastEmit < 0.22) continue;  // ~5 rings/sec, gentle
             kv.second.lastEmit = time_;

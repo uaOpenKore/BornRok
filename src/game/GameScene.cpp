@@ -10387,6 +10387,42 @@ void GameScene::update(Application& app, double dt) {
             }
         }
     }
+    // Bard/Dancer SONG ground units (BD_/BA_/DC_ 306..330): the exe draws a flat ground quad + rising
+    // musical-note sub-particles over the song's AoE (doc16). We have no textured-ground-decal shader,
+    // so port the faithful-achievable half: a slow flat ring of soft note motes drifting up over the
+    // cell for the unit's lifetime, colour per song family (BD gold / BA blue / DC pink). Throttled per
+    // unit so it stays a gentle ambience, not a particle flood. (S.: "сделай песни ... по оригиналу".)
+    {
+        auto songColor = [](u16 id, float& r, float& g, float& b) -> bool {
+            if (id >= 306 && id <= 313) { r = 1.0f; g = 0.9f; b = 0.5f; return true; }   // BD_ gold
+            if (id >= 317 && id <= 322) { r = 0.5f; g = 0.75f; b = 1.0f; return true; }  // BA_ blue
+            if (id >= 325 && id <= 330) { r = 1.0f; g = 0.6f; b = 0.85f; return true; }  // DC_ pink
+            return false;
+        };
+        float sr, sg, sb;
+        for (auto& kv : groundUnits_) {
+            const u16 sid = groundUnitSkillId(kv.second.unitId);
+            if (!sid || !songColor(sid, sr, sg, sb)) continue;
+            if (time_ - kv.second.lastEmit < 0.22) continue;  // ~5 rings/sec, gentle
+            kv.second.lastEmit = time_;
+            const int noteTex = codedFxTexId(app, "alpha_center.tga");  // soft round mote
+            const Vec3& c = kv.second.pos;
+            constexpr int kN = 20;
+            constexpr float kR = 1.6f;  // ~2 cells, the song AoE
+            const float phase = static_cast<float>(time_ - kv.second.born);
+            for (int i = 0; i < kN; ++i) {
+                const float a = static_cast<float>(i) / kN * 6.2831853f + phase * 0.6f;
+                const float rad = kR * (0.55f + 0.45f * std::fabs(std::sin(a * 2.0f + phase)));
+                skillParticles_.setEmitter(Vec3{c.x + std::cos(a) * rad, c.y + 0.05f, c.z + std::sin(a) * rad});
+                Particle p;
+                p.vel = Vec3{0.0f, 0.6f + 0.3f * std::fabs(std::sin(a * 3.1f)), 0.0f};  // rise gently
+                p.r = sr; p.g = sg; p.b = sb; p.a = 0.55f; p.da = -0.5f;
+                p.size = 0.05f; p.growth = -0.006f; p.life = 1.1f;
+                p.fxTex = noteTex;
+                skillParticles_.emit(p);
+            }
+        }
+    }
     skillParticles_.update(static_cast<float>(dt));  // advance coded skill-effect particles
     updateAmbientFx(static_cast<float>(dt));         // map smoke/fireflies/sparkles (#32)
     updateClouds(app, static_cast<float>(dt));       // airship/sky-map drifting clouds (roBrowser Sky.js)

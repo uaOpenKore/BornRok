@@ -73,7 +73,8 @@ struct WarpUnit {
 struct GroundUnit {
     Vec3 pos{0, 0, 0};
     u8 unitId = 0;
-    double born = 0.0;  // scene time the unit appeared (phase the looping effect)
+    double born = 0.0;      // scene time the unit appeared (phase the looping effect)
+    double lastEmit = 0.0;  // last time this unit emitted coded particles (bard/dancer song throttle)
 };
 
 // The in-game scene: connects to the map-server (address from char-select),

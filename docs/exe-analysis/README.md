@@ -24,9 +24,11 @@ The running journal and coverage map live in [`PROGRESS.md`](PROGRESS.md).
 13. [Game states, session & login flow](13-game-state-session.md) — `0x0059fda0`
 
 ### Deep dives
-- [Effects, particles & rendering](14-effects-particles-render-deep-dive.md) — how
-  clouds/smoke/skills are emitted and drawn (particle engine `0x005c3670`, billboard
-  blend modes, effect manager list)
+- [Effects, particles & the render system — COMPLETE reverse](14-effects-particles-render-deep-dive.md)
+  — full engine: 3 effect classes + vtables, `.str` parser/keyframe-interp/draw, particle
+  emitter update+billboard math, complete coded-effect catalogue (id→emit fn→texture +
+  `DAT_006d9100` timing), Direct3D7 render core (states, TLVERTEX, scene order, present),
+  blend/depth sorting, ground circles / 3D-mesh / sound / RSW / packet triggers
 
 ## High-level architecture
 

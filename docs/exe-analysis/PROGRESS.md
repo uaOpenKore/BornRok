@@ -171,3 +171,23 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
   facing, owner-anchored one-shot. Clouds/smoke = cloud1/2/4/11.tga + smoke.tga emitters +
   RSW EF_ ids (44 smoke/45 firefly/165 sparkle). Named skills GrandCross `0x005ba4e2`/
   Asura `0x005db1b3`/SoulBreaker `0x005db80e`. Added as doc 14.
+- **2026-08-09** — **COMPLETE effects/particles/render reverse** (S. "разбери полностью…
+  а также системы рендера"). Ran 6 parallel subagents over the decompile, synthesized into
+  the rewritten `14-effects-particles-render-deep-dive.md` (10 sections):
+  (1) architecture — 3 classes (controller 0x11C3C ctor `0x005b98c0` vtbl `PTR_FUN_0069f9cc`;
+  emitter 0xF9E4 ctor `0x00610e80` vtbl `PTR_FUN_0069fbc8`; base), spawn entry `0x00549180`
+  (links to scene + owner+0x104 lists). (2) vtables: emitter update `0x00611bf0`/render
+  `0x0061a050`/msg `0x0061a030`; controller msg `0x005c22a0` (0x0E/0x18/0x19/0x2C/0x2E/0x50).
+  (3) .str: parser `0x0042ca10` (STRM v0x94, header 28B, layer stride 0x380, keyframe 0x7C/
+  31dw), update+interp `0x005c3870` (absolute snapshot vs additive tween; anitype 0-5),
+  draw `0x005c3cb0`, one-shot via +0x41B4/+0x41B8, body anchor -80px. (4) particle engine:
+  emitter regions +0xF704 (4×0xB8 particles), +0x1F04 (512×0x6C triangle batch), +0x3B8
+  (50×0x8C); 0xB8 struct (active/age/alpha/pos/vel), parametric LUT motion (cos 0x006ec09c/
+  sin 0x006ecbe4), asymmetric fade (+10 in/-5 out), TLVERTEX transform `0x00412cb0`. (5) full
+  coded catalogue: emit switch `0x005b9b70` (effectId-300), per-id emit fn+texture+type+ms,
+  timing tbl `DAT_006d9100`. (6) render core: D3D7 device vtbl (DrawPrimitive=0x64 dec100,
+  BeginScene 0x14…), default states, FVF 0x1C4 TLVERTEX (CPU transform), scene order
+  `0x0040e4d0`, present `0x0040fdb0`, texture cache `0x0040c590`. (7) blend/sort (alpha 5,6/
+  additive 2,2; ZWRITE off translucent). (8) special: ground circle `0x005fbdd0` (flat mode
+  +0x17C=5), Granny gr2 `0x004342b0`, sound `0x004396b0`, RSW EF_ + cmd 0x6D loop, packet
+  triggers 0x1F3/0x19B/0x8A + skills. Full address index. Committed + pushed.

@@ -10847,6 +10847,26 @@ void GameScene::update(Application& app, double dt) {
             }
         }
     }
+    // Warp Portal rising-particle composite (#137): the original portal is a swirl sprite PLUS a column
+    // of blue-cyan motes spiralling up out of it. The swirl sprite is drawn in render(); here we feed the
+    // rising particles, throttled per portal.
+    for (auto& kv : warps_) {
+        if (time_ - kv.second.lastEmit < 0.08) continue;
+        kv.second.lastEmit = time_;
+        const int glow = codedFxTexId(app, "alpha_center.tga");
+        const Vec3& c = kv.second.pos;
+        const float phase = static_cast<float>(time_) * 2.2f;
+        for (int i = 0; i < 6; ++i) {
+            const float a = static_cast<float>(i) / 6 * 6.2831853f + phase;
+            const float rad = 0.55f;
+            skillParticles_.setEmitter(Vec3{c.x + std::cos(a) * rad, c.y + 0.1f, c.z + std::sin(a) * rad});
+            Particle p;
+            p.vel = Vec3{std::cos(a) * 0.3f, 1.6f + 0.4f * std::fabs(std::sin(a)), std::sin(a) * 0.3f};  // spiral up
+            p.r = 0.45f; p.g = 0.7f; p.b = 1.0f; p.a = 0.75f; p.da = -0.8f;  // blue-cyan portal glow
+            p.size = 0.07f; p.growth = -0.006f; p.life = 0.9f; p.fxTex = glow;
+            skillParticles_.emit(p);
+        }
+    }
     skillParticles_.update(static_cast<float>(dt));  // advance coded skill-effect particles
     updateAmbientFx(static_cast<float>(dt));         // map smoke/fireflies/sparkles (#32)
     updateClouds(app, static_cast<float>(dt));       // airship/sky-map drifting clouds (roBrowser Sky.js)

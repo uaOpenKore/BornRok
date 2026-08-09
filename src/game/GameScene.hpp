@@ -65,6 +65,7 @@ struct MapActor {
 struct WarpUnit {
     Vec3 pos{0, 0, 0};
     CharacterActor sprite;
+    double lastEmit = 0.0;  // throttle for the rising-particle composite (#137)
 };
 
 // A non-warp skill ground unit (trap / wall / zone: Fire Wall, Sanctuary, Pneuma, Quagmire,

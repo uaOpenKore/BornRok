@@ -9985,7 +9985,13 @@ void GameScene::drawLoadingOverlay(Application& app) {
     Font& font = app.font();
 
     rd.beginFrame();
-    sb.begin(static_cast<int>(W), static_cast<int>(H));
+    // Draw on the dedicated UI view (kUiView=250), NOT view 0: when FSR/HDR/grade is active, view 0 is
+    // bound to an offscreen scene framebuffer (sceneW_ x sceneH_, below native), so a full-rect quad on
+    // it only covers the scaled offscreen -> the standalone overlay frame showed at ~1/4 screen (S.:
+    // "сплеш ... рисуется всего на 1/4 экрана"). kUiView is never rerouted and defaults to the native
+    // backbuffer, exactly like the HUD (:13064), so the overlay fills the whole screen.
+    sb.begin(static_cast<int>(W), static_cast<int>(H), RenderDevice::kUiView, static_cast<int>(W),
+             static_cast<int>(H));
     sb.draw(0.0f, 0.0f, W, H, 0xff1a120cu);  // dark backdrop (ABGR)
 
     const std::string line = tr("loading.please_wait");  // localized in every texts/<lang>.cfg

@@ -5175,8 +5175,11 @@ void GameScene::pumpStream(Application& app) {
                             lastFxSkill_ = 231; lastBurstAt_ = time_;
                             auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                             const int glow = codedFxTexId(app, "alpha_center.tga");
-                            Vec3 cp;
-                            if (posOf(sn.src, cp)) {  // parabolic bottle arc caster -> ally
+                            Vec3 cp = playerPos_;  // caster pos (posOf is a 0x1de-scope lambda; resolve manually here)
+                            bool haveC = (sn.src == app.session().accountId);
+                            if (!haveC)
+                                if (auto ci = actors_.find(sn.src); ci != actors_.end()) { cp = ci->second.pos; haveC = true; }
+                            if (haveC) {  // parabolic bottle arc caster -> ally
                                 const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
                                 const Vec3 b{tp.x, tp.y + 0.5f, tp.z};
                                 const int steps = 16;

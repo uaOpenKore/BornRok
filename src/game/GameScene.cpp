@@ -5221,6 +5221,7 @@ void GameScene::pumpStream(Application& app) {
                             case 249: case 356: case 390:  // #147 block/guard visual (Auto Guard/Parry/Reject Sword)
                             case 113: case 486: case 138: case 378:  // self-buff cast auras (Overthrust/Max/Enchant Poison/EDP), doc16
                             case 53:  // TF_DETOXIFY: green cure motes on the target (doc16)
+                            case 26: case 50:  // Teleport blue flash / Steal gold sparkles at the caster (doc16)
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
                                     if (sn.skillId == 28) {  // AL_HEAL: rune circle under the CASTER (S.: "круг
@@ -8300,7 +8301,8 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         skillParticles_.emit(p);
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
                skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
-               skillId == 378 || skillId == 34 || skillId == 53) {
+               skillId == 378 || skillId == 34 || skillId == 53 || skillId == 26 ||
+               skillId == 50) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.
         float r = 1.0f, g = 1.0f, b = 1.0f;  // Assumptio (361) / HolyLight (156): white
@@ -8314,6 +8316,8 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         else if (skillId == 378){ r = 0.6f; g = 0.9f; b = 0.3f; }     // EDP: toxic yellow-green aura (doc16)
         else if (skillId == 34) { r = 1.0f; g = 0.95f; b = 0.6f; }     // Blessing: holy gold halo ring (doc16)
         else if (skillId == 53) { r = 0.4f; g = 1.0f; b = 0.45f; }     // Detoxify: green cure motes (doc16)
+        else if (skillId == 26) { r = 0.45f; g = 0.7f; b = 1.0f; }     // Teleport: blue flash ring (doc16)
+        else if (skillId == 50) { r = 1.0f; g = 0.85f; b = 0.35f; }    // Steal: gold sparkle motes (doc16)
         dustRing(r, g, b, sz);
     }
 }

@@ -29,6 +29,11 @@ The running journal and coverage map live in [`PROGRESS.md`](PROGRESS.md).
   emitter update+billboard math, complete coded-effect catalogue (id→emit fn→texture +
   `DAT_006d9100` timing), Direct3D7 render core (states, TLVERTEX, scene order, present),
   blend/depth sorting, ground circles / 3D-mesh / sound / RSW / packet triggers
+- [Skills — effects, sprites, sounds & timings — COMPLETE](15-skills-effects-sounds-timings.md)
+  — the 5 skill-effect dispatch channels, cast-circle/ground/status tables, per-skill sounds
+  + weapon-hit scheme, and all timings: client effect lifespans (`DAT_006d9100`) + server
+  cast/delay/duration (`skill_cast_db`). Bulk data: `data/effect-timing-table.tsv`,
+  `data/skill-server-table.tsv`
 
 ## High-level architecture
 

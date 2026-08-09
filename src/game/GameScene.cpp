@@ -4571,6 +4571,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 47 &&  // Arrow Shower: dedicated arrowshot.str below, no generic glow
                                  sd.skillId != 251 &&  // Shield Boomerang: dedicated flying-shield branch below (don't draw a glow NOR steal the fx debounce)
                                  sd.skillId != 19 && sd.skillId != 14 &&  // Fire/Cold Bolt: dedicated falling-bolt branch below (must NOT draw the element kanji square NOR steal the fx debounce -- that collision ate the bolt sprite AND its damage numbers)
+                                 sd.skillId != 20 &&  // Lightning Bolt: dedicated vertical thunder-strike branch below (doc16: planar bolt -> target, not a green wind puff)
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4719,6 +4720,38 @@ void GameScene::pumpStream(Application& app) {
                             d.kind = DmgKind::Number;
                             dmgTexts_.push_back(d);
                         }
+                    }
+                    // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,
+                    // not a falling ball or the generic wind puff. doc16/FUN_005d0f50 draws a planar
+                    // 6-frame bolt (thunder_center + thunder_ball_a..f) down onto the target over ~250ms.
+                    // Coded on the particle engine: a bright jagged white-blue column that snaps down from
+                    // the sky to the target + a flash at the base. (S.: "делай скиллы по оригиналу".)
+                    if (!romFx && haveDst && sd.skillId == 20 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        auto hh = [](int i) {
+                            const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f;
+                            return s - std::floor(s);
+                        };
+                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const Vec3 base{dstPos.x, dstPos.y + 0.1f, dstPos.z};
+                        constexpr int kSeg = 16;
+                        float jx = 0.0f, jz = 0.0f;  // random-walk horizontal jag up the column
+                        for (int i = 0; i < kSeg; ++i) {
+                            const float t = static_cast<float>(i) / (kSeg - 1);  // 0 = base, 1 = sky
+                            jx += (hh(i * 3) - 0.5f) * 0.32f;
+                            jz += (hh(i * 3 + 1) - 0.5f) * 0.32f;
+                            skillParticles_.setEmitter(Vec3{base.x + jx, base.y + t * 7.0f, base.z + jz});
+                            Particle p;
+                            p.r = 0.80f; p.g = 0.90f; p.b = 1.0f; p.a = 0.95f; p.da = -4.0f;  // bright, fast flash
+                            p.size = 0.12f; p.growth = -0.15f; p.life = 0.24f; p.fxTex = glow;
+                            skillParticles_.emit(p);
+                        }
+                        skillParticles_.setEmitter(base);  // impact flash at the base
+                        Particle f;
+                        f.r = 0.88f; f.g = 0.94f; f.b = 1.0f; f.a = 0.9f; f.da = -3.6f;
+                        f.size = 0.5f; f.growth = 1.2f; f.life = 0.25f; f.fxTex = glow;
+                        skillParticles_.emit(f);
                     }
                     // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --
                     // the normal damage number applies). Same 이펙트\fireball.spr the exe animates in

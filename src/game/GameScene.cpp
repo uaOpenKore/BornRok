@@ -684,6 +684,7 @@ float effectRenderScale(const char* effect) {
         "resurrection", "provoke", "twohand", "concentration", "energycoat", "providence", "kyrie_min",
         "impositio", "gloria_min", "magnificat_min",
         "loud", "cartrevolution", "maemor",  // MC_LOUD / MC_CARTREVOLUTION / MC_MAMMONITE: S. — halve the sprite
+        "safetywall",  // MG_SAFETYWALL: S. — halve the ground panel (was 2x too big)
     };
     return kHalf.count(effect) ? kGlobal * 0.5f : kGlobal;
 }
@@ -4529,10 +4530,10 @@ void GameScene::pumpStream(Application& app) {
                             it->second.hurtUntil = time_ + hurtSecs;
                         }
                         const double hitDelay = std::clamp(static_cast<double>(sd.sdelay) / 2000.0, 0.05, 0.5);  // mid-animation (S.)
-                        // Bolt spells (Fire Bolt 19 / Cold Bolt 14) are multi-bolt: `div` balls, each
-                        // total/div. Their numbers + impacts are spawned per falling ball below, so
-                        // skip the single aggregate number here. (S.: "количество шаров = уровню".)
-                        if (sd.skillId != 19 && sd.skillId != 14 && sd.skillId != 46) {  // 46 = Double Strafe: 2 split numbers below
+                        // Cold Bolt (14) is multi-bolt: `div` falling balls, each total/div, with per-ball
+                        // numbers below -> skip the single aggregate number here. Fire Bolt (19) now flies
+                        // horizontally and keeps the normal aggregate number. (S.: "количество шаров = уровню".)
+                        if (sd.skillId != 14 && sd.skillId != 46) {  // 46 = Double Strafe: 2 split numbers below
                             DamageText d;
                             d.pos = Vec3{dstPos.x, dstPos.y + 2.2f, dstPos.z};
                             d.born = time_ + hitDelay;  // the number flies out when the blow lands
@@ -4703,7 +4704,7 @@ void GameScene::pumpStream(Application& app) {
                     // the element kanji-square fallback so it neither draws the i_p_<EL> square NOR steals
                     // the shared fx debounce (that collision was eating BOTH the sprite and the numbers,
                     // and the aggregate number at the top is skipped for 14/19 on purpose).
-                    const bool isBolt = sd.skillId == 19 || sd.skillId == 14;  // Fire Bolt / Cold Bolt
+                    const bool isBolt = sd.skillId == 14;  // Cold Bolt: falling ice shards (Fire Bolt now flies horizontally, below)
                     if (!romFx && haveDst && isBolt &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_;
@@ -4740,6 +4741,21 @@ void GameScene::pumpStream(Application& app) {
                                 p.groundFlat = true;
                                 skillParticles_.emit(p);
                             }
+                        }
+                    }
+                    // Fire Bolt (19, MG_FIREBOLT): doc16 -> a fireball projectile that FLIES from the
+                    // caster to the target (horizontal), one per cast level, NOT falling from the sky.
+                    // (S.: "падает с неба, хотя должен лететь от чара к мобу".)
+                    if (!romFx && haveDst && sd.skillId == 19 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {
+                            const int n = std::clamp<int>(sd.div, 1, 10);  // one fireball per bolt (= level)
+                            const Vec3 from{cp.x, cp.y + 0.9f, cp.z};
+                            const Vec3 to{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                            for (int i = 0; i < n; ++i)
+                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 0.0f});  // fly caster->target
                         }
                     }
                     // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,
@@ -4792,7 +4808,7 @@ void GameScene::pumpStream(Application& app) {
                             Particle p;
                             p.vel = Vec3{std::cos(a) * r, 0.4f + hh(i + 90) * 0.6f, std::sin(a) * r};
                             p.accel = Vec3{0.0f, -2.2f, 0.0f};  // gravity pulls the motes back down
-                            p.r = 0.62f; p.g = 0.30f; p.b = 0.92f; p.a = 0.85f; p.da = -1.4f;  // violet
+                            p.r = 0.85f; p.g = 0.45f; p.b = 1.0f; p.a = 0.9f; p.da = -1.4f;  // bright violet (additive needs bright)
                             p.size = 0.06f; p.growth = -0.01f; p.life = 0.6f; p.fxTex = glow;
                             skillParticles_.emit(p);
                         }
@@ -4856,7 +4872,7 @@ void GameScene::pumpStream(Application& app) {
                                     Particle p;
                                     p.vel = Vec3{0.0f, 2.4f + hh(idx * 4 + k) * 0.8f, 0.0f};  // shoot up
                                     p.accel = Vec3{0.0f, -4.5f, 0.0f};                          // fall back
-                                    p.r = 0.62f; p.g = 0.46f; p.b = 0.28f; p.a = 0.9f; p.da = -1.8f;  // brown stone
+                                    p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.8f;  // bright tan (additive needs bright)
                                     p.size = 0.11f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
                                     skillParticles_.emit(p);
                                 }
@@ -4944,7 +4960,7 @@ void GameScene::pumpStream(Application& app) {
                                 Particle p;
                                 p.vel = Vec3{0.0f, up + hh(k) * 0.6f, 0.0f};
                                 p.accel = Vec3{0.0f, -4.5f, 0.0f};
-                                p.r = 0.62f; p.g = 0.46f; p.b = 0.28f; p.a = 0.9f; p.da = -1.9f;  // brown stone
+                                p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.9f;  // bright tan (additive needs bright)
                                 p.size = 0.12f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
                                 skillParticles_.emit(p);
                             }
@@ -10848,13 +10864,16 @@ void GameScene::update(Application& app, double dt) {
                 kv.second.lastEmit = time_;
                 const int tex = codedFxTexId(app, "alpha_center.tga");
                 const Vec3& c = kv.second.pos;
-                for (int i = 0; i < 8; ++i) {
-                    const float jx = std::sin(static_cast<float>(i) * 2.3f) * 0.35f;
-                    const float jz = std::cos(static_cast<float>(i) * 1.7f) * 0.35f;
-                    skillParticles_.setEmitter(Vec3{c.x + jx, c.y + 0.1f + (i % 3) * 0.25f, c.z + jz});
+                // A dense solid slab of ice — tightly packed big shards filling the cell in a wall, not
+                // sparse dots (S.: "вместо стенки какие-то точечки").
+                for (int i = 0; i < 26; ++i) {
+                    const float jx = (std::sin(static_cast<float>(i) * 2.3f)) * 0.42f;
+                    const float jz = (std::cos(static_cast<float>(i) * 1.7f)) * 0.18f;  // thin in Z = a wall
+                    const float y = c.y + 0.15f + (i % 5) * 0.28f;  // stack up ~5 rows -> a tall wall
+                    skillParticles_.setEmitter(Vec3{c.x + jx, y, c.z + jz});
                     Particle p;
-                    p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.7f; p.da = -1.8f;  // ice blue
-                    p.size = 0.16f; p.growth = -0.02f; p.life = 0.4f; p.fxTex = tex;
+                    p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.85f; p.da = -1.4f;  // ice blue, opaque
+                    p.size = 0.34f; p.growth = -0.02f; p.life = 0.6f; p.fxTex = tex;
                     skillParticles_.emit(p);
                 }
                 continue;
@@ -13512,7 +13531,10 @@ void GameScene::render(Application& app) {
                                levelFx_.end());
                 for (const LevelFx& fx : levelFx_) {
                     const StrEffect& e = fx.job ? levelFxJob_ : levelFxBase_;
-                    if (e.ready()) e.render(pass, fx.pos, time_ - fx.born);
+                    // joblvup.str ships oversized (S.: "надпись при джоб-апе раз 5-7 шире и ~3 выше") ->
+                    // render it much smaller; the base angel.str is fine at 1.0.
+                    const float sc = fx.job ? 0.22f : 1.0f;
+                    if (e.ready()) e.render(pass, fx.pos, time_ - fx.born, sc);
                 }
             }
             // Per-skill .str effects, played at the target on cast (same billboard pass as level-ups).

@@ -4822,16 +4822,25 @@ void GameScene::pumpStream(Application& app) {
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                         const int glow = codedFxTexId(app, "alpha_center.tga");
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
-                        for (int i = 0; i < n; ++i) {
-                            const float ox = (static_cast<float>(i) - (n - 1) * 0.5f) * 0.4f;  // fan across the target
-                            skillParticles_.setEmitter(Vec3{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z});
+                        Vec3 cp;
+                        const bool haveC = posOf(sd.src, cp);
+                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        for (int i = 0; i < n; ++i) {  // bright white souls FLY from the caster to the target (clear projectiles)
+                            const Vec3 src = haveC ? Vec3{cp.x, cp.y + 1.0f + i * 0.25f, cp.z} : Vec3{tgt.x, tgt.y + 2.0f, tgt.z};
+                            const Vec3 dir{tgt.x - src.x, tgt.y - src.y, tgt.z - src.z};
+                            skillParticles_.setEmitter(src);
                             Particle p;
-                            p.vel = Vec3{0.0f, 3.2f, 0.0f};                 // rise fast
-                            p.accel = Vec3{0.0f, -1.4f, 0.0f};             // decelerate -> curved arc
-                            p.r = 0.82f; p.g = 0.86f; p.b = 1.0f; p.a = 0.9f; p.da = -1.3f;  // pale soul
-                            p.size = 0.14f; p.growth = -0.02f; p.life = 0.7f; p.fxTex = glow;
+                            p.vel = Vec3{dir.x * 3.0f, dir.y * 3.0f + 1.0f, dir.z * 3.0f};  // toward the target, slight lob
+                            p.accel = Vec3{0.0f, -2.0f, 0.0f};
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // bright white spirit
+                            p.size = 0.22f; p.growth = -0.02f; p.life = 0.55f; p.fxTex = glow; p.stretch = 1.8f;  // elongated soul
                             skillParticles_.emit(p);
                         }
+                        skillParticles_.setEmitter(tgt);  // soul impact flash
+                        Particle f;
+                        f.r = 0.9f; f.g = 0.9f; f.b = 1.0f; f.a = 0.95f; f.da = -3.0f;
+                        f.size = 0.4f; f.growth = 0.8f; f.life = 0.3f; f.fxTex = glow;
+                        skillParticles_.emit(f);
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
                     // ice SHATTER on the frozen target (radial cosθ/-sinθ velocity, strong upward, big
@@ -4841,7 +4850,7 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         const int glow = codedFxTexId(app, "alpha_center.tga");
                         const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
-                        constexpr int kCrystals = 8;
+                        constexpr int kCrystals = 12;  // more + bigger crystals so the shatter is unmissable (S.: "без спрайта")
                         for (int i = 0; i < kCrystals; ++i) {
                             const float a = static_cast<float>(i) / kCrystals * 6.2831853f;
                             const float f = 1.1f;
@@ -4849,8 +4858,8 @@ void GameScene::pumpStream(Application& app) {
                             Particle p;
                             p.vel = Vec3{std::cos(a) * f, 2.6f, std::sin(a) * f};  // burst out + strong up
                             p.accel = Vec3{0.0f, -3.0f, 0.0f};
-                            p.r = 0.62f; p.g = 0.86f; p.b = 1.0f; p.a = 0.92f; p.da = -1.6f;  // ice-blue
-                            p.size = 0.16f; p.growth = -0.05f; p.life = 0.55f; p.fxTex = glow;
+                            p.r = 0.7f; p.g = 0.9f; p.b = 1.0f; p.a = 0.95f; p.da = -1.6f;  // bright ice-blue
+                            p.size = 0.28f; p.growth = -0.05f; p.life = 0.6f; p.fxTex = glow;  // bigger crystals
                             skillParticles_.emit(p);
                         }
                     }
@@ -4890,17 +4899,24 @@ void GameScene::pumpStream(Application& app) {
                         const int glow = codedFxTexId(app, "alpha_center.tga");
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
-                        if (posOf(sd.src, cp)) {  // plasma stream from the caster to the target
+                        if (posOf(sd.src, cp)) {  // a thick jagged BLUE plasma bolt caster -> target (not a thin white line)
                             const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
-                            const int steps = 22;
+                            const int steps = 26;
                             for (int i = 0; i < steps; ++i) {
                                 const float t = static_cast<float>(i) / (steps - 1);
-                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t, a.z + (tgt.z - a.z) * t});
+                                const float jag = std::sin(t * 18.0f) * 0.12f + (hh(i) - 0.5f) * 0.12f;  // zig-zag = lightning ball
+                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t + jag, a.z + (tgt.z - a.z) * t + jag * 0.5f});
                                 Particle p;
-                                p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.9f; p.da = -2.8f;  // cyan plasma
-                                p.size = 0.11f; p.growth = -0.02f; p.life = 0.32f; p.fxTex = glow;
+                                p.r = 0.35f; p.g = 0.6f; p.b = 1.0f; p.a = 0.95f; p.da = -3.0f;  // saturated blue plasma
+                                p.size = 0.2f; p.growth = -0.03f; p.life = 0.3f; p.fxTex = glow;
                                 skillParticles_.emit(p);
                             }
+                            // a bright leading plasma ball at the target
+                            skillParticles_.setEmitter(tgt);
+                            Particle ball;
+                            ball.r = 0.5f; ball.g = 0.75f; ball.b = 1.0f; ball.a = 1.0f; ball.da = -2.8f;
+                            ball.size = 0.55f; ball.growth = 0.6f; ball.life = 0.35f; ball.fxTex = glow;
+                            skillParticles_.emit(ball);
                         }
                         for (int i = 0; i < 16; ++i) {  // plasma burst on impact
                             const float ang = static_cast<float>(i) / 16 * 6.2831853f;

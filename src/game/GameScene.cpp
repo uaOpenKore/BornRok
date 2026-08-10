@@ -4716,7 +4716,7 @@ void GameScene::pumpStream(Application& app) {
                             const double t0 = time_ + i * 0.16;  // staggered falls
                             const Vec3 to{dstPos.x, dstPos.y + 1.0f, dstPos.z};    // impact at the target body
                             const Vec3 from{dstPos.x, dstPos.y + 9.0f, dstPos.z};  // ball starts high, falls down
-                            fireballs_.push_back({from, to, t0, 0.35, boltSpr, 3.14159265f});  // roll 180deg: the fireball/waterball sprite is authored point-up; flip it so the FALLING bolt isn't upside-down (S.)
+                            fireballs_.push_back({from, to, t0, 0.35, boltSpr, 3.14159265f, 0.5f});  // roll 180deg (authored point-up -> flip falling bolt); scale 0.5 so Cold Bolt reads as ice shards, not big snow (S.)
                             DamageText d;
                             d.pos = Vec3{dstPos.x, dstPos.y + 2.2f, dstPos.z};
                             d.born = t0 + 0.3;  // the number flies out as the ball lands
@@ -13518,8 +13518,8 @@ void GameScene::render(Application& app) {
                                  fb.from.y + (fb.to.y - fb.from.y) * ft,
                                  fb.from.z + (fb.to.z - fb.from.z) * ft};
                     fireball_.setFrameInterp(app.fxInterp());
-                    fireball_.renderWorld(pass, p, 0, Anim::Effect, time_, 0.0, 0.0f, 1.0f, 1.0f,
-                                          true, true, true, false, fb.roll);  // Effect loops on time_; additive fire glow. fb.roll flips falling bolts upright (Fire Ball explode-in-place stays roll=0)
+                    fireball_.renderWorld(pass, p, 0, Anim::Effect, time_, 0.0, 0.0f, 1.0f, fb.scale,
+                                          true, true, true, false, fb.roll);  // Effect loops on time_; additive fire glow. fb.roll flips falling bolts upright (Fire Ball explode-in-place stays roll=0); fb.scale shrinks Cold Bolt's waterball
                 }
             }
             // CR_SHIELDBOOMERANG (251): the thrown shield flying caster->target. Same lerp/prune model

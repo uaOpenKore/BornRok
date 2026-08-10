@@ -5424,6 +5424,28 @@ void GameScene::pumpStream(Application& app) {
                             skillFx_.push_back({cell, time_, fx.str});
                         if (gs.skillId == 137)  // AS_GRIMTOOTH: coded earth-spike burst at the cell
                             emitSkillBurst(app, 137, cell);
+                        // Earth Spike (90) / Heaven's Drive (91): ground-targeted AoE with no .str. They
+                        // arrive here (cell) even when cast on empty ground, so render the stone spikes at
+                        // the cell too, not only per-victim on 0x1de (S.: "нет эффекта"). Bright tan spikes.
+                        if (gs.skillId == 90 || gs.skillId == 91) {
+                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            const int rows = gs.skillId == 91 ? 5 : 3;  // Heaven's Drive 5x5, Earth Spike a smaller cross
+                            const float step = 0.87f;
+                            for (int gz = -(rows / 2); gz <= rows / 2; ++gz) {
+                                for (int gx = -(rows / 2); gx <= rows / 2; ++gx) {
+                                    if (gs.skillId == 90 && gx != 0 && gz != 0) continue;  // Earth Spike = a cross line
+                                    for (int k = 0; k < 3; ++k) {
+                                        skillParticles_.setEmitter(Vec3{cell.x + gx * step, cell.y + 0.05f, cell.z + gz * step});
+                                        Particle p;
+                                        p.vel = Vec3{0.0f, 2.4f + 0.6f * k, 0.0f};
+                                        p.accel = Vec3{0.0f, -4.5f, 0.0f};
+                                        p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.8f;  // bright tan
+                                        p.size = 0.13f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                        skillParticles_.emit(p);
+                                    }
+                                }
+                            }
+                        }
                     }
                     // Arrow Shower (47, AC_SHOWER) is a GROUND-placed skill: its damage comes from the
                     // skill UNIT (0x1de src = the unit, not a known actor -> arrows never spawned there).

@@ -4813,24 +4813,18 @@ void GameScene::pumpStream(Application& app) {
                     if (!romFx && haveDst && sd.skillId == 13 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
-                        // FAITHFUL to FUN_005c7920: souls RISE at the TARGET, count = level, fanned
-                        // horizontally by a level-scaled step (lvl2 step 180 / lvl3 90 / lvl4 60 / lvl5 45,
-                        // px units), one soul per 11 frames (staggered). Type-8 rising billboard.
+                        // FAITHFUL to FUN_005c7920: the REAL 이팩트\particle1.spr soul sprite rises at the
+                        // TARGET, count = level, fanned horizontally by a level-scaled step (lvl2 180 / lvl3
+                        // 90 / lvl4 60 / lvl5 45 px), staggered ~1 soul / 11 frames. Rendered via the .spr
+                        // projectile path (loadActor finds it under data/sprite/이팩트/).
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
                         const float stepPx = n <= 1 ? 0.0f : (n == 2 ? 180.0f : n == 3 ? 90.0f : n == 4 ? 60.0f : 45.0f);
                         const float base = n <= 1 ? 0.0f : -90.0f;
                         for (int i = 0; i < n; ++i) {
                             const float ox = (base + i * stepPx) / 140.0f;  // px -> world (fan across the target)
-                            skillParticles_.setEmitter(Vec3{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z});
-                            Particle p;
-                            p.vel = Vec3{0.0f, 3.5f, 0.0f};                 // rise
-                            p.accel = Vec3{0.0f, -2.0f, 0.0f};             // curved (decelerating) path
-                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.4f;  // bright white spirit
-                            p.size = 0.22f; p.growth = -0.02f; p.life = 0.15 + 0.15 * i;  // staggered ~1/soul (approx 11-frame gate)
-                            p.fxTex = glow; p.stretch = 1.6f;
-                            skillParticles_.emit(p);
+                            const Vec3 from{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z};
+                            const Vec3 to{dstPos.x + ox, dstPos.y + 3.0f, dstPos.z};  // rises past the target
+                            fireballs_.push_back({from, to, time_ + i * 0.13, 0.5, "particle1", 0.0f, 1.0f});
                         }
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal

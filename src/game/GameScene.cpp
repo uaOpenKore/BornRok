@@ -4792,18 +4792,27 @@ void GameScene::pumpStream(Application& app) {
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        // EXACT exe (FUN_005cc300): the numbered effect\폭발%d.TGA (explosion) frame set,
+                        // scattered radially with gravity. Each mote picks a frame 1..8, resolved by its
+                        // exact exe name (cp949 폭발 = \xc6\xf8\xb9\xdf) — loads from the game data at runtime.
+                        int frameTex[8];
+                        for (int f = 0; f < 8; ++f) {
+                            char name[24];
+                            std::snprintf(name, sizeof(name), "\xc6\xf8\xb9\xdf%d.tga", f + 1);  // 폭발<f>.tga
+                            frameTex[f] = codedFxTexId(app, name);
+                        }
                         const Vec3 c{dstPos.x, dstPos.y + 0.4f, dstPos.z};
                         constexpr int kN = 24;
                         for (int i = 0; i < kN; ++i) {
                             const float a = hh(i) * 6.2831853f;
-                            const float r = 0.9f + hh(i + 50) * 1.4f;  // outward speed
+                            const float r = 0.9f + hh(i + 50) * 1.4f;  // outward speed (exe: rand%0x32+10)
                             skillParticles_.setEmitter(c);
                             Particle p;
                             p.vel = Vec3{std::cos(a) * r, 0.4f + hh(i + 90) * 0.6f, std::sin(a) * r};
-                            p.accel = Vec3{0.0f, -2.2f, 0.0f};  // gravity pulls the motes back down
-                            p.r = 0.85f; p.g = 0.45f; p.b = 1.0f; p.a = 0.9f; p.da = -1.4f;  // bright violet (additive needs bright)
-                            p.size = 0.06f; p.growth = -0.01f; p.life = 0.6f; p.fxTex = glow;
+                            p.accel = Vec3{0.0f, -2.2f, 0.0f};  // gravity (exe: vy -= gravity)
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.4f;  // real explosion art
+                            p.size = 0.16f; p.growth = -0.01f; p.life = 0.6f;
+                            p.fxTex = frameTex[static_cast<int>(hh(i + 7) * 8.0f) & 7]; p.alphaBlend = true;
                             skillParticles_.emit(p);
                         }
                     }

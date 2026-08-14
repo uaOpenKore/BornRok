@@ -4833,7 +4833,6 @@ void GameScene::pumpStream(Application& app) {
                     if (!romFx && haveDst && sd.skillId == 15 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
                         const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
                         const int iceTex = codedFxTexId(app, "ice.tga");  // the REAL ice crystal art (doc16: ice.tga)
                         constexpr int kCrystals = 8;  // doc16: 8-crystal shatter
@@ -4856,7 +4855,6 @@ void GameScene::pumpStream(Application& app) {
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
                         constexpr float kCell = 0.87f;  // ~1 GAT cell in world units
                         for (int gz = -2; gz <= 2; ++gz) {
                             for (int gx = -2; gx <= 2; ++gx) {
@@ -4956,7 +4954,6 @@ void GameScene::pumpStream(Application& app) {
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
                         auto spike = [&](const Vec3& at, float up) {
                             for (int k = 0; k < 3; ++k) {
                                 skillParticles_.setEmitter(at);
@@ -5415,7 +5412,6 @@ void GameScene::pumpStream(Application& app) {
                         // arrive here (cell) even when cast on empty ground, so render the stone spikes at
                         // the cell too, not only per-victim on 0x1de (S.: "нет эффекта"). Bright tan spikes.
                         if (gs.skillId == 90 || gs.skillId == 91) {
-                            const int glow = codedFxTexId(app, "alpha_center.tga");
                             const int rows = gs.skillId == 91 ? 5 : 3;  // Heaven's Drive 5x5, Earth Spike a smaller cross
                             const float step = 0.87f;
                             for (int gz = -(rows / 2); gz <= rows / 2; ++gz) {

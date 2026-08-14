@@ -8441,6 +8441,14 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
             p.size = 0.09f; p.growth = -0.01f; p.life = 0.75f; p.fxTex = halo;
             skillParticles_.emit(p);
         }
+    } else if (skillId == 26) {  // AL_TELEPORT (exe FUN_005cc830): an expanding flat effect\ring_blue.tga
+        // flash on the caster.
+        const int tex = codedFxTexId(app, "ring_blue.tga");
+        skillParticles_.setEmitter(Vec3{at.x, at.y + 0.5f, at.z});
+        Particle p;
+        p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.95f; p.da = -2.4f;  // real ring art
+        p.size = 0.7f; p.growth = 1.6f; p.life = 0.35f; p.fxTex = tex; p.alphaBlend = true;
+        skillParticles_.emit(p);
     } else if (skillId == 130) {  // HT_DETECTING (exe FUN_005d35e0): an expanding flat ground ripple ring
         // of the real effect\fashasha.tga art on the caster.
         const int tex = codedFxTexId(app, "fashasha.tga");
@@ -8452,7 +8460,7 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         skillParticles_.emit(p);
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
                skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
-               skillId == 378 || skillId == 53 || skillId == 26 ||
+               skillId == 378 || skillId == 53 ||
                skillId == 50 || skillId == 135) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.
@@ -8467,7 +8475,6 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         else if (skillId == 378){ r = 0.6f; g = 0.9f; b = 0.3f; }     // EDP: toxic yellow-green aura (doc16)
         else if (skillId == 34) { r = 1.0f; g = 0.95f; b = 0.6f; }     // Blessing: holy gold halo ring (doc16)
         else if (skillId == 53) { r = 0.4f; g = 1.0f; b = 0.45f; }     // Detoxify: green cure motes (doc16)
-        else if (skillId == 26) { r = 0.45f; g = 0.7f; b = 1.0f; }     // Teleport: blue flash ring (doc16)
         else if (skillId == 50) { r = 1.0f; g = 0.85f; b = 0.35f; }    // Steal: gold sparkle motes (doc16)
         else if (skillId == 135){ r = 1.0f; g = 1.0f; b = 1.0f; }      // Cloaking: white fade ring (doc16)
         dustRing(r, g, b, sz);

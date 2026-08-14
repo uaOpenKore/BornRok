@@ -8415,9 +8415,28 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         p.r = p.g = p.b = 1.0f; p.a = 1.0f; p.da = -1.3f;  // brief (~0.8s)
         p.size = 0.9f; p.growth = 0.35f; p.life = 0.85f;
         skillParticles_.emit(p);
+    } else if (skillId == 34) {  // AL_BLESSING (exe FUN_005c6af0): a halo of effect\alpha_down.tga over
+        // the head — a bright ring that SHRINKS in (radius = frame*-6+200) + a couple of rotating gold
+        // motes. No dedicated .spr; the exe builds it from alpha_down.tga (type 0xc + type 5).
+        const int halo = codedFxTexId(app, "alpha_down.tga");
+        skillParticles_.setEmitter(Vec3{at.x, at.y + 1.05f, at.z});  // over the head
+        Particle ring;
+        ring.r = 1.0f; ring.g = 0.92f; ring.b = 0.5f; ring.a = 0.95f; ring.da = -1.2f;  // gold halo
+        ring.size = 1.1f; ring.growth = -1.2f; ring.life = 0.8f;  // shrinks in (exe: radius decreases)
+        ring.fxTex = halo; ring.groundFlat = true; ring.alphaBlend = true;
+        skillParticles_.emit(ring);
+        for (int i = 0; i < 8; ++i) {  // orbiting gold motes
+            const float a = static_cast<float>(i) / 8 * 6.2831853f;
+            skillParticles_.setEmitter(Vec3{at.x + std::cos(a) * 0.5f, at.y + 1.0f, at.z + std::sin(a) * 0.5f});
+            Particle p;
+            p.vel = Vec3{0.0f, 0.5f, 0.0f};
+            p.r = 1.0f; p.g = 0.9f; p.b = 0.45f; p.a = 0.85f; p.da = -1.1f;
+            p.size = 0.09f; p.growth = -0.01f; p.life = 0.75f; p.fxTex = halo;
+            skillParticles_.emit(p);
+        }
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
                skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
-               skillId == 378 || skillId == 34 || skillId == 53 || skillId == 26 ||
+               skillId == 378 || skillId == 53 || skillId == 26 ||
                skillId == 50 || skillId == 135 || skillId == 130) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.

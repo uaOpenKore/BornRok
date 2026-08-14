@@ -4821,26 +4821,23 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                         const int glow = codedFxTexId(app, "alpha_center.tga");
+                        // FAITHFUL to FUN_005c7920: souls RISE at the TARGET, count = level, fanned
+                        // horizontally by a level-scaled step (lvl2 step 180 / lvl3 90 / lvl4 60 / lvl5 45,
+                        // px units), one soul per 11 frames (staggered). Type-8 rising billboard.
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
-                        Vec3 cp;
-                        const bool haveC = posOf(sd.src, cp);
-                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
-                        for (int i = 0; i < n; ++i) {  // bright white souls FLY from the caster to the target (clear projectiles)
-                            const Vec3 src = haveC ? Vec3{cp.x, cp.y + 1.0f + i * 0.25f, cp.z} : Vec3{tgt.x, tgt.y + 2.0f, tgt.z};
-                            const Vec3 dir{tgt.x - src.x, tgt.y - src.y, tgt.z - src.z};
-                            skillParticles_.setEmitter(src);
+                        const float stepPx = n <= 1 ? 0.0f : (n == 2 ? 180.0f : n == 3 ? 90.0f : n == 4 ? 60.0f : 45.0f);
+                        const float base = n <= 1 ? 0.0f : -90.0f;
+                        for (int i = 0; i < n; ++i) {
+                            const float ox = (base + i * stepPx) / 140.0f;  // px -> world (fan across the target)
+                            skillParticles_.setEmitter(Vec3{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z});
                             Particle p;
-                            p.vel = Vec3{dir.x * 3.0f, dir.y * 3.0f + 1.0f, dir.z * 3.0f};  // toward the target, slight lob
-                            p.accel = Vec3{0.0f, -2.0f, 0.0f};
-                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // bright white spirit
-                            p.size = 0.22f; p.growth = -0.02f; p.life = 0.55f; p.fxTex = glow; p.stretch = 1.8f;  // elongated soul
+                            p.vel = Vec3{0.0f, 3.5f, 0.0f};                 // rise
+                            p.accel = Vec3{0.0f, -2.0f, 0.0f};             // curved (decelerating) path
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.4f;  // bright white spirit
+                            p.size = 0.22f; p.growth = -0.02f; p.life = 0.15 + 0.15 * i;  // staggered ~1/soul (approx 11-frame gate)
+                            p.fxTex = glow; p.stretch = 1.6f;
                             skillParticles_.emit(p);
                         }
-                        skillParticles_.setEmitter(tgt);  // soul impact flash
-                        Particle f;
-                        f.r = 0.9f; f.g = 0.9f; f.b = 1.0f; f.a = 0.95f; f.da = -3.0f;
-                        f.size = 0.4f; f.growth = 0.8f; f.life = 0.3f; f.fxTex = glow;
-                        skillParticles_.emit(f);
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
                     // ice SHATTER on the frozen target (radial cosθ/-sinθ velocity, strong upward, big

@@ -4764,7 +4764,13 @@ void GameScene::pumpStream(Application& app) {
                             const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f;
                             return s - std::floor(s);
                         };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        // EXACT exe textures (FUN_005d0f50): thunder_ball_a..f bolt balls up the column +
+                        // thunder_center at the impact (+thunder_pang). Real thunder art, not a glow.
+                        const char* kBall[6] = {"thunder_ball_a.bmp", "thunder_ball_b.bmp", "thunder_ball_c.bmp",
+                                                "thunder_ball_d.bmp", "thunder_ball_e.bmp", "thunder_ball_f.bmp"};
+                        int ballTex[6];
+                        for (int b = 0; b < 6; ++b) ballTex[b] = codedFxTexId(app, kBall[b]);
+                        const int centerTex = codedFxTexId(app, "thunder_center.bmp");
                         const Vec3 base{dstPos.x, dstPos.y + 0.1f, dstPos.z};
                         constexpr int kSeg = 16;
                         float jx = 0.0f, jz = 0.0f;  // random-walk horizontal jag up the column
@@ -4774,14 +4780,14 @@ void GameScene::pumpStream(Application& app) {
                             jz += (hh(i * 3 + 1) - 0.5f) * 0.32f;
                             skillParticles_.setEmitter(Vec3{base.x + jx, base.y + t * 7.0f, base.z + jz});
                             Particle p;
-                            p.r = 0.80f; p.g = 0.90f; p.b = 1.0f; p.a = 0.95f; p.da = -4.0f;  // bright, fast flash
-                            p.size = 0.12f; p.growth = -0.15f; p.life = 0.24f; p.fxTex = glow;
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -4.0f;  // real thunder art
+                            p.size = 0.3f; p.growth = -0.2f; p.life = 0.24f; p.fxTex = ballTex[i % 6];
                             skillParticles_.emit(p);
                         }
-                        skillParticles_.setEmitter(base);  // impact flash at the base
+                        skillParticles_.setEmitter(base);  // impact flash = thunder_center
                         Particle f;
-                        f.r = 0.88f; f.g = 0.94f; f.b = 1.0f; f.a = 0.9f; f.da = -3.6f;
-                        f.size = 0.5f; f.growth = 1.2f; f.life = 0.25f; f.fxTex = glow;
+                        f.r = 1.0f; f.g = 1.0f; f.b = 1.0f; f.a = 1.0f; f.da = -3.6f;
+                        f.size = 0.7f; f.growth = 1.0f; f.life = 0.25f; f.fxTex = centerTex;
                         skillParticles_.emit(f);
                     }
                     // Napalm Beat (11, MG_NAPALMBEAT): doc16/FUN_005cc300 -> scattered VIOLET motes

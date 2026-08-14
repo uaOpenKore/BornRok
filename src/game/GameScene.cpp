@@ -4749,7 +4749,7 @@ void GameScene::pumpStream(Application& app) {
                             const Vec3 from{cp.x, cp.y + 0.9f, cp.z};
                             const Vec3 to{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                             for (int i = 0; i < n; ++i)
-                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 0.0f});  // fly caster->target
+                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 3.14159265f});  // fly caster->target; roll 180 (fireball.spr authored point-up, was upside-down -- S.)
                         }
                     }
                     // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,

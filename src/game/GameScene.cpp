@@ -8286,7 +8286,7 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
     } else if (skillId == 5) {  // SM_BASH: grey debris spraying UP-and-OUT at 45 degrees, 3 per direction
         // (S.: "серые частички ... по 3 в каждую сторону" + "должны разлетаться вверх под 45 градусов").
         // 6 azimuths around the circle, each lifted to a 45-degree elevation -> an upward debris cone.
-        const int tex = codedFxTexId(app, "alpha_center.tga");
+        const int tex = codedFxTexId(app, "alpha_down.tga");  // exe FUN_005c7c70 uses effect\alpha_down.tga
         constexpr float kCos = 0.8660254f;  // cos30 -> horizontal reach
         constexpr float kSin = 0.5f;        // sin30 -> vertical lift (S.: угол разлёта 30 градусов)
         skillParticles_.setEmitter(Vec3{at.x, at.y + 0.6f, at.z});  // mid-body burst origin

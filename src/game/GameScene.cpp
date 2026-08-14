@@ -8441,10 +8441,19 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
             p.size = 0.09f; p.growth = -0.01f; p.life = 0.75f; p.fxTex = halo;
             skillParticles_.emit(p);
         }
+    } else if (skillId == 130) {  // HT_DETECTING (exe FUN_005d35e0): an expanding flat ground ripple ring
+        // of the real effect\fashasha.tga art on the caster.
+        const int tex = codedFxTexId(app, "fashasha.tga");
+        skillParticles_.setEmitter(Vec3{at.x, at.y + 0.06f, at.z});
+        Particle p;
+        p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.9f; p.da = -1.4f;  // real ripple art
+        p.size = 0.6f; p.growth = 2.2f; p.life = 0.7f;  // expands outward on the ground
+        p.fxTex = tex; p.groundFlat = true; p.alphaBlend = true;
+        skillParticles_.emit(p);
     } else if (skillId == 73 || skillId == 74 || skillId == 361 || skillId == 156 ||
                skillId == 383 || skillId == 113 || skillId == 486 || skillId == 138 ||
                skillId == 378 || skillId == 53 || skillId == 26 ||
-               skillId == 50 || skillId == 135 || skillId == 130) {
+               skillId == 50 || skillId == 135) {
         // Rising DUST RING around the caster (S. 2026-07-16, replaces the old green flower/rays/squares:
         // "убрать зелёные квадраты, вместо них кольцо поднимающейся пыли"). Colour per skill.
         float r = 1.0f, g = 1.0f, b = 1.0f;  // Assumptio (361) / HolyLight (156): white

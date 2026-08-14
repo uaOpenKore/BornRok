@@ -62,3 +62,34 @@ Fire Wall `005da5b0`, Glass Wall (Safety Wall) `005c6730`, Blessing `005c6af0`, 
 **Method to finish:** for each constructor, read its body, record TYPE + life + velocity formula +
 size + texture + frame gate, then re-implement the client particle emit to match those exact numbers
 (not an eyeballed approximation).
+
+## EXACT exe-prescribed resources (from objdump of uaRO.exe .data, VA−0x400000=file off)
+
+The exe names the precise texture/sprite each effect loads. **Use THESE, do not pick your own.**
+
+| Skill (fn) | exe resource(s) | in content? |
+|---|---|---|
+| Cold Bolt `005cae20` | `effect\icearrow.tga` + `effect\ring_blue.tga` | ✅ both |
+| Frost Diver impact `005cb720` | `effect\ice.tga` | ✅ |
+| Frost Diver travel `005d3cf0` | `effect\stone.bmp` | ✅ |
+| Earth Spike `005cf9f0` | `effect\ice.tga` + `effect\stone.bmp` | ✅ |
+| Magnum Break `005c8040/005d9810` | `effect\ring_yellow.tga` (+ 대폭발.tga) | ✅ ring |
+| Bash `005c7c70` | `effect\alpha_down.tga` | ✅ |
+| Endure `005ca2b0` | `effect\endure.tga` + `effect\alpha_down.tga` | ✅ |
+| Inc AGI `005cced0` | `effect\ac_center2.tga` + `effect\agi_up.bmp` | ✅ |
+| Inc AGI/Dex `005c6f80` | `effect\ac_center2.tga` + `effect\dex_agi_up.bmp` | ✅ |
+| Dec AGI `005cd2b0` | `effect\ac_center2.tga` + `effect\slow.bmp` | ✅ |
+| Stone Curse `005d3840` | `effect\alpha_center.tga` + `effect\magic_red.tga` | ✅ |
+| Teleport / Ready Portal | `effect\ring_blue.tga` | ✅ |
+| Safety Wall (GlassWall) `005c6730` | `effect\alpha_down.tga` + `effect\ring_blue.tga` | ✅ |
+| Blessing `005c6af0` | `effect\alpha_down.tga` | ✅ |
+| Poison Attack `005d4a70` | `effect\magic_red.tga` + `effect\ring_yellow.tga` | ✅ |
+| **Soul Strike** `005c7920` | `이펙트\particle1.spr` (+ particle2/5) | ❌ **.spr NOT in content** |
+| **Fire Ball** `005cab90` | `이펙트\fireball.spr` | ❌ **.spr NOT in content** |
+| **Sight** | `이펙트\Sight.spr` | ❌ **.spr NOT in content** |
+| Napalm Beat `005cc300` | numbered `%d.tga` frame strip (8) | ❓ template, resolve frames |
+
+Conclusion: for the ✅ rows I can wire the EXACT exe texture (all present). The ❌ `.spr` effect
+sprites (particle1/fireball/Sight/…) are ABSENT from the content pack — the content manager must add
+them from the original uaRO GRF (`data/sprite/이펙트/*.spr`); until then those skills have no authentic
+sprite and any coded stand-in is a guess.

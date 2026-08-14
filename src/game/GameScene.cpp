@@ -8470,7 +8470,6 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
         else if (skillId == 26) { r = 0.45f; g = 0.7f; b = 1.0f; }     // Teleport: blue flash ring (doc16)
         else if (skillId == 50) { r = 1.0f; g = 0.85f; b = 0.35f; }    // Steal: gold sparkle motes (doc16)
         else if (skillId == 135){ r = 1.0f; g = 1.0f; b = 1.0f; }      // Cloaking: white fade ring (doc16)
-        else if (skillId == 130){ r = 0.7f; g = 0.9f; b = 1.0f; }      // Detecting: pale ground ripple (doc16)
         dustRing(r, g, b, sz);
     }
 }

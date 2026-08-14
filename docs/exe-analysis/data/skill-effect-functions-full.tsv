@@ -1,0 +1,168 @@
+FUN_005c25a0	-	type=-	life=-	tex=-
+FUN_005c2630	-	type=-	life=-	tex=-
+FUN_005c3670	-	type=-	life=-	tex=-
+FUN_005c3cb0	-	type=0x,	life=-	tex=ring_blue_tga 
+FUN_005c3fe0	-	type=0x,5,6,	life=-	tex=ring_blue_tga 
+FUN_005c46a0	EF_hit2	type=0,0x,	life=0xf	tex=lens1_tga lens2_tga 
+FUN_005c4a20	EF_hit3	type=0x,5,	life=0xf	tex=lens2_tga 
+FUN_005c5050	EF_hit4	type=0x,5,	life=0xf	tex=lens2_tga 
+FUN_005c5540	EF_hit5	type=0,	life=0x11	tex=lens2_tga 
+FUN_005c57c0	EF_hit6	type=0,0x,	life=0x11	tex=alpha_down_tga lens2_tga ring_blue_tga 
+FUN_005c5a40	-	type=0x,7,	life=0x37	tex=alpha_down_tga ring_blue_tga 
+FUN_005c5d30	EF_BeginSpell	type=0x,7,	life=0x32	tex=alpha_down_tga ring_yellow_tga 
+FUN_005c6030	EF_BeginSpell	type=0x,7,	life=0x28	tex=ring_blue_tga ring_yellow_tga 
+FUN_005c6420	EF_BeginSpell	type=0x,	life=-	tex=ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005c64a0	EF_BeginSpell	type=0x,	life=-	tex=ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005c6520	EF_BeginSpell	type=0x,	life=-	tex=ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005c65a0	EF_BeginSpell	type=0x,	life=-	tex=ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005c6620	EF_BeginSpell	type=0x,	life=-	tex=alpha_down_tga ring_blue_tga ring_white_tga 
+FUN_005c66b0	EF_BeginSpell	type=0x,5,	life=0x50	tex=alpha_down_tga ring_blue_tga 
+FUN_005c6730	EF_GlassWall	type=0x,5,	life=0x50	tex=alpha_down_tga ring_blue_tga 
+FUN_005c6af0	EF_Blessing	type=0,0x,5,	life=0x50	tex=alpha_down_tga dex_agi_up_bmp 
+FUN_005c6f80	EF_IncAgiDex	type=0,0x,0x10,	life=0x32	tex=ac_center2_tga alpha_down_tga dex_agi_up_bmp 
+FUN_005c7360	EF_SoulStrike	type=0x,7,8,	life=0x1e	tex=alpha_down_tga 
+FUN_005c7920	EF_SoulStrike	type=3,4,8,	life=0x28	tex=alpha_down_tga 
+FUN_005c7c70	EF_Bash	type=0x,3,4,	life=0x28	tex=alpha_down_tga ring_yellow_tga 
+FUN_005c8040	EF_MagnumBreak	type=0x,5,6,	life=0x1e	tex=ring_yellow_tga 
+FUN_005c8400	EF_Steal	type=5,6,	life=0x28	tex=-
+FUN_005c8710	EF_Detoxication	type=5,	life=0x28	tex=-
+FUN_005c8ad0	-	type=5,	life=0x8c	tex=-
+FUN_005c8c70	-	type=0,5,	life=0x8c	tex=sand1_bmp 
+FUN_005c8fc0	-	type=0,0x,5,	life=0x82	tex=pond_water_bmp sand1_bmp 
+FUN_005c9230	-	type=0x,5,	life=0x82	tex=alpha_center_tga alpha_down_tga pond_water_bmp 
+FUN_005c9360	-	type=0x,5,	life=0x82	tex=alpha_center_tga alpha_down_tga pond_water_bmp 
+FUN_005c97f0	-	type=0x,0x10,0x15,5,	life=0x32	tex=alpha_down_tga ring_yellow_tga 
+FUN_005c9960	-	type=0x,0x10,0x15,	life=0x32	tex=alpha_down_tga ring_yellow_tga 
+FUN_005c9da0	-	type=0x15,6,	life=0x140	tex=-
+FUN_005c9ff0	EF_Endure	type=0,6,	life=0x28	tex=endure_tga 
+FUN_005ca2b0	EF_Endure	type=0,5,	life=0x28	tex=alpha_down_tga endure_tga 
+FUN_005ca6f0	-	type=5,	life=0x14	tex=-
+FUN_005ca9a0	EF_FireBall	type=5,	life=0x14	tex=-
+FUN_005cab90	EF_FireBall	type=0x,0x10,5,	life=0x14	tex=icearrow_tga ring_blue_tga 
+FUN_005cae20	EF_IceArrow_d	type=0x,0x10,9,	life=0x46	tex=icearrow_tga ring_blue_tga 
+FUN_005cb290	EF_FrostDiver2	type=9,	life=0x28	tex=ice_tga 
+FUN_005cb720	EF_FrostDiver2	type=0x10,5,9,	life=0x28	tex=ice_tga 
+FUN_005cba20	magician_thunderstorm	type=0x10,5,	life=0x46	tex=-
+FUN_005cba90	EF_ThunderStorm	type=0x10,5,	life=0x46	tex=-
+FUN_005cbbe0	EF_FireArrow_d	type=0x,0x10,5,	life=0x46	tex=ring_yellow_tga 
+FUN_005cc300	EF_NapalmBeat	type=0,0x,5,	life=0x1e	tex=-
+FUN_005cc5d0	EF_Teleportation	type=0x,5,	life=0x19	tex=ring_blue_tga 
+FUN_005cc830	EF_Teleportation	type=0x,	life=0x3c	tex=ring_blue_tga 
+FUN_005cc990	EF_ReadyPortal	type=0,0x,	life=0x1e	tex=ring_blue_tga 
+FUN_005ccb30	EF_IncAgility	type=0,0x,0x10,	life=0x1e	tex=agi_up_bmp ring_blue_tga 
+FUN_005cced0	EF_IncAgility	type=0,0x10,	life=0x32	tex=ac_center2_tga agi_up_bmp 
+FUN_005cd2b0	EF_DecAgility	type=0,0x10,5,	life=0x32	tex=ac_center2_tga slow_bmp 
+FUN_005cd6a0	EF_Aqua	type=0,2,5,	life=0x1e	tex=-
+FUN_005cd7c0	-	type=0,2,	life=0x1e	tex=ice_tga 
+FUN_005cd990	-	type=0,0x,2,5,	life=0xf	tex=ice_tga smoke_tga 
+FUN_005cde50	-	type=0x,5,7,	life=0x9e	tex=alpha_down_tga ring_blue_tga 
+FUN_005cdf20	-	type=0x,7,	life=0x9e	tex=alpha_down_tga ring_blue_tga 
+FUN_005ce290	wizard_sightrasher	type=0x,5,7,	life=0x9e	tex=alpha_down_tga ring_blue_tga 
+FUN_005ce790	wizard_sightrasher	type=0x,5,	life=0x55	tex=ring_yellow_tga 
+FUN_005cedd0	-	type=0x,7,	life=0xfa	tex=-
+FUN_005ceeb0	-	type=0x,7,	life=0x14	tex=-
+FUN_005cf050	-	type=0x,7,	life=0x14	tex=ring_blue_tga ring_yellow_tga 
+FUN_005cf3c0	wizard_icewall	type=0x,9,	life=0x14	tex=ice_tga ring_blue_tga ring_yellow_tga stone_bmp 
+FUN_005cf710	wizard_icewall	type=9,	life=0xf0	tex=ice_tga stone_bmp 
+FUN_005cf9f0	wizard_earthspike	type=9,	life=0xf0	tex=ice_tga stone_bmp 
+FUN_005cffa0	EF_Bash	type=0x,3,4,5,	life=0x14	tex=alpha_down_tga ring_liner_tga 
+FUN_005d05d0	EF_FireBall	type=0x,5,6,	life=0xf	tex=ring_yellow_tga 
+FUN_005d0820	-	type=0x,5,6,	life=0xf	tex=ring_yellow_tga 
+FUN_005d0f50	hunter_shockwavetrap	type=0x,	life=0x14	tex=pokjuk_d_bmp thunder_ball_a_bmp thunder_ball_b_bmp thunder_ball_c_bmp thunder_ball_d_bmp thunder_ball_e_bmp thunder_ball_f_bmp thunder_center_bmp thunder_pang_bmp twirl_soft_bmp 
+FUN_005d1480	-	type=0x,3,	life=0x50	tex=pokjuk_d_bmp thunder_ball_b_bmp thunder_ball_c_bmp thunder_ball_d_bmp thunder_ball_e_bmp thunder_ball_f_bmp thunder_pang_bmp twirl_soft_bmp 
+FUN_005d1860	hunter_flasher	type=0x,3,7,	life=0x50	tex=-
+FUN_005d1cb0	hunter_flasher	type=0x,3,7,	life=0x46	tex=thunder_center_bmp 
+FUN_005d2160	hunter_removetrap	type=0x,0x10,7,	life=0x32	tex=ac_center2_tga 
+FUN_005d2350	hunter_blitzbeat_1st	type=0x,0x10,	life=0x14	tex=ac_center2_tga magic_green_tga 
+FUN_005d2960	-	type=0x,	life=-	tex=magic_green_tga magic_violet_tga 
+FUN_005d2cd0	-	type=0x,8,	life=0x28	tex=magic_green_tga water_out_a_bmp water_out_b_bmp water_out_c_bmp 
+FUN_005d2ff0	wizard_fire_ivy	type=0x,8,	life=0x28	tex=fashasha_tga fire_ivy_bmp water_out_a_bmp water_out_b_bmp water_out_c_bmp 
+FUN_005d31e0	wizard_fire_ivy	type=0x,8,	life=0x28	tex=fashasha_tga fire_ivy_bmp 
+FUN_005d3460	wizard_fire_ivy	type=0x,4,	life=0x39	tex=alpha_center_tga fashasha_tga fire_ivy_bmp 
+FUN_005d35e0	hunter_detecting	type=0x,4,	life=0x39	tex=alpha_center_tga fashasha_tga 
+FUN_005d37d0	assasin_cloaking	type=0x,4,	life=0xc	tex=alpha_center_tga magic_red_tga 
+FUN_005d3840	EF_StoneCurse	type=0x,4,	life=0xc	tex=alpha_center_tga magic_red_tga 
+FUN_005d3a10	assasin_sonicblow	type=0x,9,	life=0xc	tex=magic_red_tga stone_bmp 
+FUN_005d3cf0	EF_FrostDiver	type=9,	life=0x28	tex=stone_bmp 
+FUN_005d40f0	assasin_enchantpoison	type=5,9,	life=0x28	tex=stone_bmp 
+FUN_005d43b0	assasin_enchantpoison	type=4,5,	life=0x28	tex=-
+FUN_005d4610	assasin_enchantpoison	type=4,5,	life=0x28	tex=alpha_center_tga 
+FUN_005d4850	black_overthrust	type=0x,4,5,	life=0x28	tex=alpha_center_tga magic_red_tga 
+FUN_005d4a70	EF_PoisonAttack	type=0x,5,9,	life=0x28	tex=magic_red_tga ring_yellow_tga 
+FUN_005d4cb0	wizard_earthspike	type=0x,9,	life=0x3c	tex=magic_red_tga ring_yellow_tga stone_bmp 
+FUN_005d4e10	wizard_earthspike	type=0x,9,	life=0x3c	tex=ring_yellow_tga stone_bmp 
+FUN_005d5010	wizard_earthspike	type=0x,9,	life=-	tex=party_tga stone_bmp 
+FUN_005d5360	-	type=0,0x,	life=-	tex=party_tga 
+FUN_005d5530	-	type=0,0x,	life=-	tex=party_tga 
+FUN_005d56a0	-	type=0,	life=-	tex=-
+FUN_005d5e70	-	type=0x,5,	life=-	tex=ring_blue_tga 
+FUN_005d6090	-	type=0x,5,6,	life=-	tex=ring_blue_tga 
+FUN_005d6300	-	type=0x,5,6,	life=-	tex=ring_blue_tga 
+FUN_005d6a00	-	type=0x,3,5,8,	life=0x41	tex=curse_bmp 
+FUN_005d6af0	-	type=3,5,8,	life=0x41	tex=-
+FUN_005d6bf0	-	type=3,8,	life=0x28	tex=-
+FUN_005d6e70	-	type=0x,5,8,	life=0x3c	tex=-
+FUN_005d70f0	-	type=0x,5,8,	life=0x3c	tex=alpha_down_tga 
+FUN_005d7370	EF_Angelus	type=0x,4,5,	life=-	tex=alpha_down_tga 
+FUN_005d74d0	EF_Angelus	type=0x,3,4,5,	life=0x28	tex=alpha_down_tga 
+FUN_005d7600	EF_Angelus	type=3,4,5,	life=0x28	tex=alpha_down_tga 
+FUN_005d77a0	EF_Angelus	type=3,4,	life=0x28	tex=alpha_down_tga 
+FUN_005d7810	EF_Signum	type=3,4,	life=0x28	tex=alpha_down_tga 
+FUN_005d7ed0	priest_magnificat	type=9,	life=0xd7	tex=-
+FUN_005d7f40	priest_resurrection	type=9,	life=0xd7	tex=-
+FUN_005d7fb0	priest_recovery	type=9,	life=0xd7	tex=ice_tga 
+FUN_005d8020	priest_sanctuary	type=9,	life=0xd7	tex=ice_tga 
+FUN_005d8090	wizard_meteo	type=9,	life=0xd7	tex=ice_tga 
+FUN_005d82e0	wizard_stormgust	type=9,	life=0xd7	tex=ice_tga 
+FUN_005d85c0	priest_impositio	type=7,	life=0x28	tex=-
+FUN_005d8630	priest_suffragium	type=7,	life=0x28	tex=-
+FUN_005d86a0	priest_lexdivina	type=7,	life=0x28	tex=-
+FUN_005d8840	priest_lexaeterna	type=7,	life=0x28	tex=-
+FUN_005d88b0	priest_aspersio	type=7,	life=0x28	tex=-
+FUN_005d9410	assasin_poisonreact	type=0x,	life=0x14	tex=-
+FUN_005d9480	assasin_venomsplasher	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d9550	knight_twohandquicken	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d9640	knight_twohandquicken	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d96c0	ac_concentration	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d9730	bs_refinesuccess	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d97a0	bs_refinefailed	type=0x,	life=0x14	tex=ring_yellow_tga 
+FUN_005d9810	EF_MagnumBreak	type=0x,0x10,	life=0x14	tex=ring_yellow_tga 
+FUN_005d9ae0	ac_concentration	type=0x10,	life=0x28	tex=ac_center2_tga 
+FUN_005d9b40	ac_concentration	type=0x10,	life=0x28	tex=ac_center2_tga 
+FUN_005d9bb0	ac_concentration	type=0x10,	life=0x28	tex=ac_center2_tga 
+FUN_005d9c20	ac_concentration	type=0x10,	life=0x28	tex=ac_center2_tga ring_blue_tga 
+FUN_005d9f30	EF_BeginSpell	type=0x17,0x19,	life=-	tex=ring_black_tga ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005d9fe0	EF_BeginSpell	type=0x17,0x19,	life=-	tex=ring_black_tga ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005da030	EF_BeginSpell	type=0x17,0x19,	life=-	tex=ring_black_tga ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005da080	EF_BeginSpell	type=0x17,0x19,	life=-	tex=ring_black_tga ring_blue_tga ring_white_tga ring_yellow_tga 
+FUN_005da110	EF_BeginSpell	type=0x17,0x19,0x76,	life=-	tex=ring_black_tga ring_white_tga ring_yellow_tga 
+FUN_005da1a0	EF_FireWall	type=0x17,0x19,0x76,	life=-	tex=ring_white_tga ring_yellow_tga 
+FUN_005da1f0	EF_FireWall	type=0x17,0x19,0x76,	life=-	tex=-
+FUN_005da5b0	EF_FireWall	type=0x6,0x76,	life=-	tex=-
+FUN_005da950	EF_IncAgility	type=0x10,0x6,	life=0x32	tex=-
+FUN_005dad30	EF_IncAgility	type=0x10,0x44,	life=0x32	tex=ac_center2_tga asura11_tga asura12_tga asura13_tga asura1_tga asura2_tga asura3_tga ring_white_tga 
+FUN_005db010	EF_BeginSpell	type=0x44,	life=-	tex=asura11_tga asura12_tga asura13_tga asura14_tga asura15_tga asura16_tga asura1_tga asura2_tga asura3_tga asura4_tga asura5_tga asura6_tga ring_white_tga 
+FUN_005db5e0	-	type=0x44,	life=-	tex=soul_i_tga soul_k_tga soul_l_tga soul_n_tga soul_o_tga soul_s_tga soul_u_tga 
+FUN_005db750	-	type=0x44,0x46,	life=-	tex=soul_i_tga soul_k_tga soul_l_tga soul_n_tga soul_o_tga soul_s_tga soul_u_tga white02_bmp 
+FUN_005dbb60	-	type=0x46,100,	life=-	tex=white02_bmp 
+FUN_005dbdb0	-	type=0x67,100,	life=-	tex=white02_bmp 
+FUN_005dc190	-	type=0x65,0x66,0x67,	life=-	tex=elec1_tga 
+FUN_005dc320	-	type=0x65,0x66,	life=-	tex=elec1_tga 
+FUN_005dc570	-	type=0x66,100,	life=-	tex=elec1_tga white02_bmp 
+FUN_005dc830	-	type=100,	life=-	tex=white02_bmp 
+FUN_005dcac0	-	type=0x28,100,	life=-	tex=white02_bmp 
+FUN_005dce80	EF_FireArrow_d	type=0x28,0x54,0x7,	life=-	tex=-
+FUN_005dd100	EF_FireArrow_d	type=0x54,0x7,8,	life=0x3c	tex=-
+FUN_005dd3a0	-	type=0x54,8,	life=0x3c	tex=-
+FUN_005dd5e0	-	type=0x55,8,	life=0x3c	tex=-
+FUN_005dd8d0	-	type=0x4,0x55,8,	life=0x3c	tex=ring_blue_tga 
+FUN_005ddbb0	-	type=0x28,0x4,0x55,	life=-	tex=ring_blue_tga 
+FUN_005de160	-	type=0x28,	life=-	tex=-
+FUN_005def20	-	type=0x21,	life=-	tex=cloud1_tga cloud2_tga cloud4_tga fog1_tga fog2_tga fog3_tga 
+FUN_005defe0	-	type=0x21,	life=-	tex=cloud1_tga cloud2_tga cloud4_tga fog1_tga fog2_tga fog3_tga 
+FUN_005df670	-	type=0x34,0x7,	life=-	tex=pok1_tga pok2_tga pok3_tga 
+FUN_005df9f0	-	type=0x29,0x34,	life=-	tex=pok1_tga pok2_tga pok3_tga 
+FUN_005dfcc0	-	type=0x29,0x4,	life=-	tex=magic_green_tga 
+FUN_005dfd10	-	type=0x29,0x4,	life=-	tex=magic_blue_tga magic_green_tga 
+FUN_005dff80	-	type=0x4,	life=-	tex=magic_blue_tga magic_green_tga 
+FUN_005dffa0	wedding	type=0x4,	life=-	tex=magic_blue_tga magic_green_tga 

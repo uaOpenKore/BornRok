@@ -4847,7 +4847,8 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         const int glow = codedFxTexId(app, "alpha_center.tga");
                         const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
-                        constexpr int kCrystals = 12;  // more + bigger crystals so the shatter is unmissable (S.: "без спрайта")
+                        const int iceTex = codedFxTexId(app, "ice.tga");  // the REAL ice crystal art (doc16: ice.tga)
+                        constexpr int kCrystals = 8;  // doc16: 8-crystal shatter
                         for (int i = 0; i < kCrystals; ++i) {
                             const float a = static_cast<float>(i) / kCrystals * 6.2831853f;
                             const float f = 1.1f;
@@ -4855,8 +4856,8 @@ void GameScene::pumpStream(Application& app) {
                             Particle p;
                             p.vel = Vec3{std::cos(a) * f, 2.6f, std::sin(a) * f};  // burst out + strong up
                             p.accel = Vec3{0.0f, -3.0f, 0.0f};
-                            p.r = 0.7f; p.g = 0.9f; p.b = 1.0f; p.a = 0.95f; p.da = -1.6f;  // bright ice-blue
-                            p.size = 0.28f; p.growth = -0.05f; p.life = 0.6f; p.fxTex = glow;  // bigger crystals
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // real sprite art
+                            p.size = 0.4f; p.growth = 0.0f; p.life = 0.6f; p.fxTex = iceTex; p.alphaBlend = true;
                             skillParticles_.emit(p);
                         }
                     }

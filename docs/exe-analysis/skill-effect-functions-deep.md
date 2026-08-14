@@ -93,3 +93,10 @@ Conclusion: for the ✅ rows I can wire the EXACT exe texture (all present). The
 sprites (particle1/fireball/Sight/…) are ABSENT from the content pack — the content manager must add
 them from the original uaRO GRF (`data/sprite/이펙트/*.spr`); until then those skills have no authentic
 sprite and any coded stand-in is a guess.
+
+## Napalm Beat template resolved (2026-08-14)
+`DAT_006dc45c` (Napalm 8-frame set, via FUN_006713a8(buf,&DAT,i)) = raw bytes
+`effect\` + cp949 `\xc6\xf8\xb9\xdf` + `%d.TGA` = **`effect\폭발%d.TGA`** (폭발 = explosion,
+frames 1..8). NOT the same as Magnum's `대폭발.tga`. The classic `폭발1..8.tga` are ABSENT from
+local texture_x4.zip (only renewal `explosionblaster/*` present) — likely in the game sprite/GRF.
+To port faithfully: a numbered-.tga frame cycler (like a mini .str) driving 폭발1..8 over ~30 frames.

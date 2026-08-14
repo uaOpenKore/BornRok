@@ -4921,7 +4921,8 @@ void GameScene::pumpStream(Application& app) {
                     if (!romFx && haveDst && sd.skillId == 86 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const int wtex = codedFxTexId(app, "water_out_a.tga");  // REAL water splash art (exe)
+                        const int glow = wtex;
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
                         if (posOf(sd.src, cp)) {  // water stream caster -> target
@@ -4931,8 +4932,8 @@ void GameScene::pumpStream(Application& app) {
                                 const float t = static_cast<float>(i) / (steps - 1);
                                 skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t, a.z + (tgt.z - a.z) * t});
                                 Particle p;
-                                p.r = 0.35f; p.g = 0.6f; p.b = 1.0f; p.a = 0.9f; p.da = -2.6f;  // water blue
-                                p.size = 0.11f; p.growth = -0.02f; p.life = 0.33f; p.fxTex = glow;
+                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -2.6f;  // real water art
+                                p.size = 0.22f; p.growth = -0.02f; p.life = 0.33f; p.fxTex = wtex; p.alphaBlend = true;
                                 skillParticles_.emit(p);
                             }
                         }
@@ -4943,8 +4944,8 @@ void GameScene::pumpStream(Application& app) {
                             Particle p;
                             p.vel = Vec3{std::cos(ang) * 1.5f, 0.5f, std::sin(ang) * 1.5f};  // splash outward + up
                             p.accel = Vec3{0.0f, -2.5f, 0.0f};
-                            p.r = 0.45f; p.g = 0.7f; p.b = 1.0f; p.a = 0.85f; p.da = -1.7f;
-                            p.size = 0.09f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.9f; p.da = -1.7f;  // real water splash art
+                            p.size = 0.18f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow; p.alphaBlend = true;
                             skillParticles_.emit(p);
                         }
                     }

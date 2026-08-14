@@ -8091,7 +8091,7 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
     // S. wants (2026-07-16: "кольцо поднимающейся пыли") replacing the old green flower/rays/squares.
     // Colour per skill. Uses the emitter position `at` (feet); the motes rise past the head.
     auto dustRing = [&](float r, float g, float b, float sizeMul = 1.0f) {
-        const int dustTex = codedFxTexId(app, "alpha_center.tga");  // soft round mote
+        const int dustTex = codedFxTexId(app, "alpha_down.tga");  // exe uses effect\alpha_down.tga for the buff/halo motes (Angelus/Signum/Blessing/Endure...)
         constexpr int kN = 66;         // S.: 3x more particles (was 22)
         constexpr float kR = 0.55f;
         for (int i = 0; i < kN; ++i) {

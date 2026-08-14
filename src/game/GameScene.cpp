@@ -5020,11 +5020,12 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                         const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const int flashTex = codedFxTexId(app, "thunder_center.bmp");  // exe FUN_005d1cb0 flash
                         const Vec3 t{dstPos.x, dstPos.y + 0.9f, dstPos.z};
-                        skillParticles_.setEmitter(t);  // central flash
+                        skillParticles_.setEmitter(t);  // central flash = the real thunder_center art
                         Particle f;
                         f.r = 1.0f; f.g = 1.0f; f.b = 1.0f; f.a = 0.95f; f.da = -3.6f;
-                        f.size = 0.5f; f.growth = 1.4f; f.life = 0.28f; f.fxTex = glow;
+                        f.size = 0.7f; f.growth = 1.0f; f.life = 0.28f; f.fxTex = flashTex; f.alphaBlend = true;
                         skillParticles_.emit(f);
                         for (int i = 0; i < 14; ++i) {  // white spark burst
                             const float a = static_cast<float>(i) / 14 * 6.2831853f;

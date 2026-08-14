@@ -4727,20 +4727,14 @@ void GameScene::pumpStream(Application& app) {
                             d.kind = DmgKind::Number;
                             dmgTexts_.push_back(d);
                         }
-                        if (sd.skillId == 14) {  // Cold Bolt: a flat blue impact ring where the ice shards
-                            // land (doc16: icearrow shards + ring_blue hit-ring). Ground-flat expanding ring.
-                            const int glow = codedFxTexId(app, "alpha_center.tga");
-                            constexpr int kR = 18;
-                            for (int i = 0; i < kR; ++i) {
-                                const float a = static_cast<float>(i) / kR * 6.2831853f;
-                                skillParticles_.setEmitter(Vec3{dstPos.x, dstPos.y + 0.06f, dstPos.z});
-                                Particle p;
-                                p.vel = Vec3{std::cos(a) * 1.4f, 0.05f, std::sin(a) * 1.4f};  // expand on the ground
-                                p.r = 0.5f; p.g = 0.8f; p.b = 1.0f; p.a = 0.8f; p.da = -1.6f;  // ice blue
-                                p.size = 0.09f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
-                                p.groundFlat = true;
-                                skillParticles_.emit(p);
-                            }
+                        if (sd.skillId == 14) {  // Cold Bolt hit-ring = the REAL effect\ring_blue.tga laid
+                            // flat on the ground at the target (exe FUN_005cae20). One expanding blue ring.
+                            skillParticles_.setEmitter(Vec3{dstPos.x, dstPos.y + 0.06f, dstPos.z});
+                            Particle p;
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.95f; p.da = -2.0f;  // real ring art
+                            p.size = 0.5f; p.growth = 1.2f; p.life = 0.45f;  // expands
+                            p.fxTex = codedFxTexId(app, "ring_blue.tga"); p.groundFlat = true; p.alphaBlend = true;
+                            skillParticles_.emit(p);
                         }
                     }
                     // Fire Bolt (19, MG_FIREBOLT): doc16 -> a fireball projectile that FLIES from the
@@ -4879,8 +4873,8 @@ void GameScene::pumpStream(Application& app) {
                                     Particle p;
                                     p.vel = Vec3{0.0f, 2.4f + hh(idx * 4 + k) * 0.8f, 0.0f};  // shoot up
                                     p.accel = Vec3{0.0f, -4.5f, 0.0f};                          // fall back
-                                    p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.8f;  // bright tan (additive needs bright)
-                                    p.size = 0.11f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                    p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.8f;  // real stone art
+                                    p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
                                     skillParticles_.emit(p);
                                 }
                             }
@@ -4974,8 +4968,8 @@ void GameScene::pumpStream(Application& app) {
                                 Particle p;
                                 p.vel = Vec3{0.0f, up + hh(k) * 0.6f, 0.0f};
                                 p.accel = Vec3{0.0f, -4.5f, 0.0f};
-                                p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.9f;  // bright tan (additive needs bright)
-                                p.size = 0.12f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.9f;  // real stone art
+                                p.size = 0.36f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
                                 skillParticles_.emit(p);
                             }
                         };
@@ -5437,8 +5431,8 @@ void GameScene::pumpStream(Application& app) {
                                         Particle p;
                                         p.vel = Vec3{0.0f, 2.4f + 0.6f * k, 0.0f};
                                         p.accel = Vec3{0.0f, -4.5f, 0.0f};
-                                        p.r = 0.95f; p.g = 0.72f; p.b = 0.42f; p.a = 0.95f; p.da = -1.8f;  // bright tan
-                                        p.size = 0.13f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = glow;
+                                        p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.8f;  // real stone art
+                                        p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
                                         skillParticles_.emit(p);
                                     }
                                 }

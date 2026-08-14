@@ -4889,7 +4889,7 @@ void GameScene::pumpStream(Application& app) {
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "alpha_center.tga");
+                        const int glow = codedFxTexId(app, "thunder_center.bmp");  // exe: WZ_JUPITEL thunder art
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
                         if (posOf(sd.src, cp)) {  // a thick jagged BLUE plasma bolt caster -> target (not a thin white line)

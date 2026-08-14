@@ -10893,22 +10893,19 @@ void GameScene::update(Application& app, double dt) {
         float sr, sg, sb;
         for (auto& kv : groundUnits_) {
             const u16 sid = groundUnitSkillId(kv.second.unitId);
-            if (sid == 87) {  // WZ_ICEWALL: a persistent cluster of ice-blue shards standing at the cell
-                // (doc16: stacked ground shards). Re-emitted short-lived so the wall looks solid.
-                if (time_ - kv.second.lastEmit < 0.15) continue;
+            if (sid == 87) {  // WZ_ICEWALL: real ICE-BLOCK sprites standing at the cell (S.: "должны быть
+                // спрайты на земле", not particles). Uses the content's ice_block1/2 art as upright
+                // alpha-blended billboards, re-emitted for persistence. A short wall of a few blocks per cell.
+                if (time_ - kv.second.lastEmit < 0.12) continue;
                 kv.second.lastEmit = time_;
-                const int tex = codedFxTexId(app, "alpha_center.tga");
                 const Vec3& c = kv.second.pos;
-                // A dense solid slab of ice — tightly packed big shards filling the cell in a wall, not
-                // sparse dots (S.: "вместо стенки какие-то точечки").
-                for (int i = 0; i < 26; ++i) {
-                    const float jx = (std::sin(static_cast<float>(i) * 2.3f)) * 0.42f;
-                    const float jz = (std::cos(static_cast<float>(i) * 1.7f)) * 0.18f;  // thin in Z = a wall
-                    const float y = c.y + 0.15f + (i % 5) * 0.28f;  // stack up ~5 rows -> a tall wall
-                    skillParticles_.setEmitter(Vec3{c.x + jx, y, c.z + jz});
+                for (int i = 0; i < 3; ++i) {  // 3 ice blocks stacked/side to make a wall segment
+                    const int tex = codedFxTexId(app, i == 1 ? "ice_block2.tga" : "ice_block1.tga");
+                    skillParticles_.setEmitter(Vec3{c.x + (i - 1) * 0.3f, c.y + 0.45f, c.z});
                     Particle p;
-                    p.r = 0.6f; p.g = 0.85f; p.b = 1.0f; p.a = 0.85f; p.da = -1.4f;  // ice blue, opaque
-                    p.size = 0.34f; p.growth = -0.02f; p.life = 0.6f; p.fxTex = tex;
+                    p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // real sprite colours
+                    p.size = 0.7f; p.growth = 0.0f; p.life = 0.28f; p.fxTex = tex;
+                    p.alphaBlend = true;  // a solid ice sprite, not an additive glow
                     skillParticles_.emit(p);
                 }
                 continue;

@@ -4980,15 +4980,15 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         Vec3 cp;
                         if (posOf(sd.src, cp)) {
-                            const int glow = codedFxTexId(app, "alpha_center.tga");
+                            const int rtex = codedFxTexId(app, "ring_yellow.tga");  // exe FUN_005ce790 = ring_yellow
                             const Vec3 c{cp.x, cp.y + 0.3f, cp.z};
                             for (int i = 0; i < 16; ++i) {  // radial shards
                                 const float a = static_cast<float>(i) / 16 * 6.2831853f;
                                 skillParticles_.setEmitter(c);
                                 Particle p;
                                 p.vel = Vec3{std::cos(a) * 2.4f, 0.4f, std::sin(a) * 2.4f};
-                                p.r = 1.0f; p.g = 0.95f; p.b = 0.55f; p.a = 0.9f; p.da = -1.8f;  // pale yellow
-                                p.size = 0.1f; p.growth = -0.01f; p.life = 0.5f; p.fxTex = glow;
+                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.95f; p.da = -1.8f;  // real ring_yellow art
+                                p.size = 0.16f; p.growth = -0.01f; p.life = 0.5f; p.fxTex = rtex; p.alphaBlend = true;
                                 skillParticles_.emit(p);
                             }
                             for (int i = 0; i < 20; ++i) {  // flat ground ring
@@ -4996,8 +4996,8 @@ void GameScene::pumpStream(Application& app) {
                                 skillParticles_.setEmitter(Vec3{cp.x, cp.y + 0.06f, cp.z});
                                 Particle p;
                                 p.vel = Vec3{std::cos(a) * 2.0f, 0.05f, std::sin(a) * 2.0f};
-                                p.r = 1.0f; p.g = 0.9f; p.b = 0.5f; p.a = 0.7f; p.da = -1.5f;
-                                p.size = 0.09f; p.growth = -0.01f; p.life = 0.55f; p.fxTex = glow;
+                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 0.8f; p.da = -1.5f;
+                                p.size = 0.16f; p.growth = -0.01f; p.life = 0.55f; p.fxTex = rtex; p.alphaBlend = true;
                                 p.groundFlat = true;
                                 skillParticles_.emit(p);
                             }

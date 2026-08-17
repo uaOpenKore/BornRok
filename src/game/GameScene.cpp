@@ -685,6 +685,9 @@ float effectRenderScale(const char* effect) {
         "impositio", "gloria_min", "magnificat_min",
         "loud", "cartrevolution", "maemor",  // MC_LOUD / MC_CARTREVOLUTION / MC_MAMMONITE: S. — halve the sprite
         "safetywall",  // MG_SAFETYWALL: S. — halve the ground panel (was 2x too big)
+        // S. 2026-08-17: every AREA/mass skill effect is ~2x too big -> halve them.
+        "stormgust", "lord", "meteor1", "meteor2", "meteor3", "meteor4", "thunderstorm",
+        "sanctuary", "quagmire", "magnus", "firewall1", "firepillar", "pneuma1",
     };
     return kHalf.count(effect) ? kGlobal * 0.5f : kGlobal;
 }
@@ -4833,14 +4836,24 @@ void GameScene::pumpStream(Application& app) {
                         // TARGET, count = level, fanned horizontally by a level-scaled step (lvl2 180 / lvl3
                         // 90 / lvl4 60 / lvl5 45 px), staggered ~1 soul / 11 frames. Rendered via the .spr
                         // projectile path (loadActor finds it under data/sprite/이팩트/).
-                        // souls hit the target ONE AFTER ANOTHER (not a simultaneous buckshot spread, S.):
-                        // a tight near-vertical stack at the target cell, well staggered in time.
+                        // S. reference: souls fly OUT FROM BEHIND the caster on a chaotic route and hit the
+                        // target as glowing balls. Launch N glowing soul balls from points behind + around
+                        // the caster (opposite the target dir + random lateral), each flying to the target,
+                        // staggered — the varied start points read as a chaotic converging swarm.
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
-                        for (int i = 0; i < n; ++i) {
-                            const float ox = (static_cast<float>(i) - (n - 1) * 0.5f) * 0.12f;  // small offset, not a wide fan
-                            const Vec3 from{dstPos.x + ox, dstPos.y + 2.2f, dstPos.z};   // descend onto the target from just above
-                            const Vec3 to{dstPos.x + ox, dstPos.y + 0.6f, dstPos.z};
-                            fireballs_.push_back({from, to, time_ + i * 0.22, 0.32, "particle1", 0.0f, 1.0f});  // strong stagger = sequential hits
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
+                        Vec3 cp;
+                        if (posOf(sd.src, cp)) {
+                            const Vec3 tg{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                            float dx = tg.x - cp.x, dz = tg.z - cp.z;
+                            const float dl = std::max(0.001f, std::sqrt(dx * dx + dz * dz));
+                            dx /= dl; dz /= dl;  // caster->target unit dir
+                            for (int i = 0; i < n; ++i) {
+                                // start behind the caster (−dir) + random lateral/height = chaotic
+                                const float back = 1.0f + hh(i) * 0.6f, lat = (hh(i + 3) - 0.5f) * 2.0f;
+                                const Vec3 from{cp.x - dx * back - dz * lat, cp.y + 0.9f + hh(i + 6) * 1.2f, cp.z - dz * back + dx * lat};
+                                fireballs_.push_back({from, tg, time_ + i * 0.14, 0.45, "particle1", 0.0f, 1.0f});
+                            }
                         }
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
@@ -4940,20 +4953,19 @@ void GameScene::pumpStream(Application& app) {
                     if (!romFx && haveDst && sd.skillId == 86 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        const int wtex = codedFxTexId(app, "water_out_a.tga");  // REAL water splash art (exe)
-                        const int glow = wtex;
+                        const int glow = codedFxTexId(app, "water_out_a.tga");
+                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
-                        if (posOf(sd.src, cp)) {  // water stream caster -> target
-                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
-                            const int steps = 20;
-                            for (int i = 0; i < steps; ++i) {
-                                const float t = static_cast<float>(i) / (steps - 1);
-                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t, a.z + (tgt.z - a.z) * t});
-                                Particle p;
-                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -2.6f;  // real water art
-                                p.size = 0.22f; p.growth = -0.02f; p.life = 0.33f; p.fxTex = wtex; p.alphaBlend = true;
-                                skillParticles_.emit(p);
+                        if (posOf(sd.src, cp)) {  // S. ref: water balls fly OUT FROM BEHIND the caster, arc,
+                            // and hit the target. Launch waterball.spr orbs from behind + around the caster.
+                            float dx = tgt.x - cp.x, dz = tgt.z - cp.z;
+                            const float dl = std::max(0.001f, std::sqrt(dx * dx + dz * dz));
+                            dx /= dl; dz /= dl;
+                            for (int i = 0; i < 5; ++i) {
+                                const float back = 1.2f + hh(i) * 0.6f, lat = (hh(i + 3) - 0.5f) * 2.2f;
+                                const Vec3 from{cp.x - dx * back - dz * lat, cp.y + 1.0f + hh(i + 6) * 1.0f, cp.z - dz * back + dx * lat};
+                                fireballs_.push_back({from, tgt, time_ + i * 0.1, 0.4, "waterball", 0.0f, 1.0f});
                             }
                         }
                         const int kSplash = 18;  // flat splash ring on the ground at the target

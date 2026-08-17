@@ -4836,24 +4836,18 @@ void GameScene::pumpStream(Application& app) {
                         // TARGET, count = level, fanned horizontally by a level-scaled step (lvl2 180 / lvl3
                         // 90 / lvl4 60 / lvl5 45 px), staggered ~1 soul / 11 frames. Rendered via the .spr
                         // projectile path (loadActor finds it under data/sprite/이팩트/).
-                        // S. reference: souls fly OUT FROM BEHIND the caster on a chaotic route and hit the
-                        // target as glowing balls. Launch N glowing soul balls from points behind + around
-                        // the caster (opposite the target dir + random lateral), each flying to the target,
-                        // staggered — the varied start points read as a chaotic converging swarm.
+                        // EXACT per exe FUN_005c7920: particle1.spr souls DESCEND onto the target (vy<0 +
+                        // an arc), fanned horizontally by a level-scaled step (lvl2 180 / lvl3 90 / lvl4 60 /
+                        // lvl5 45 px; base -90), ONE soul per ~11 frames (well staggered so it's sequential,
+                        // not a buckshot). Souls start above the target and fall onto it.
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        Vec3 cp;
-                        if (posOf(sd.src, cp)) {
-                            const Vec3 tg{dstPos.x, dstPos.y + 0.9f, dstPos.z};
-                            float dx = tg.x - cp.x, dz = tg.z - cp.z;
-                            const float dl = std::max(0.001f, std::sqrt(dx * dx + dz * dz));
-                            dx /= dl; dz /= dl;  // caster->target unit dir
-                            for (int i = 0; i < n; ++i) {
-                                // start behind the caster (−dir) + random lateral/height = chaotic
-                                const float back = 1.0f + hh(i) * 0.6f, lat = (hh(i + 3) - 0.5f) * 2.0f;
-                                const Vec3 from{cp.x - dx * back - dz * lat, cp.y + 0.9f + hh(i + 6) * 1.2f, cp.z - dz * back + dx * lat};
-                                fireballs_.push_back({from, tg, time_ + i * 0.14, 0.45, "particle1", 0.0f, 1.0f});
-                            }
+                        const float stepPx = n <= 1 ? 0.0f : (n == 2 ? 180.0f : n == 3 ? 90.0f : n == 4 ? 60.0f : 45.0f);
+                        const float base = n <= 1 ? 0.0f : -90.0f;
+                        for (int i = 0; i < n; ++i) {
+                            const float ox = (base + i * stepPx) / 140.0f;  // exe +0x298 = idx*step+base (px -> world)
+                            const Vec3 from{dstPos.x + ox, dstPos.y + 2.6f, dstPos.z};  // spawn above the target
+                            const Vec3 to{dstPos.x + ox, dstPos.y + 0.5f, dstPos.z};    // descend onto it (exe vy<0)
+                            fireballs_.push_back({from, to, time_ + i * 0.2, 0.34, "particle1", 0.0f, 1.0f});  // ~11-frame stagger
                         }
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal

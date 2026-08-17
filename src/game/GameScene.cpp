@@ -4948,19 +4948,13 @@ void GameScene::pumpStream(Application& app) {
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
                         const int glow = codedFxTexId(app, "water_out_a.tga");
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
-                        if (posOf(sd.src, cp)) {  // S. ref: water balls fly OUT FROM BEHIND the caster, arc,
-                            // and hit the target. Launch waterball.spr orbs from behind + around the caster.
-                            float dx = tgt.x - cp.x, dz = tgt.z - cp.z;
-                            const float dl = std::max(0.001f, std::sqrt(dx * dx + dz * dz));
-                            dx /= dl; dz /= dl;
-                            for (int i = 0; i < 5; ++i) {
-                                const float back = 1.2f + hh(i) * 0.6f, lat = (hh(i + 3) - 0.5f) * 2.2f;
-                                const Vec3 from{cp.x - dx * back - dz * lat, cp.y + 1.0f + hh(i + 6) * 1.0f, cp.z - dz * back + dx * lat};
-                                fireballs_.push_back({from, tgt, time_ + i * 0.1, 0.4, "waterball", 0.0f, 1.0f});
-                            }
+                        if (posOf(sd.src, cp)) {  // per exe/doc16: a waterball.spr bolt flies from the caster
+                            // to the target (a few staggered orbs), then the splash below.
+                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
+                            for (int i = 0; i < 5; ++i)
+                                fireballs_.push_back({a, tgt, time_ + i * 0.09, 0.38, "waterball", 0.0f, 1.0f});
                         }
                         const int kSplash = 18;  // flat splash ring on the ground at the target
                         for (int i = 0; i < kSplash; ++i) {

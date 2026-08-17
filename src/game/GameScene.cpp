@@ -4899,23 +4899,28 @@ void GameScene::pumpStream(Application& app) {
                         const int glow = codedFxTexId(app, "thunder_center.bmp");  // exe: WZ_JUPITEL thunder art
                         const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                         Vec3 cp;
-                        if (posOf(sd.src, cp)) {  // a thick jagged BLUE plasma bolt caster -> target (not a thin white line)
+                        if (posOf(sd.src, cp)) {  // a compact CLUSTER of lightning FLIES from caster to target
+                            // (S.: "должен вылетать сгустком молний", not a static beam-line).
                             const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
-                            const int steps = 26;
-                            for (int i = 0; i < steps; ++i) {
-                                const float t = static_cast<float>(i) / (steps - 1);
-                                const float jag = std::sin(t * 18.0f) * 0.12f + (hh(i) - 0.5f) * 0.12f;  // zig-zag = lightning ball
-                                skillParticles_.setEmitter(Vec3{a.x + (tgt.x - a.x) * t, a.y + (tgt.y - a.y) * t + jag, a.z + (tgt.z - a.z) * t + jag * 0.5f});
+                            const Vec3 d{tgt.x - a.x, tgt.y - a.y, tgt.z - a.z};
+                            const float dist = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+                            const float spd = std::max(6.0f, dist / 0.22f);  // reach the target in ~0.22s
+                            const Vec3 vel{d.x / dist * spd, d.y / dist * spd, d.z / dist * spd};
+                            const float life = dist / spd;
+                            for (int i = 0; i < 14; ++i) {  // a tight ball of thunder motes travelling together
+                                skillParticles_.setEmitter(Vec3{a.x + (hh(i) - 0.5f) * 0.25f, a.y + (hh(i + 5) - 0.5f) * 0.25f, a.z + (hh(i + 9) - 0.5f) * 0.25f});
                                 Particle p;
-                                p.r = 0.35f; p.g = 0.6f; p.b = 1.0f; p.a = 0.95f; p.da = -3.0f;  // saturated blue plasma
-                                p.size = 0.2f; p.growth = -0.03f; p.life = 0.3f; p.fxTex = glow;
+                                p.vel = vel;
+                                p.r = 0.5f; p.g = 0.7f; p.b = 1.0f; p.a = 1.0f; p.da = -0.5f;  // electric blue
+                                p.size = 0.22f; p.growth = 0.05f; p.life = life; p.fxTex = glow;
                                 skillParticles_.emit(p);
                             }
-                            // a bright leading plasma ball at the target
+                        }
+                        {  // impact plasma burst at the target
                             skillParticles_.setEmitter(tgt);
                             Particle ball;
                             ball.r = 0.5f; ball.g = 0.75f; ball.b = 1.0f; ball.a = 1.0f; ball.da = -2.8f;
-                            ball.size = 0.55f; ball.growth = 0.6f; ball.life = 0.35f; ball.fxTex = glow;
+                            ball.size = 0.6f; ball.growth = 1.0f; ball.life = 0.35f; ball.fxTex = glow;
                             skillParticles_.emit(ball);
                         }
                         for (int i = 0; i < 16; ++i) {  // plasma burst on impact

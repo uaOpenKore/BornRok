@@ -4579,6 +4579,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 90 && sd.skillId != 81 &&  // Earth Spike / Sight Rasher: dedicated doc16 branches below
                                  sd.skillId != 212 && sd.skillId != 219 && sd.skillId != 120 &&  // Back Stab / Intimidate / Flasher: dedicated doc16 branches below
                                  sd.skillId != 467 && sd.skillId != 468 && sd.skillId != 469 &&  // Soul Linker Estin/Estun/Esma soul bolts: dedicated branch below
+                                 sd.skillId != 17 &&  // Fire Ball: dedicated fireball.spr explosion below (NO element kanji — S.: "рисует китайский иероглиф")
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -4749,7 +4750,7 @@ void GameScene::pumpStream(Application& app) {
                             const Vec3 from{cp.x, cp.y + 0.9f, cp.z};
                             const Vec3 to{dstPos.x, dstPos.y + 0.9f, dstPos.z};
                             for (int i = 0; i < n; ++i)
-                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 3.14159265f});  // fly caster->target; roll 180 (fireball.spr authored point-up, was upside-down -- S.)
+                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 0.0f});  // fly caster->target (roll 0; 180 made it head-down per S. -- orientation of the point-up spr on a horizontal path needs a screenshot to nail)
                         }
                     }
                     // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,
@@ -4832,14 +4833,14 @@ void GameScene::pumpStream(Application& app) {
                         // TARGET, count = level, fanned horizontally by a level-scaled step (lvl2 180 / lvl3
                         // 90 / lvl4 60 / lvl5 45 px), staggered ~1 soul / 11 frames. Rendered via the .spr
                         // projectile path (loadActor finds it under data/sprite/이팩트/).
+                        // souls hit the target ONE AFTER ANOTHER (not a simultaneous buckshot spread, S.):
+                        // a tight near-vertical stack at the target cell, well staggered in time.
                         const int n = std::clamp<int>(sd.div, 1, 5);  // souls = cast level
-                        const float stepPx = n <= 1 ? 0.0f : (n == 2 ? 180.0f : n == 3 ? 90.0f : n == 4 ? 60.0f : 45.0f);
-                        const float base = n <= 1 ? 0.0f : -90.0f;
                         for (int i = 0; i < n; ++i) {
-                            const float ox = (base + i * stepPx) / 140.0f;  // px -> world (fan across the target)
-                            const Vec3 from{dstPos.x + ox, dstPos.y + 0.2f, dstPos.z};
-                            const Vec3 to{dstPos.x + ox, dstPos.y + 3.0f, dstPos.z};  // rises past the target
-                            fireballs_.push_back({from, to, time_ + i * 0.13, 0.5, "particle1", 0.0f, 1.0f});
+                            const float ox = (static_cast<float>(i) - (n - 1) * 0.5f) * 0.12f;  // small offset, not a wide fan
+                            const Vec3 from{dstPos.x + ox, dstPos.y + 2.2f, dstPos.z};   // descend onto the target from just above
+                            const Vec3 to{dstPos.x + ox, dstPos.y + 0.6f, dstPos.z};
+                            fireballs_.push_back({from, to, time_ + i * 0.22, 0.32, "particle1", 0.0f, 1.0f});  // strong stagger = sequential hits
                         }
                     }
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal

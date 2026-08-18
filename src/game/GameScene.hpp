@@ -76,6 +76,7 @@ struct GroundUnit {
     u8 unitId = 0;
     double born = 0.0;      // scene time the unit appeared (phase the looping effect)
     double lastEmit = 0.0;  // last time this unit emitted coded particles (bard/dancer song throttle)
+    u16 skillId = 0;        // resolved skill (disambiguates the shared 0x86 dummy unit: Thunderstorm vs Meteor/...)
 };
 
 // The in-game scene: connects to the map-server (address from char-select),
@@ -367,6 +368,7 @@ private:
     std::unordered_map<u32, MapActor> actors_;         // other units, keyed by gid
     std::unordered_map<u32, WarpUnit> warps_;          // skill warp-portal swirls, keyed by gid
     std::unordered_map<u32, GroundUnit> groundUnits_;  // trap/wall/zone ground units, keyed by gid
+    std::unordered_map<u32, u16> groundSkillByCaster_;  // caster gid -> last ground skill cast (to resolve the shared 0x86 dummy unit)
     std::set<u32> dynBlocked_;                          // cells the server blocked at runtime (Ice Wall,
                                                         // 0x192), key = (y<<16)|x; makes cellWalkable false
     std::vector<WarpUnit> mapEffects_;                  // RSW effect sprites (torch flames, ...)

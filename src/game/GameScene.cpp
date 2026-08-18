@@ -2047,6 +2047,7 @@ void GameScene::onEnter(Application& app) {
     actors_.clear();
     warps_.clear();
     groundUnits_.clear();
+    groundSkillByCaster_.clear();
     dynBlocked_.clear();
     inventory_.clear();
     if (skillDesc_.empty()) {  // English skill descriptions for the RMB info window (#98), loaded once
@@ -2111,6 +2112,7 @@ void GameScene::onExit(Application& app) {
     actors_.clear();  // frees each actor's composed sprite textures (bgfx still up)
     warps_.clear();
     groundUnits_.clear();
+    groundSkillByCaster_.clear();
     dynBlocked_.clear();
     mapEffects_.clear();
     mapStrFx_.clear();
@@ -5422,6 +5424,7 @@ void GameScene::pumpStream(Application& app) {
             case net::PKT_ZC_NOTIFY_GROUNDSKILL: {  // ground/AoE skill placed: play its .str at the cell
                 net::GroundSkill gs;
                 if (net::decodeGroundSkill(rx.data(), rx.size(), gs) != 0) {
+                    groundSkillByCaster_[gs.src] = gs.skillId;  // remember the real skill for the shared 0x86 unit
                     const Vec3 cell = cellToWorld(gs.x, gs.y);
                     const bool rom = emitRomEffect(app, gs.skillId, cell);  // #132 RoM effect first
                     if (!rom) {
@@ -6952,7 +6955,17 @@ void GameScene::pumpStream(Application& app) {
                         // Any other ground unit (Fire Wall, Sanctuary, Pneuma, Quagmire, traps, ...):
                         // loop the skill's ground .str at the cell until 0x120 removes it (S.: traps/
                         // walls/zones weren't drawn — only warps were).
-                        groundUnits_[e.gid] = GroundUnit{cellToWorld(e.x, e.y), e.unitId, time_};
+                        u16 usid = groundUnitSkillId(e.unitId);
+                        if (e.unitId == 0x86) {  // shared DUMMY unit (Thunderstorm/Heaven's Drive/Meteor/Grand
+                            // Cross/AC_Shower/Sun Warm/...): render the looped thunderstorm.str ONLY when the
+                            // creator actually cast Thunderstorm (21); otherwise the zone is invisible and the
+                            // real visual comes from that skill's own channel (S.: Meteor was drawing lightning).
+                            auto it = groundSkillByCaster_.find(e.srcId);
+                            usid = (it != groundSkillByCaster_.end() && it->second == 21) ? 21 : 0;
+                        }
+                        GroundUnit gu{cellToWorld(e.x, e.y), e.unitId, time_};
+                        gu.skillId = usid;
+                        groundUnits_[e.gid] = gu;
                     }
                 }
                 break;
@@ -7532,6 +7545,7 @@ void GameScene::changeMap(Application& app, const net::MapChange& mc) {
     viewpoints_.clear();   // NPC minimap markers are per-map
     warps_.clear();
     groundUnits_.clear();
+    groundSkillByCaster_.clear();
     dynBlocked_.clear();
     inventory_.clear();
     groundItems_.clear();
@@ -10934,7 +10948,7 @@ void GameScene::update(Application& app, double dt) {
         };
         float sr, sg, sb;
         for (auto& kv : groundUnits_) {
-            const u16 sid = groundUnitSkillId(kv.second.unitId);
+            const u16 sid = kv.second.skillId;  // resolved at spawn (0x86 dummy disambiguated)
             if (sid == 87) {  // WZ_ICEWALL: real ICE-BLOCK sprites standing at the cell (S.: "должны быть
                 // спрайты на земле", not particles). Uses the content's ice_block1/2 art as upright
                 // alpha-blended billboards, re-emitted for persistence. A short wall of a few blocks per cell.
@@ -13038,7 +13052,7 @@ void GameScene::render(Application& app) {
             // ground .str at the cell for the unit's lifetime. unitId -> skillId -> skillFxDef .str;
             // units without a mapped ground effect (traps/songs) draw nothing yet (need sprites).
             for (auto& kv : groundUnits_) {
-                const u16 sid = groundUnitSkillId(kv.second.unitId);
+                const u16 sid = kv.second.skillId;  // resolved at spawn (0x86 dummy disambiguated)
                 if (!sid) continue;
                 const SkillFxDef fx = skillFxDef(sid);
                 if (!fx.str) continue;

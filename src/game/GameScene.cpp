@@ -5112,7 +5112,10 @@ void GameScene::pumpStream(Application& app) {
                         lastBurstAt_ = time_;
                         lastFxSkill_ = sd.skillId;
                         const Vec3 at{dstPos.x, dstPos.y + 1.0f, dstPos.z};
-                        fireballs_.push_back({at, at, time_, 0.6, "fireball"});  // explode in place
+                        // The exe blows fireball.spr up to 80/130/180 px by level (CEffect @0x5cadde) --
+                        // ~2.5x the Fire Bolt projectile. At scale 1.0 the stationary flame is tiny and
+                        // reads as "нет спрайта" (S.). Render it large so it looks like an explosion.
+                        fireballs_.push_back({at, at, time_, 0.7, "fireball", 0.0f, 2.5f});  // explode in place, big
                     }
                     // Blitz Beat (129, HT_BLITZBEAT) + Falcon Assault (381, SN_FALCONASSAULT): the hunter's
                     // falcon dives at the target and pecks it (S.: "должен сокол атаковать цель" / "фалкон
@@ -5391,6 +5394,14 @@ void GameScene::pumpStream(Application& app) {
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
                                     ruwachFx_.push_back({tp, time_, 24, sn.dst});
+                                }
+                                break;
+                            case 10:  // MG_SIGHT: like Ruwach but FIRE (S.: "как рувач, только огнём"). The
+                                // exe animates 이펙트\Sight.spr -> two fireballs orbiting the SELF-caster for
+                                // the buff. Anchor on the caster (self-cast, src==dst) and follow it.
+                                if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
+                                    lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
+                                    ruwachFx_.push_back({tp, time_, 10, sn.src});
                                 }
                                 break;
                             case 34:  // AL_BLESSING: cherubs circling the head (persistent, see updatePlay).
@@ -10849,7 +10860,8 @@ void GameScene::update(Application& app, double dt) {
         ruwachFx_.erase(std::remove_if(ruwachFx_.begin(), ruwachFx_.end(),
                             [&](const RuwachFx& r) {
                                 const double dur = r.skill == 34 ? 3.0
-                                                 : (r.skill == 29 || r.skill == 30) ? 1.0 : 12.0;
+                                                 : (r.skill == 29 || r.skill == 30) ? 1.0
+                                                 : r.skill == 10 ? 10.0 : 12.0;  // Sight burns ~10s
                                 return time_ - r.born >= dur;
                             }),
                         ruwachFx_.end());
@@ -10878,6 +10890,31 @@ void GameScene::update(Application& app, double dt) {
                     p.da = -3.0f; p.size = 0.25f; p.growth = 0.0f; p.life = 0.12f;  // S.: ×0.5 smaller
                     p.fxTex = tex;
                     skillParticles_.emit(p);
+                }
+                continue;
+            }
+            if (r.skill == 10) {  // MG_SIGHT: two FIRE balls orbiting the caster on opposite sides (classic
+                // Sight; "как рувач, только огнём"). Orange/red additive glow with a short trailing tail.
+                const float ang0 = static_cast<float>(el) * 3.2f;
+                const float rad = 1.25f;
+                const float hy = center.y + 0.9f + std::sin(static_cast<float>(el) * 2.5f) * 0.15f;
+                for (int s = 0; s < 2; ++s) {
+                    const float base = ang0 + static_cast<float>(s) * 3.14159265f;  // opposite sides
+                    skillParticles_.setEmitter(Vec3{center.x + std::cos(base) * rad, hy,
+                                                    center.z + std::sin(base) * rad});
+                    Particle head;  // bright fire head
+                    head.r = 1.0f; head.g = 0.55f; head.b = 0.15f; head.a = 0.95f;
+                    head.da = -3.0f; head.size = 0.4f; head.growth = -0.4f; head.life = 0.3f;
+                    skillParticles_.emit(head);
+                    for (int t = 1; t <= 3; ++t) {  // fiery tail
+                        const float ta = base - static_cast<float>(t) * 0.13f;
+                        skillParticles_.setEmitter(Vec3{center.x + std::cos(ta) * rad, hy,
+                                                        center.z + std::sin(ta) * rad});
+                        Particle p;
+                        p.r = 1.0f; p.g = 0.35f; p.b = 0.08f; p.a = 0.5f - static_cast<float>(t) * 0.12f;
+                        p.da = -2.5f; p.size = 0.3f - static_cast<float>(t) * 0.04f; p.growth = -0.4f; p.life = 0.28f;
+                        skillParticles_.emit(p);
+                    }
                 }
                 continue;
             }

@@ -15724,27 +15724,30 @@ void GameScene::render(Application& app) {
     // carried items (icon + stack count, names from the item DB), like roBrowser's
     // inventory. No keyboard hotkey is wired yet (the platform input has no letter keys),
     // so the button is the entry point — RO's basic window opens its panels the same way.
+    // fW + the scrollbar lambda are hoisted ABOVE the HUD-windows gate: that gate is split around
+    // the item-info popup (so RMB opens the description inside NPC shops), and both halves of the
+    // split — the windows before AND after the popup — reference these, so they must outlive the gate.
+    const float fW = static_cast<float>(uiW);
+    // A reusable vertical scrollbar: a track on the right + a thumb sized to the visible
+    // fraction; clicking the track jumps the scroll there. Shared by the bag/storage lists so
+    // it's obvious when a long list scrolls (S.: "не понятно, можно ли скролить").
+    auto scrollbar = [&](float trackX, float trackY, float trackH, int& scroll, int maxScroll,
+                         int visRows, int totalRows) {
+        if (maxScroll <= 0 || totalRows <= 0) return;  // everything fits -> no bar
+        ui::panel(sb, trackX, trackY, 10.0f, trackH, ui::rgba(0, 0, 0, 60));  // track
+        const float th = std::max(
+            20.0f, trackH * static_cast<float>(visRows) / static_cast<float>(totalRows));
+        const float ty =
+            trackY + (trackH - th) * static_cast<float>(scroll) / static_cast<float>(maxScroll);
+        ui::panel(sb, trackX + 1.0f, ty, 8.0f, th, ui::color::kWinButton);  // thumb
+        if (uin.mousePressed && app.input().hit(trackX, trackY, 10.0f, trackH)) {
+            const float f = std::clamp(
+                (static_cast<float>(uin.mouseY) - trackY) / trackH, 0.0f, 1.0f);
+            scroll = std::clamp(static_cast<int>(f * static_cast<float>(maxScroll) + 0.5f), 0,
+                                maxScroll);
+        }
+    };
     if (!dead_ && !menuOpen_ && !dialogOpen_ && shopMode_ == ShopMode::None) {
-        const float fW = static_cast<float>(uiW);
-        // A reusable vertical scrollbar: a track on the right + a thumb sized to the visible
-        // fraction; clicking the track jumps the scroll there. Shared by the bag/storage lists so
-        // it's obvious when a long list scrolls (S.: "не понятно, можно ли скролить").
-        auto scrollbar = [&](float trackX, float trackY, float trackH, int& scroll, int maxScroll,
-                             int visRows, int totalRows) {
-            if (maxScroll <= 0 || totalRows <= 0) return;  // everything fits -> no bar
-            ui::panel(sb, trackX, trackY, 10.0f, trackH, ui::rgba(0, 0, 0, 60));  // track
-            const float th = std::max(
-                20.0f, trackH * static_cast<float>(visRows) / static_cast<float>(totalRows));
-            const float ty =
-                trackY + (trackH - th) * static_cast<float>(scroll) / static_cast<float>(maxScroll);
-            ui::panel(sb, trackX + 1.0f, ty, 8.0f, th, ui::color::kWinButton);  // thumb
-            if (uin.mousePressed && app.input().hit(trackX, trackY, 10.0f, trackH)) {
-                const float f = std::clamp(
-                    (static_cast<float>(uin.mouseY) - trackY) / trackH, 0.0f, 1.0f);
-                scroll = std::clamp(static_cast<int>(f * static_cast<float>(maxScroll) + 0.5f), 0,
-                                    maxScroll);
-            }
-        };
         // The window-toggle buttons (Status/Item/Equip/Skill) now live in the skinned BasicInfo
         // window drawn above (drawBasicInfo) — the original client's main panel with a side menu.
 

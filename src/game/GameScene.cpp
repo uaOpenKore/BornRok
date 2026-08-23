@@ -15207,6 +15207,12 @@ void GameScene::render(Application& app) {
                 const int owned = rowOwned(i);
                 const bool hov = app.input().hit(lpx + 2.0f, ry, paneW - 4.0f, rh);
                 if (hov) ui::panel(sb, lpx + 2.0f, ry, paneW - 4.0f, rh, ui::rgba(255, 255, 255, 18));
+                if (hov && app.input().rightDown) {  // DIAG (temp): why RMB-desc doesn't open in shops
+                    static double dlast = -1.0;
+                    if (time_ - dlast > 0.4) { dlast = time_;
+                        log::info("shop-rmb DIAG: hov=1 rightDown=1 nameid={} shopMode={} dialogOpen={} menuOpen={} dead={} -> descItemId set",
+                                  nameid, static_cast<int>(shopMode_), dialogOpen_ ? 1 : 0, menuOpen_ ? 1 : 0, dead_ ? 1 : 0); }
+                }
                 if (hov && app.input().rightDown && nameid) {  // RMB -> item description popup (S.)
                     descItemId_ = nameid;
                     for (int k = 0; k < 4; ++k) descCards_[k] = 0;  // buy list carries no cards
@@ -16755,6 +16761,13 @@ void GameScene::render(Application& app) {
     // never drawn because the whole HUD block was suppressed in shop mode). The gate is reopened
     // immediately after this block for the windows that follow; the popup's own dismiss guard below
     // (which already exempts shop/bag windows) keeps it alive while the shop is up.
+    if (descItemId_ != 0) {  // DIAG (temp)
+        static double glast = -1.0;
+        if (time_ - glast > 0.4) { glast = time_;
+            log::info("desc-popup GATE DIAG: descItemId={} dead={} menuOpen={} dialogOpen={} shopMode={} gatePass={}",
+                      descItemId_, dead_ ? 1 : 0, menuOpen_ ? 1 : 0, dialogOpen_ ? 1 : 0, static_cast<int>(shopMode_),
+                      (!dead_ && !menuOpen_ && !dialogOpen_) ? 1 : 0); }
+    }
     if (!dead_ && !menuOpen_ && !dialogOpen_ && descItemId_ != 0) {
             if (!inventoryOpen_ && !cartOpen_ && !storageOpen_ && !vendingOpen_ && !equipOpen_ &&
                 shopMode_ == ShopMode::None) {  // NPC shop RMB-description also keeps the popup alive (S.)

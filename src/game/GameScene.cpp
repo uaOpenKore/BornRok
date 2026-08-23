@@ -7165,7 +7165,7 @@ void GameScene::pumpStream(Application& app) {
                         have = true;
                     }
                     if (have) {
-                        levelFx_.push_back({type == 1, at, time_});
+                        levelFx_.push_back({type == 1, at, time_, gid});  // gid -> follow the actor (S.)
                         // Level-up jingle (#103): base vs job have distinct stock sounds.
                         playWorldSfx(app, type == 1 ? "st_job_level_up.wav" : "levelup.wav", at);
                     }
@@ -13656,10 +13656,14 @@ void GameScene::render(Application& app) {
                                levelFx_.end());
                 for (const LevelFx& fx : levelFx_) {
                     const StrEffect& e = fx.job ? levelFxJob_ : levelFxBase_;
-                    // joblvup.str ships oversized (S.: "надпись при джоб-апе раз 5-7 шире и ~3 выше") ->
-                    // render it much smaller; the base angel.str is fine at 1.0.
-                    const float sc = fx.job ? 0.22f : 1.0f;
-                    if (e.ready()) e.render(pass, fx.pos, time_ - fx.born, sc);
+                    // The effect FOLLOWS the actor that levelled (S.: "спрайты должны двигаться за
+                    // чаром"): resolve its live pos each frame, falling back to the spawn pos if it
+                    // left view. Scales per S.: job ×2 bigger (0.22 -> 0.44), base ÷2 smaller (1.0 -> 0.5).
+                    Vec3 pos = fx.pos;
+                    if (fx.gid == app.session().accountId) pos = playerPos_;
+                    else if (fx.gid) if (auto it = actors_.find(fx.gid); it != actors_.end()) pos = it->second.pos;
+                    const float sc = fx.job ? 0.44f : 0.5f;
+                    if (e.ready()) e.render(pass, pos, time_ - fx.born, sc);
                 }
             }
             // Per-skill .str effects, played at the target on cast (same billboard pass as level-ups).

@@ -188,8 +188,9 @@ private:
     bool levelFxBaseLoaded_ = false, levelFxJobLoaded_ = false;
     struct LevelFx {
         bool job;     // false = base (angel), true = job (joblvup)
-        Vec3 pos;     // fixed at the actor's position when the level-up fired
+        Vec3 pos;     // spawn position (fallback if the actor leaves view)
         double born;  // time_ at spawn; pruned when time_-born exceeds the effect duration
+        u32 gid = 0;  // the actor that levelled; the effect FOLLOWS its live pos each frame (S.)
     };
     std::vector<LevelFx> levelFx_;
     // Per-skill .str visual effects, played at the target on cast (reuses the level-up renderer).

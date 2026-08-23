@@ -16742,7 +16742,13 @@ void GameScene::render(Application& app) {
             }
         }
 
-        if (descItemId_ != 0) {
+    }  // Close the HUD-windows gate (opened above as "!dead && !menu && !dialog && !shop") right
+    // BEFORE the item-info popup, so RMB opens the description even inside an NPC shop (S.: "в
+    // магазинах по ПКМ не открывается инфа итема" — the popup was set by the shop's RMB handler but
+    // never drawn because the whole HUD block was suppressed in shop mode). The gate is reopened
+    // immediately after this block for the windows that follow; the popup's own dismiss guard below
+    // (which already exempts shop/bag windows) keeps it alive while the shop is up.
+    if (!dead_ && !menuOpen_ && !dialogOpen_ && descItemId_ != 0) {
             if (!inventoryOpen_ && !cartOpen_ && !storageOpen_ && !vendingOpen_ && !equipOpen_ &&
                 shopMode_ == ShopMode::None) {  // NPC shop RMB-description also keeps the popup alive (S.)
                 descItemId_ = 0;
@@ -16924,6 +16930,8 @@ void GameScene::render(Application& app) {
                 if (!cardClosed && (xClicked || outside || app.input().escape)) { descItemId_ = 0; cardDescId_ = 0; }
             }
         }
+    // end item-info popup (now runs in NPC shops too) — reopen the HUD-windows gate for the rest
+    if (!dead_ && !menuOpen_ && !dialogOpen_ && shopMode_ == ShopMode::None) {
 
         // RMB-a-skill English info window (#98, S.: "описание скиллов по пкм — инфо-окном"). Mirrors
         // the item description popup: a titled window with the skill's name + wrapped description.

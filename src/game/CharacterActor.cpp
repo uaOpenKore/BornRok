@@ -1105,7 +1105,7 @@ Texture& CharacterActor::frameNrmTex(int part, int idx, bool indexed) {
 // artists draw each so it sits correctly when its anchor is at the body's.
 void CharacterActor::composePart(int part, int action, int frameSeed,
                                  const std::array<i32, 2>& ba, std::vector<ComposedQuad>& out,
-                                 int frameSeedNext, float t) {
+                                 int frameSeedNext, float t, bool bodyAnchorPresent) {
     if (part < 0 || part >= kParts || !spr_[part] || !act_[part] || act_[part]->actions().empty())
         return;
     const int n = static_cast<int>(act_[part]->actions().size());
@@ -1186,6 +1186,14 @@ void CharacterActor::composePart(int part, int action, int frameSeed,
             if (dir >= 3 && dir <= 5 && (part == 2 || part == 3 || pf.anchors.empty()))
                 return;
         }
+        // The attach point is the BODY's neck anchor. Some body sprites drop that anchor on the
+        // exact-back frame (dir 4), so frameAnchor() defaulted ba to (0,0) and a helm/hat WITH its
+        // own anchor got offset down to the feet (S.: "helm рисуется ниже чара, когда спиной ровно к
+        // камере — теряется точка привязки; скрывать головняки если теряют точку привязки"). When
+        // the body carries no anchor this frame, HIDE the headgear (parts 2-4) instead of drawing it
+        // in the wrong place. The head (part 1) and body are left alone.
+        if (!bodyAnchorPresent && part >= 2 && part <= 4)
+            return;
         if (!pf.anchors.empty()) {
             // Interpolate the part's own attach anchor toward the next frame so the head/hat glides
             // with the body instead of snapping (ba is already the interpolated body anchor).
@@ -1236,14 +1244,20 @@ void CharacterActor::buildQuads(int action, int frameSeed, std::vector<ComposedQ
     // body origin like the weapon (is_main), so it uses the same body anchor `ba`.
     const int dir = ((action % 8) + 8) % 8;
     const bool shieldBehind = (dir >= 2 && dir <= 5);
+    // Does the BODY frame carry a neck anchor? If not, frameAnchor() defaulted ba to (0,0) and any
+    // headgear WITH its own anchor would be offset down to the feet on the exact-back octant. Pass
+    // this so composePart can hide headgear that would lose its attach point (S.).
+    const auto& bframes = act_[0]->actions()[ba_i].frames;
+    const bool bodyAnchorPresent =
+        bframe >= 0 && bframe < static_cast<int>(bframes.size()) && !bframes[bframe].anchors.empty();
     if (shieldBehind) composePart(6, action, frameSeed, ba, out, frameSeedNext, t);  // shield behind
     composeFrame(*act_[0], *spr_[0], ba_i, bframe, 0, 0, 0, out, bframeN, t);
     composePart(5, action, frameSeed, ba, out, frameSeedNext, t);  // weapon (held in the body's hand anchor)
     composePart(7, action, frameSeed, ba, out, frameSeedNext, t);  // weapon trail (검광), over the weapon; empty off-swing
     composePart(1, action, frameSeed, ba, out, frameSeedNext, t);  // head
-    composePart(2, action, frameSeed, ba, out, frameSeedNext, t);  // headgear bottom
-    composePart(3, action, frameSeed, ba, out, frameSeedNext, t);  // headgear mid
-    composePart(4, action, frameSeed, ba, out, frameSeedNext, t);  // headgear top
+    composePart(2, action, frameSeed, ba, out, frameSeedNext, t, bodyAnchorPresent);  // headgear bottom
+    composePart(3, action, frameSeed, ba, out, frameSeedNext, t, bodyAnchorPresent);  // headgear mid
+    composePart(4, action, frameSeed, ba, out, frameSeedNext, t, bodyAnchorPresent);  // headgear top
     if (!shieldBehind) composePart(6, action, frameSeed, ba, out, frameSeedNext, t);  // shield in front
 }
 

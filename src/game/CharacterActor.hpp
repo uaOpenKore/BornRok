@@ -201,7 +201,8 @@ private:
                    float scale);
     // Compose one optional part (head / headgear) anchored to the body anchor `ba`.
     void composePart(int part, int action, int frameSeed, const std::array<i32, 2>& ba,
-                     std::vector<ComposedQuad>& out, int frameSeedNext = -1, float t = 0.0f);
+                     std::vector<ComposedQuad>& out, int frameSeedNext = -1, float t = 0.0f,
+                     bool bodyAnchorPresent = true);
     bool loadHeadgear(const Vfs& vfs, int part, u16 viewId, const std::string& sx);
     // PNG frame override (#109 level 1): probe "<base>.png.d/<i>.png" for every INDEXED frame of
     // spr_[part] and stash the decoded images; frameTex prefers them over the palette expansion.

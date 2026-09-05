@@ -253,7 +253,7 @@ const StatusDef kStatusDefs[] = {
     {31, false, "\xbf\xa1\xb3\xca\xc1\xf6\xc4\xda\xc6\xae.tga", "ECoat"},  // SI_ENERGYCOAT
     // Overweight chips, computed locally from weight/maxweight (not a server status here). Icon
     // filenames taken from roBrowser StatusInfo (data/texture/effect/, CP949). (S.: 50%/90% перевес)
-    {35, true, "\xb9\xab\xb0\xd4\x35\x30\xc0\xcc\xbb\xf3.tga", "Wt50%"},  // SI_WEIGHT50  (overweight >=50%)
+    {35, true, "\xb9\xab\xb0\xd4\x35\x30\xc0\xcc\xbb\xf3.tga", "Wt70%"},  // SI_WEIGHT50 chip; icon art reads 70% (overweight >=70%, S.)
     {36, true, "\xb9\xab\xb0\xd4\x39\x30\xc0\xcc\xbb\xf3.tga", "Wt90%"},  // SI_WEIGHTOVER90 (>=90%)
     // S. batch: show these as labelled chips (no .tga wired yet -> real icons are a content follow-up).
     {27, false, "\xb6\xf3\xc0\xcc\xb5\xf9.tga", "Peco"},  // SI_RIDING -- peco mount icon (roBrowser StatusInfo cp949; S. pointed at the GRF file)
@@ -12232,14 +12232,16 @@ void GameScene::update(Application& app, double dt) {
             autoUse(autoHpItems_, playerHp_, playerMaxHp_, autoHpPct_, lastAutoHpUse_);
             autoUse(autoSpItems_, playerSp_, playerMaxSp_, autoSpPct_, lastAutoSpUse_);
         }
-        // Overweight status icons (50% / 90%): not pushed as a server status on this server, so derive
+        // Overweight status icons (70% / 90%): not pushed as a server status on this server, so derive
         // them from the live weight/maxweight ratio each frame and toggle the SI chips (S.). 90% wins
-        // over 50% so only one shows at a time, matching the official client.
+        // over 70% so only one shows at a time, matching the official client.
         if (maxWeight_ > 0) {
             const i64 ratio = static_cast<i64>(weight_) * 100 / maxWeight_;
             const bool w90 = ratio >= 90;
             if (w90) activeStatus_.insert(36); else activeStatus_.erase(36);
-            if (ratio >= 50 && !w90) activeStatus_.insert(35); else activeStatus_.erase(35);
+            // First overweight tier at 70% (S.: raised 50->70 to match the renewal icon art which
+            // reads "70%"; server natural_heal_weight_rate is now 70 to match).
+            if (ratio >= 70 && !w90) activeStatus_.insert(35); else activeStatus_.erase(35);
         } else {
             activeStatus_.erase(35);
             activeStatus_.erase(36);

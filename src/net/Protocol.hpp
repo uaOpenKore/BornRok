@@ -142,6 +142,7 @@ enum : u16 {
     PKT_ZC_EQUIP_ACK          = 0x00aa,  // M->C  equip result (index + worn location + ok), 7B
     PKT_CZ_REQ_TAKEOFF_EQUIP  = 0x00ab,  // C->M  unequip a worn item (index), 4B
     PKT_ZC_TAKEOFF_ACK        = 0x00ac,  // M->C  unequip result (index + location + ok), 7B
+    PKT_ZC_ACK_ITEMREFINING   = 0x0188,  // M->C  refine result: result(2) index(2) refine(2), 8B
 
     // Kafra storage (and GUILD storage — identical packet ids; the server routes by storage_flag,
     // so the client codec is shared). "Open" = the server just sends the two lists + the count.
@@ -1012,6 +1013,7 @@ usize decodeStorageRemove(const u8* p, usize n, u16& index, u32& amount);  // ZC
 // ZC_REQ_WEAR_EQUIP_ACK (0xaa) / ZC_REQ_TAKEOFF_EQUIP_ACK (0xac), 7B: index(2) location(2) ok(1).
 // Identical layout for both; ok != 0 = success. On equip, location is the slot it went to.
 usize decodeEquipResult(const u8* p, usize n, u16& index, u16& location, u8& ok);
+usize decodeRefineResult(const u8* p, usize n, u16& result, u16& index, u16& refine);
 // ZC_ITEM_ADD (0xa0, 23B): index(2) amount(2) nameid(2) ... equipLoc(2)@19 type(1)@21 fail(1)@22.
 usize decodeItemAdd(const u8* p, usize n, InvItem& out, u8& fail);
 // An item lying on the map floor (ZC_ITEM_ENTRY 0x9d on view-enter / ZC_ITEM_FALL 0x9e on drop).

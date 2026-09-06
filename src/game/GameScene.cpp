@@ -6757,6 +6757,19 @@ void GameScene::pumpStream(Application& app) {
                         it->second.equipPos = 0;
                 break;
             }
+            case net::PKT_ZC_ACK_ITEMREFINING: {  // 0x188: refine result -> update the item's refine
+                // S.: "после заточки оружие не обновляется, не видно заточки". We framed+skipped 0x188,
+                // so the bag item's refine never changed and the "+N" (and the equip window) stayed at
+                // the old level until relog. Apply the server's new refine to the item in-place; the
+                // equip/inventory windows read it.refine, so the "+N" appears immediately. Works for
+                // ANY equipment type (weapon/armor/headgear/...) since it just keys on the inv index.
+                u16 result = 0, idx = 0, refine = 0;
+                if (net::decodeRefineResult(rx.data(), rx.size(), result, idx, refine) != 0)
+                    if (result != 1)  // 1 = the item broke on failure (a delete packet removes it)
+                        if (auto it = inventory_.find(idx); it != inventory_.end())
+                            it->second.refine = static_cast<u8>(refine);
+                break;
+            }
             case net::PKT_ZC_ITEM_ADD: {  // 0xa0: an item entered the bag (pickup, etc.)
                 net::InvItem ni;
                 u8 fail = 0;

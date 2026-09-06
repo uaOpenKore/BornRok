@@ -2374,6 +2374,14 @@ usize decodeEquipResult(const u8* p, usize n, u16& index, u16& location, u8& ok)
     return 7;
 }
 
+usize decodeRefineResult(const u8* p, usize n, u16& result, u16& index, u16& refine) {
+    if (n < 8) return 0;  // 0x188 ZC_ACK_ITEMREFINING: id(2) result(2) index(2) refine(2)
+    result = rd16(p, 2);   // 0 = success, 1 = fail, 2 = downgrade
+    index = rd16(p, 4);    // inventory index (slot+2, same key as inventory_)
+    refine = rd16(p, 6);   // the item's new refine (upgrade) level
+    return 8;
+}
+
 usize decodeItemAdd(const u8* p, usize n, InvItem& out, u8& fail) {
     if (n < 23) return 0;  // 0xa0: index(2) amount(2) nameid(2) ...8 equipLoc(2)@19 type@21 fail@22
     out.index = rd16(p, 2);

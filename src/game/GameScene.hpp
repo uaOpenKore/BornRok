@@ -933,6 +933,7 @@ private:
     u16 descCards_[4] = {0, 0, 0, 0};            // its inserted cards (vending items only; 0 = none)
     u32 cardDescId_ = 0;                          // a card RMB'd inside the info popup -> its own description window (S.)
     std::unordered_map<std::string, std::string> skillDesc_;  // internalName -> English description (GRF)
+    std::vector<std::string> msgTable_;  // msgstringtable.txt lines (0x291 clif_msg id -> text)
     std::unordered_map<std::string, std::string> bgmTable_;   // map base -> BGM file (mp3nametable, #103)
     std::string skillDescName_;                  // skill (internal name) whose RMB info window is open ("" = none)
     int skillDescScroll_ = 0;                     // first visible line in the skill-info window (wheel scroll)

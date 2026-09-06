@@ -2055,6 +2055,29 @@ void GameScene::onEnter(Application& app) {
         if (!db) db = app.vfs().read("data/skilldesctable.txt");
         if (db) skillDesc_ = parseSkillDescTable(*db);
     }
+    if (msgTable_.empty()) {  // msgstringtable.txt for 0x291 clif_msg (index -> text), loaded once
+        auto mt = app.vfs().read("data/english/msgstringtable.txt");
+        if (!mt) mt = app.vfs().read("data/msgstringtable.txt");
+        if (mt) {
+            std::string cur;
+            for (u8 c : *mt) {
+                if (c == '\n') {
+                    // Each entry ends with a '#' terminator + CR; strip both plus trailing spaces.
+                    while (!cur.empty() && (cur.back() == '\r' || cur.back() == '#' || cur.back() == ' '))
+                        cur.pop_back();
+                    msgTable_.push_back(net::cp1251ToUtf8(cur));
+                    cur.clear();
+                } else {
+                    cur.push_back(static_cast<char>(c));
+                }
+            }
+            if (!cur.empty()) {
+                while (!cur.empty() && (cur.back() == '\r' || cur.back() == '#' || cur.back() == ' '))
+                    cur.pop_back();
+                msgTable_.push_back(net::cp1251ToUtf8(cur));
+            }
+        }
+    }
     updateMapBgm(app);  // start the spawn map's BGM (also re-evaluated on every warp)
     baseLevel_ = s.baseLevel;  // show the char-select level at once; server SP_BASELEVEL refines it
     jobLevel_ = s.jobLevel;
@@ -6936,6 +6959,14 @@ void GameScene::pumpStream(Application& app) {
                     cartMaxNum_ = net::pktU16(rx.data(), 4);
                     cartWeight_ = net::pktU32(rx.data(), 6);
                     cartMaxWeight_ = net::pktU32(rx.data(), 10);
+                }
+                break;
+            }
+            case 0x0291: {  // ZC_MSG (clif_msg): a system message by msgstringtable index -> chat toast
+                if (rx.size() >= 4) {
+                    const u16 mid = net::pktU16(rx.data(), 2);
+                    if (mid < msgTable_.size() && !msgTable_[mid].empty())
+                        pushChatToast(msgTable_[mid], ui::color::kWinText);
                 }
                 break;
             }

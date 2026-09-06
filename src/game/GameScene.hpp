@@ -725,6 +725,8 @@ private:
 
     // Guild (#78 part 4, Alt+G). Tabbed window: Info / Member / Position / Skill / Expel / Notice.
     u32 guildId_ = 0;              // the player's own guild id (from 0x16c), 0 = none
+    bool guildMaster_ = false;     // 0x14e: whether we are our guild's master (enables master menus)
+    std::unordered_map<u32, std::array<u16, 2>> guildMemberXY_;  // 0x1eb: guild members' live map cells
     net::GuildInfo guildInfo_;
     std::vector<net::GuildMember> guildMembers_;
     std::vector<net::GuildPosition> guildPositions_;

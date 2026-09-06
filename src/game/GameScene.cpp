@@ -6770,6 +6770,166 @@ void GameScene::pumpStream(Application& app) {
                             it->second.refine = static_cast<u8>(refine);
                 break;
             }
+            // ===== Audit follow-up (S. "всё делать"): previously framed+skipped server packets. =====
+            case net::PKT_ZC_ACK_WEAPONREFINE: {  // 0x223: refine result MESSAGE (the "+N" value rides 0x188)
+                if (rx.size() >= 8) {
+                    const u32 res = net::pktU32(rx.data(), 2);   // 0=success 1=fail 2=downgrade
+                    const std::string nm = app.itemDb().name(net::pktU16(rx.data(), 6));
+                    pushChatToast((res == 0 ? "Refine succeeded: " : res == 2 ? "Refine downgraded: "
+                                                                              : "Refine failed: ") + nm,
+                                  res == 0 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_ARROW_FAIL: {  // 0x13b: arrow-equip failed
+                if (rx.size() >= 4)
+                    pushChatToast(net::pktU16(rx.data(), 2) == 0 ? "You don't have any arrows."
+                                                                 : "You can't equip arrows here.",
+                                  ui::color::kError);
+                break;
+            }
+            case net::PKT_ZC_TELEPORT_MSG: {  // 0x189: teleport / memo message
+                if (rx.size() >= 4)
+                    pushChatToast(net::pktU16(rx.data(), 2) == 0 ? "You cannot teleport in this area."
+                                                                 : "No save point has been set.",
+                                  ui::color::kError);
+                break;
+            }
+            case net::PKT_ZC_PRODUCE_EFFECT: {  // 0x18f: produce/forge/brew result
+                if (rx.size() >= 6) {
+                    const u16 flag = net::pktU16(rx.data(), 2);  // 0=success 1=fail
+                    const std::string nm = app.itemDb().name(net::pktU16(rx.data(), 4));
+                    pushChatToast((flag == 0 ? "Successfully created " : "Failed to create ") + nm,
+                                  flag == 0 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_REPAIR_EFFECT: {  // 0x1fe: repair result
+                if (rx.size() >= 5) {
+                    const std::string nm = app.itemDb().name(net::pktU16(rx.data(), 2));
+                    const bool ok = rx.data()[4] == 0;  // flag 0 = repaired
+                    pushChatToast((ok ? "Repaired " : "Failed to repair ") + nm,
+                                  ok ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_MVP_EXP: {  // 0x10b: MVP experience reward
+                if (rx.size() >= 6)
+                    pushChatToast("MVP! You gained " + std::to_string(net::pktU32(rx.data(), 2)) +
+                                      " base experience.",
+                                  ui::color::kOk);
+                break;
+            }
+            case net::PKT_ZC_ACK_REQNAME_BYGID: {  // 0x194: resolve a char id -> name (whisper/list lookups)
+                if (rx.size() >= 30) {
+                    const u32 cid = net::pktU32(rx.data(), 2);
+                    const std::string nm = net::pktName(rx.data(), rx.size(), 6, 24);
+                    if (cid && !nm.empty()) names_[cid] = nm;
+                }
+                break;
+            }
+            case net::PKT_ZC_HOM_FOOD: {  // 0x22f: homunculus feed result (fail arg: 1=success, 0=fail)
+                if (rx.size() >= 5)
+                    pushChatToast(rx.data()[2] != 0 ? "You fed your homunculus."
+                                                    : "You don't have the food to feed it.",
+                                  rx.data()[2] != 0 ? ui::color::kOk : ui::color::kError);
+                break;
+            }
+            case net::PKT_ZC_HOM_SKILLUP: {  // 0x239: a homunculus skill leveled up -> refresh its entry
+                if (rx.size() >= 11) {
+                    const u16 sid = net::pktU16(rx.data(), 2);
+                    const u16 lv = net::pktU16(rx.data(), 4);
+                    for (auto& s : homunSkills_)
+                        if (s.id == sid) {
+                            s.level = lv;
+                            s.sp = net::pktU16(rx.data(), 6);
+                            s.range = net::pktU16(rx.data(), 8);
+                            s.upgradeable = rx.data()[10] != 0;
+                            break;
+                        }
+                }
+                break;
+            }
+            case net::PKT_ZC_PARTY_INVITE_RESULT: {  // 0xfd: party invite result (to the inviter)
+                if (rx.size() >= 27) {
+                    const std::string who = net::pktName(rx.data(), rx.size(), 2, 24);
+                    const u8 f = rx.data()[26];
+                    static const char* m[] = {" is already in a party.", " rejected the invite.",
+                                              " joined the party.", "The party is full.",
+                                              " is already in another party."};
+                    pushChatToast((f == 3 ? std::string(m[3]) : who + (f < 5 ? m[f] : " — invite result.")),
+                                  f == 2 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_GUILD_CREATE_ACK: {  // 0x167: guild creation result
+                if (rx.size() >= 3) {
+                    const u8 f = rx.data()[2];  // 0=success
+                    static const char* m[] = {"Guild created.", "That guild name already exists.",
+                                              "You are already in a guild.", "You need an Emperium."};
+                    pushChatToast(f < 4 ? m[f] : "Guild creation failed.",
+                                  f == 0 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_GUILD_INVITE_ACK: {  // 0x169: guild invite result (to the inviter)
+                if (rx.size() >= 3) {
+                    const u8 f = rx.data()[2];
+                    static const char* m[] = {"That player is already in a guild.",
+                                              "The guild invite was rejected.", "Joined the guild.",
+                                              "The guild is full."};
+                    pushChatToast(f < 4 ? m[f] : "Guild invite result.",
+                                  f == 2 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_GUILD_BROKEN: {  // 0x15e: our guild was disbanded
+                guildId_ = 0;
+                guildMaster_ = false;
+                pushChatToast("Your guild has been disbanded.", ui::color::kError);
+                break;
+            }
+            case net::PKT_ZC_GUILD_MASTER_MEMBER: {  // 0x14e: are we the guild master?
+                if (rx.size() >= 6) guildMaster_ = (net::pktU32(rx.data(), 2) == 0xd7);
+                break;
+            }
+            case net::PKT_ZC_GUILD_REQ_ALLIANCE: {  // 0x171: another guild requests an alliance
+                if (rx.size() >= 30)
+                    pushChatToast(net::pktName(rx.data(), rx.size(), 6, 24) + " requests an alliance.",
+                                  ui::color::kWinText);
+                break;
+            }
+            case net::PKT_ZC_GUILD_ALLIANCE_ACK: {  // 0x173: alliance request result
+                if (rx.size() >= 6) {
+                    const u32 f = net::pktU32(rx.data(), 2);
+                    static const char* m[] = {"Alliance failed — try later.", "The alliance was rejected.",
+                                              "Alliance formed.", "You are already allied.",
+                                              "Your guild has too many alliances.",
+                                              "Their guild has too many alliances."};
+                    pushChatToast(f < 6 ? m[f] : "Alliance result.", f == 2 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_GUILD_OPPOSITION_ACK: {  // 0x181: set-opposition result
+                if (rx.size() >= 3) {
+                    const u8 f = rx.data()[2];
+                    static const char* m[] = {"Too many enemies declared.", "Cannot war an ally.",
+                                              "Enemy declared."};
+                    pushChatToast(f < 3 ? m[f] : "Opposition result.", f == 2 ? ui::color::kOk : ui::color::kError);
+                }
+                break;
+            }
+            case net::PKT_ZC_GUILD_DEL_ALLIANCE: {  // 0x184: an alliance/opposition was removed
+                pushChatToast("A guild relationship was removed.", ui::color::kWinText);
+                break;
+            }
+            case net::PKT_ZC_GUILD_MEMBER_XY: {  // 0x1eb: a guild member's live map position (minimap dot)
+                if (rx.size() >= 10) {
+                    const u32 aid = net::pktU32(rx.data(), 2);
+                    guildMemberXY_[aid] = {net::pktU16(rx.data(), 6), net::pktU16(rx.data(), 8)};
+                }
+                break;
+            }
             case net::PKT_ZC_ITEM_ADD: {  // 0xa0: an item entered the bag (pickup, etc.)
                 net::InvItem ni;
                 u8 fail = 0;

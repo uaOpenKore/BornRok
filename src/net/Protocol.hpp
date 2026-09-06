@@ -143,6 +143,25 @@ enum : u16 {
     PKT_CZ_REQ_TAKEOFF_EQUIP  = 0x00ab,  // C->M  unequip a worn item (index), 4B
     PKT_ZC_TAKEOFF_ACK        = 0x00ac,  // M->C  unequip result (index + location + ok), 7B
     PKT_ZC_ACK_ITEMREFINING   = 0x0188,  // M->C  refine result: result(2) index(2) refine(2), 8B
+    // --- Audit follow-up (S. "всё делать"): server-sent packets that were framed+skipped. ---
+    PKT_ZC_ACK_WEAPONREFINE   = 0x0223,  // M->C  refine result MESSAGE: result(L)@2 nameid(W)@6, 8B
+    PKT_ZC_ARROW_FAIL         = 0x013b,  // M->C  arrow-equip fail: type(W)@2, 4B
+    PKT_ZC_TELEPORT_MSG       = 0x0189,  // M->C  skill teleport/memo msg: flag(W)@2, 4B
+    PKT_ZC_PRODUCE_EFFECT     = 0x018f,  // M->C  produce/forge result: flag(W)@2 nameid(W)@4, 6B
+    PKT_ZC_REPAIR_EFFECT      = 0x01fe,  // M->C  repair result: nameid(W)@2 flag(B)@4, 5B
+    PKT_ZC_HOM_FOOD           = 0x022f,  // M->C  homun feed result: fail(B)@2 foodid(W)@3, 5B
+    PKT_ZC_MVP_EXP            = 0x010b,  // M->C  MVP exp reward: exp(L)@2, 6B
+    PKT_ZC_ACK_REQNAME_BYGID  = 0x0194,  // M->C  name-by-charid: char_id(L)@2 name.24@6, 30B
+    PKT_ZC_HOM_SKILLUP        = 0x0239,  // M->C  homun skill up: skillnum(W)@2 lv(W)@4 sp(W)@6 range(W)@8 up(B)@10, 11B
+    PKT_ZC_GUILD_CREATE_ACK   = 0x0167,  // M->C  guild-create result: flag(B)@2, 3B
+    PKT_ZC_GUILD_INVITE_ACK   = 0x0169,  // M->C  guild-invite result: flag(B)@2, 3B
+    PKT_ZC_GUILD_BROKEN       = 0x015e,  // M->C  guild disbanded: reason(L)@2, 6B
+    PKT_ZC_GUILD_MASTER_MEMBER= 0x014e,  // M->C  you-are master/member: mode(L)@2 (0xd7=master), 6B
+    PKT_ZC_GUILD_REQ_ALLIANCE = 0x0171,  // M->C  alliance request: account_id(L)@2 name.24@6, 30B
+    PKT_ZC_GUILD_ALLIANCE_ACK = 0x0173,  // M->C  alliance result: flag(L)@2, 6B
+    PKT_ZC_GUILD_OPPOSITION_ACK=0x0181,  // M->C  opposition result: flag(B)@2, 3B
+    PKT_ZC_GUILD_DEL_ALLIANCE = 0x0184,  // M->C  alliance removed: guild_id(L)@2 flag(L)@6, 10B
+    PKT_ZC_GUILD_MEMBER_XY    = 0x01eb,  // M->C  guild member pos: account_id(L)@2 x(W)@6 y(W)@8, 10B
 
     // Kafra storage (and GUILD storage — identical packet ids; the server routes by storage_flag,
     // so the client codec is shared). "Open" = the server just sends the two lists + the count.
@@ -1014,6 +1033,16 @@ usize decodeStorageRemove(const u8* p, usize n, u16& index, u32& amount);  // ZC
 // Identical layout for both; ok != 0 = success. On equip, location is the slot it went to.
 usize decodeEquipResult(const u8* p, usize n, u16& index, u16& location, u8& ok);
 usize decodeRefineResult(const u8* p, usize n, u16& result, u16& index, u16& refine);
+
+// Little-endian field readers for the small fixed packets handled inline (bounds-checked by caller
+// via rx.size() against the packet's documented length).
+inline u16 pktU16(const u8* p, usize o) { return static_cast<u16>(p[o] | (p[o + 1] << 8)); }
+inline u32 pktU32(const u8* p, usize o) {
+    return static_cast<u32>(p[o]) | (static_cast<u32>(p[o + 1]) << 8) |
+           (static_cast<u32>(p[o + 2]) << 16) | (static_cast<u32>(p[o + 3]) << 24);
+}
+// Read a fixed-width NUL-padded name field (cp1251/ASCII) into a trimmed std::string.
+std::string pktName(const u8* p, usize n, usize off, usize len);
 // ZC_ITEM_ADD (0xa0, 23B): index(2) amount(2) nameid(2) ... equipLoc(2)@19 type(1)@21 fail(1)@22.
 usize decodeItemAdd(const u8* p, usize n, InvItem& out, u8& fail);
 // An item lying on the map floor (ZC_ITEM_ENTRY 0x9d on view-enter / ZC_ITEM_FALL 0x9e on drop).

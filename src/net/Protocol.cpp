@@ -2382,6 +2382,14 @@ usize decodeRefineResult(const u8* p, usize n, u16& result, u16& index, u16& ref
     return 8;
 }
 
+std::string pktName(const u8* p, usize n, usize off, usize len) {
+    if (off >= n) return {};
+    if (off + len > n) len = n - off;
+    usize l = 0;
+    while (l < len && p[off + l] != 0) ++l;  // NUL-padded fixed field
+    return cp1251ToUtf8(std::string(reinterpret_cast<const char*>(p + off), l));
+}
+
 usize decodeItemAdd(const u8* p, usize n, InvItem& out, u8& fail) {
     if (n < 23) return 0;  // 0xa0: index(2) amount(2) nameid(2) ...8 equipLoc(2)@19 type@21 fail@22
     out.index = rd16(p, 2);

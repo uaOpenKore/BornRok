@@ -6930,6 +6930,15 @@ void GameScene::pumpStream(Application& app) {
                 }
                 break;
             }
+            case 0x0121: {  // ZC_NOTIFY_CARTITEM_COUNTINFO: cart slots + weight (shown in the cart window)
+                if (rx.size() >= 14) {
+                    cartNum_ = net::pktU16(rx.data(), 2);
+                    cartMaxNum_ = net::pktU16(rx.data(), 4);
+                    cartWeight_ = net::pktU32(rx.data(), 6);
+                    cartMaxWeight_ = net::pktU32(rx.data(), 10);
+                }
+                break;
+            }
             case net::PKT_ZC_ITEM_ADD: {  // 0xa0: an item entered the bag (pickup, etc.)
                 net::InvItem ni;
                 u8 fail = 0;
@@ -16223,7 +16232,13 @@ void GameScene::render(Application& app) {
             winBlock(bx, by, bw, bh);
             cartRect_[0] = bx; cartRect_[1] = by; cartRect_[2] = bw; cartRect_[3] = bh;
             const float cy = by + kSkinTitleH;
-            const std::string cap = std::to_string(static_cast<int>(cart_.size())) + " / 100";
+            // Slots used / max + cart weight (from 0x121; falls back to the local count / 100 pre-packet).
+            const int slots = cartMaxNum_ ? cartNum_ : static_cast<int>(cart_.size());
+            const int slotMax = cartMaxNum_ ? cartMaxNum_ : 100;
+            std::string cap = std::to_string(slots) + " / " + std::to_string(slotMax);
+            if (cartMaxWeight_)
+                cap += "   " + std::to_string(cartWeight_ / 10) + "/" +
+                       std::to_string(cartMaxWeight_ / 10) + "w";
             font.draw(sb, bx + bw - font.width(cap, 1.0f) - 14.0f, cy + 5.0f, 1.0f,
                       ui::color::kWinTextDim, cap);
             const std::string tabs[3] = {tr("inv.usable"), tr("inv.equip"), tr("inv.etc")};

@@ -667,6 +667,8 @@ private:
     bool cartOpen_ = false;        // pushcart window (Alt+W) — merchant cart, mirrors storage
     int cartScroll_ = 0;           // cart list wheel-scroll offset (rows)
     int cartTab_ = 0;              // cart item-type tab: 0 usable, 1 equip, 2 etc
+    u16 cartNum_ = 0, cartMaxNum_ = 0;         // 0x121: item slots used / max (MAX_CART)
+    u32 cartWeight_ = 0, cartMaxWeight_ = 0;   // 0x121: cart weight / max (raw, /10 for display)
 
     // Quest journal (#136, Alt+U). The known quests with objectives + progress, driven by the
     // server's ZC quest packets (0x2b1/0x2b2/0x2b3/0x2b4/0x2b5/0x2b7).

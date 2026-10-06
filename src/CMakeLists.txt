@@ -870,11 +870,14 @@ if(MSVC AND NOT CLIENT_XBOX)
       set(_default_msix_identity "PechSoft.BornRok-ARM")
       set(_default_msix_display  "BornRok-ARM")
     else()
-      # x64 desktop Store product reserved by S. in Partner Center as "PechSoft.BornRok-HD"
-      # (family PechSoft.BornRok-HD_nq0prcg8y9840); the manifest Identity Name + Properties/DisplayName
-      # MUST match it exactly or the upload is rejected ("Недопустимое имя идентификатора пакета").
-      set(_default_msix_identity "PechSoft.BornRok-HD")
-      set(_default_msix_display  "BornRok-HD")
+      # x64 desktop Store product: Partner Center reservation identity = "PechSoft.UaRO"
+      # (family PechSoft.UaRO_nq0prcg8y9840) — подтверждено ошибкой загрузки 2026-10-06
+      # ("ожидается: PechSoft.UaRO"). Identity Name ДОЛЖЕН совпадать с резервацией; DisplayName —
+      # одно из ЗАРЕЗЕРВИРОВАННЫХ имён продукта (иначе "используется имя, которое вы не зарезервировали").
+      # Чтобы показывать "BornRok-HD" — зарезервировать это имя в Partner Center и собрать с
+      # -DCLIENT_MSIX_DISPLAY_NAME=BornRok-HD.
+      set(_default_msix_identity "PechSoft.UaRO")
+      set(_default_msix_display  "UaRO")
     endif()
     set(CLIENT_MSIX_IDENTITY_NAME "${_default_msix_identity}" CACHE STRING
         "MSIX Package/Identity Name (must match the Partner Center reservation for this product)")
@@ -884,10 +887,12 @@ if(MSVC AND NOT CLIENT_XBOX)
     # configured before the reservation keeps the retired `PechSoft.UaRO`/`BornRok` placeholder and the
     # Store keeps rejecting it (S. 2026-09-11, same error after the default change). Force ONLY those exact
     # retired placeholders to the current default; a real -D override (any other value) is left untouched.
-    if(CLIENT_MSIX_IDENTITY_NAME STREQUAL "PechSoft.UaRO")
+    # x64: ранее дефолт ошибочно был "PechSoft.BornRok-HD"; Partner Center ждёт "PechSoft.UaRO".
+    # Лечим устаревшие кэши (и прежний placeholder "PechSoft.UaRO" трогать не нужно — он уже верный).
+    if(_msix_arch STREQUAL "x64" AND CLIENT_MSIX_IDENTITY_NAME STREQUAL "PechSoft.BornRok-HD")
       set(CLIENT_MSIX_IDENTITY_NAME "${_default_msix_identity}" CACHE STRING "" FORCE)
     endif()
-    if(CLIENT_MSIX_DISPLAY_NAME STREQUAL "BornRok")
+    if(_msix_arch STREQUAL "x64" AND CLIENT_MSIX_DISPLAY_NAME STREQUAL "BornRok-HD")
       set(CLIENT_MSIX_DISPLAY_NAME "${_default_msix_display}" CACHE STRING "" FORCE)
     endif()
     set(_msix_identity_name "${CLIENT_MSIX_IDENTITY_NAME}")

@@ -935,6 +935,17 @@ if(MSVC AND NOT CLIENT_XBOX)
     endif()
     set(_msix_layout "${CMAKE_BINARY_DIR}/msix-layout")
     set(_msix_out "${CMAKE_BINARY_DIR}/BornRok.msix")
+    # game.cfg должен попадать в пакет (S. 2026-09-10). На свежей установке loadConfig читает
+    # дефолт из контента по VFS-пути data/game.cfg (settings/game.cfg — пользовательский, в пакет
+    # НЕ кладётся). Поэтому, если на сборочной машине есть settings/game.cfg, кладём его в пакет как
+    # content/data/game.cfg (mountGameData монтирует loose content/data/ → VFS data/). Если его нет —
+    # положи game.cfg вручную в Client/content/data/ (его заберёт copy_directory content ниже).
+    set(_gamecfg_cmds "")
+    if(EXISTS "${UARO_CLIENT_ROOT}/settings/game.cfg")
+      set(_gamecfg_cmds
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${_msix_layout}/content/data"
+        COMMAND ${CMAKE_COMMAND} -E copy "${UARO_CLIENT_ROOT}/settings/game.cfg" "${_msix_layout}/content/data/game.cfg")
+    endif()
     # The exe embeds fonts/texts/shaders/clientinfo, so the layout only needs the exe + logos + the
     # manifest (named AppxManifest.xml at the package root, as makeappx expects).
     set(_msix_cmds
@@ -952,6 +963,9 @@ if(MSVC AND NOT CLIENT_XBOX)
       # package ships no data and the in-client patcher fetches on first run (same as loose desktop).
       COMMAND ${CMAKE_COMMAND} -E copy_directory "${UARO_CLIENT_ROOT}/content" "${_msix_layout}/content"
       COMMAND ${CMAKE_COMMAND} -E rm -f "${_msix_layout}/content/README.md" "${_msix_layout}/content/.gitkeep"
+      # Упаковать game.cfg как content/data/game.cfg (если есть settings/game.cfg) — ПОСЛЕ копии content,
+      # чтобы не затёрся, и ДО makeappx.
+      ${_gamecfg_cmds}
       # /nc = do NOT compress. The content packs are already ZIP-compressed multi-GB files; letting
       # makeappx re-compress them exhausts memory -> "0x8007000E Package creation failed" (S. 2026-07-27).
       # Storing them as-is is both correct (no gain from re-compressing) and avoids the OOM. The MSIX

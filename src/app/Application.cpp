@@ -402,28 +402,36 @@ void Application::loadConfig() {
     bool gamemodeInCfg = false;  // did the file pin a control mode? if not, auto-pick (touch on Android)
     bool fsrInCfg = false;       // did the file pin a render scale? if not, power-saver default on Android
     bool fpslimitInCfg = false;  // did the file pin an fps cap? if not, a lower default on Android
+    // Конфиг собирается СЛИЯНИЕМ, по-ключу (S. 2026-09-10: "брать из контента, если НЕТ определения
+    // в settings/game.cfg"). БАЗА — game.cfg, упакованный в контент (VFS data/game.cfg: внутри пака-zip
+    // или loose content/data/); он задаёт дефолты (в т.ч. sprquality). ПОВЕРХ накладывается
+    // пользовательский settings/game.cfg: его ключи перетирают контентные (парсится ПОСЛЕДНИМ, а в
+    // разборе ниже последнее значение ключа выигрывает). Так ключ, которого нет в settings (sprquality),
+    // всё равно берётся из контента — а не игнорируется, если settings существует, но ключа в нём нет.
+    std::string contentCfg;
+    if (auto blob = vfs_.readQuiet("data/game.cfg"); blob && !blob->empty())
+        contentCfg.assign(blob->begin(), blob->end());
+
+    std::string userCfg;
 #if defined(CLIENT_CONSOLE)
     // Consoles keep user data in the OS save container, not loose files -- read the blob
     // through the ConsoleServices API and parse it the same way. (console-port-prep)
     std::vector<u8> cfgBlob;
-    std::string cfgText;
     if (consoleServices().saveRead("settings/game.cfg", cfgBlob))
-        cfgText.assign(cfgBlob.begin(), cfgBlob.end());
+        userCfg.assign(cfgBlob.begin(), cfgBlob.end());
 #else
-    std::string cfgText;
     if (std::ifstream f(gameCfgPath()); f) {
         std::stringstream ss;
         ss << f.rdbuf();
-        cfgText = ss.str();
+        userCfg = ss.str();
     }
 #endif
-    // Fresh install with no user settings/game.cfg -> fall back to a game.cfg BUNDLED in the content
-    // pack (S. 2026-09-10: "проверять в папке контента, если нет в settings; game.cfg упаковывать в
-    // пакеты при сборках"). Read it through the VFS so it works whether it ships inside a pack zip or
-    // as a loose content/data/ file. A later user saveConfig writes settings/game.cfg, which then wins.
-    if (cfgText.empty())
-        if (auto blob = vfs_.readQuiet("data/game.cfg"); blob && !blob->empty())
-            cfgText.assign(blob->begin(), blob->end());
+
+    std::string cfgText = contentCfg;
+    if (!userCfg.empty()) {           // пользовательские ключи идут ПОСЛЕ контентных -> перетирают их
+        cfgText += '\n';
+        cfgText += userCfg;
+    }
     std::istringstream in(cfgText);
     if (in) {
         std::string key;

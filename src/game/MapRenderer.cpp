@@ -239,6 +239,7 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
 
     models_.load(app, map_);  // RSM objects (best-effort; ground renders regardless)
     water_.load(app, map_);   // animated water surface (best-effort; skipped if none)
+    grass_.load(app, map_);   // ground-grass billboards on grassy cells (best-effort; #grass)
     return true;
 }
 
@@ -267,6 +268,7 @@ void MapRenderer::destroy() {
     if (bgfx::isValid(clip_)) bgfx::destroy(clip_);
     models_.destroy();
     water_.destroy();
+    grass_.destroy();
     white_ = BGFX_INVALID_HANDLE;
     flatNrm_ = BGFX_INVALID_HANDLE;
     nrmSampler_ = BGFX_INVALID_HANDLE;
@@ -388,6 +390,7 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
     }
 
     models_.render(map_, camPos, playerPos, time, worldFade);  // RSM objects (faded too in x-ray; time spins animated nodes)
+    grass_.render(time);   // ground-grass billboards (#grass); gated on g_grassEnabled, height from Normals level
 
     // Planar water reflection pass (#water): re-render the terrain from the mirror camera into the
     // reflection view (its FB was bound in RenderDevice::beginFrame). Ground only for now (RSM models

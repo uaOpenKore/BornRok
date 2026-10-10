@@ -127,6 +127,7 @@ int Application::run(const AppConfig& cfg) {
     fsr_ = 1.0f;
     godrayMode_ = 0;
     if (waterReflect_ < 0) waterReflect_ = 0;  // Android default: reflections off (S.: off on mobile/Switch)
+    if (grassEnabled_ < 0) grassEnabled_ = 0;  // Android default: grass off (S.)
 #else
     render_.setHdr(hdr_);      // apply the saved HDR toggle (#111)
     hdr_ = render_.hdr();      // reconcile: a saved "on" is dropped if the GPU can't render RGBA16F
@@ -146,6 +147,11 @@ int Application::run(const AppConfig& cfg) {
     if (waterReflect_ < 0) waterReflect_ = render_.isSoftwareRenderer() ? 0 : 3;
     render_.setWaterReflect(waterReflect_);
     waterReflect_ = render_.waterReflect();
+    // Grass (#grass): default on for a real GPU, off on WARP; Android forced off above. Height comes
+    // from the Normals level (x1 -> 20%, x1.5 -> 30%, x2 -> 40% of char height).
+    if (grassEnabled_ < 0) grassEnabled_ = render_.isSoftwareRenderer() ? 0 : 1;
+    g_grassEnabled = grassEnabled_ != 0;
+    g_grassHeightFrac = (normalsMode_ < 1.0f ? 1.0f : normalsMode_) * 0.20f;
 
     // Pick the starting scene:
     //  - an explicit map name on the CLI -> offline map viewer (dev path);
@@ -493,6 +499,7 @@ void Application::loadConfig() {
                 normalsMode_ = v < 0.5f ? 0.0f : (v < 1.25f ? 1.0f : (v < 1.75f ? 1.5f : 2.0f));
             else if (key == "waterreflect")  // water reflections: 0 off / 1 light / 2 ssr / 3 planar (#water)
                 waterReflect_ = std::clamp(static_cast<int>(v + 0.5f), 0, 3);
+            else if (key == "grass") grassEnabled_ = (v != 0.0f) ? 1 : 0;  // ground grass on/off (#grass)
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
             else if (key == "uiscaleauto") uiScaleAuto_ = (v != 0.0f);
             else if (key == "padinvlx") padInvertLX_ = (v != 0.0f);  // stick-axis inversion (#102/#115)
@@ -645,6 +652,7 @@ void Application::saveConfig() const {
         << "language " << language_ << "\n";
     if (normalsMode_ >= 0.0f) out << "normals " << normalsMode_ << "\n";  // -1 = auto (unsaved)
     if (waterReflect_ >= 0) out << "waterreflect " << waterReflect_ << "\n";  // -1 = auto (unsaved) (#water)
+    if (grassEnabled_ >= 0) out << "grass " << grassEnabled_ << "\n";          // -1 = auto (unsaved) (#grass)
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -723,9 +731,17 @@ void Application::setWaterReflect(int mode) {
     saveConfig();
 }
 
+void Application::setGrassEnabled(bool on) {
+    grassEnabled_ = on ? 1 : 0;
+    g_grassEnabled = on;
+    saveConfig();
+}
+
 void Application::setNormalsMode(float m) {
     normalsMode_ = m < 0.5f ? 0.0f : (m < 1.25f ? 1.0f : (m < 1.75f ? 1.5f : 2.0f));
     g_normalsFactor = normalsMode_ * 0.5f;  // maps are baked at the x2 base -> factor = mode/2
+    // The Normals level also drives grass height (S.): x1 -> 20%, x1.5 -> 30%, x2 -> 40% of char height.
+    g_grassHeightFrac = (normalsMode_ < 1.0f ? 1.0f : normalsMode_) * 0.20f;
     saveConfig();
 }
 

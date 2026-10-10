@@ -17,4 +17,10 @@ inline int g_objectFilterMode = 1;
 // 0.5 = x1, 0.75 = x1.5 (default on real GPUs), 1.0 = x2.
 inline float g_normalsFactor = 0.75f;
 
+// Grass (#grass, Settings -> Video). g_grassEnabled toggles the ground-grass billboards; the Normals
+// level drives their HEIGHT as a fraction of character height (S.: x1 = 20%, x1.5 = 30%, x2 = 40%).
+// Read by GrassRenderer each frame; a height change triggers a cheap mesh rebuild.
+inline bool g_grassEnabled = true;
+inline float g_grassHeightFrac = 0.20f;  // 0.20 / 0.30 / 0.40
+
 }  // namespace uaro

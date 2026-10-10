@@ -454,6 +454,7 @@ add_library(client_app STATIC
   game/MapRenderer.cpp
   game/ModelRenderer.cpp
   game/WaterRenderer.cpp
+  game/GrassRenderer.cpp
   game/ShadowRenderer.cpp
   game/LightGlowRenderer.cpp
   game/MapScene.cpp

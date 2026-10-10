@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/math/Math.hpp"
+#include "game/GrassRenderer.hpp"
 #include "game/ModelRenderer.hpp"
 #include "game/WaterRenderer.hpp"
 #include "world/MapData.hpp"
@@ -75,6 +76,7 @@ private:
     std::vector<Vec3> cellLight_;  // per-cell env light (W*H), for tinting actors in shadow (#118)
     ModelRenderer models_;  // RSM building/object meshes
     WaterRenderer water_;   // animated water surface
+    GrassRenderer grass_;   // ground-grass billboards (#grass)
     Vec3 center_{0, 0, 0};
     float radius_ = 100.0f;
 };

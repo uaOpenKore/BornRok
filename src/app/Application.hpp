@@ -107,6 +107,10 @@ public:
     // -1 = auto (resolve Planar on desktop GPU / Off on WARP+mobile at first run). Persisted.
     int waterReflect() const { return waterReflect_; }
     void setWaterReflect(int mode);
+    // Ground grass (Settings -> Video -> Grass, #grass): on/off. Height is driven by the Normals level
+    // (x1 = 20%, x1.5 = 30%, x2 = 40% of char height). -1 = auto (on for GPU, off for WARP/mobile).
+    bool grassEnabled() const { return grassEnabled_ != 0; }
+    void setGrassEnabled(bool on);
     // FSR1 upscale factor (#111): 1.0 = off; <1 renders lower-res + EASU/RCAS upscales. Persisted.
     float fsr() const { return fsr_; }
     void setFsr(float scale);
@@ -270,6 +274,7 @@ private:
     float fsr_ = 1.0f;                           // FSR1 upscale factor, 1 = off (#111)
     float normalsMode_ = -1.0f;                  // Normals toggle; -1 = auto default
     int waterReflect_ = -1;                      // water reflections: 0 off/1 light/2 ssr/3 planar; -1 = auto (#water)
+    int grassEnabled_ = -1;                      // ground grass: 0 off / 1 on; -1 = auto (#grass)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)
     bool gamepadMode_ = false;                   // pad-driven control mode active (#102/#115)

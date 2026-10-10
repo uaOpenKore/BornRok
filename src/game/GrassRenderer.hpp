@@ -31,7 +31,8 @@ public:
 private:
     struct Clump {
         float x, z, groundY;  // world position (X already mirrored) + ground height
-        u32 abgr;             // per-tuft tint (currently white; the sprite carries the colour)
+        u32 abgr;             // per-tuft tint = the cell tile's mean colour
+        u8 model;             // which of the 5 tuft variants in the atlas (0..4)
     };
     void buildMesh(float heightFrac);  // (re)upload the cross-quad mesh at the given height fraction
 

@@ -32,53 +32,55 @@ inline float hash01(u32 a, u32 b, u32 c) {
     return static_cast<float>(h & 0xffffffu) / static_cast<float>(0x1000000u);
 }
 
-// A detailed procedural grass-tuft sprite (S.: make the tufts richer): ~14 curved, tapering blades of
-// varied height/lean/brightness fanning out from the base, on a transparent background, tips at the
-// top. GRAYSCALE — the actual colour is the per-tuft tint (the tile's mean colour); the slight
-// per-blade + base-to-tip luminance variation only gives the blades depth, so the overall fill tone
-// still tracks the tile average. Alpha-cutout silhouette.
-bgfx::TextureHandle makeGrassTexture() {
-    constexpr int W = 48, H = 64, NB = 14;
+constexpr int kTuftW = 64, kTuftH = 64, kNumModels = 5, kNumBlades = 15;
+
+// A horizontal ATLAS of kNumModels distinct procedural grass tufts (S.: "сгенерируй 5 разных моделей
+// ... заполняй тайл случайными"). Each tuft = curved, tapering blades of varied height/lean/brightness
+// fanning WIDE from a clustered base (S.: "увеличь веер"), with a darker central midrib. GRAYSCALE —
+// colour comes from the per-tuft tint (the tile mean); alpha-cutout silhouette. Each tuft occupies a
+// kTuftW-wide column so a draw can pick a variant by UV.
+bgfx::TextureHandle makeGrassAtlas() {
+    const int AW = kTuftW * kNumModels;
+    std::vector<u8> px(static_cast<usize>(AW) * kTuftH * 4, 0);
     struct Blade { float bx, lean, hFrac, baseHW, lum; };
-    Blade bl[NB];
-    for (int i = 0; i < NB; ++i) {
-        const float u = (static_cast<float>(i) + 0.5f) / NB;
-        bl[i].bx = (0.32f + 0.36f * u + (hash01(i, 11u, 1u) - 0.5f) * 0.05f) * W;   // bases clustered near the centre
-        // Fan out: outer blades lean outward (left blades left, right blades right), amplitude bigger
-        // so the tuft spreads wide at the tips (S.: "увеличь веер"). Plus a little per-blade jitter.
-        bl[i].lean = (u - 0.5f) * 2.0f * 15.0f + (hash01(i, 13u, 2u) - 0.5f) * 4.0f;
-        bl[i].hFrac = 0.58f + 0.40f * hash01(i, 17u, 3u);                           // blade height (frac of H)
-        bl[i].baseHW = 1.3f + 1.4f * hash01(i, 19u, 4u);                            // base half-width (px)
-        bl[i].lum = 0.74f + 0.26f * hash01(i, 23u, 5u);                             // per-blade brightness
-    }
-    std::vector<u8> px(static_cast<usize>(W) * H * 4, 0);
-    for (int y = 0; y < H; ++y) {
-        const float yf = static_cast<float>(H - 1 - y) / (H - 1);  // 0 at base -> 1 at the very top
-        for (int x = 0; x < W; ++x) {
-            float bestCov = 0.0f, bestLum = 0.0f;
-            for (int i = 0; i < NB; ++i) {
-                if (yf > bl[i].hFrac) continue;                       // above this blade's tip
-                const float yb = yf / bl[i].hFrac;                    // 0 base -> 1 this blade's tip
-                const float cx = bl[i].bx + bl[i].lean * (yb * yb);   // parabolic lean (curves near tip)
-                const float hw = std::max(0.35f, bl[i].baseHW * (1.0f - yb));  // taper to a point
-                const float d = std::fabs(static_cast<float>(x) + 0.5f - cx);
-                const float cov = std::clamp(hw - d + 0.5f, 0.0f, 1.0f);         // 1px soft edge
-                if (cov > bestCov) {
-                    bestCov = cov;
-                    // Darker central line (a midrib / "сердцевинка", S.): darkest at the blade centre,
-                    // lightening toward the edges. nd = 0 centre -> 1 edge.
-                    const float nd = std::clamp(d / std::max(hw, 0.001f), 0.0f, 1.0f);
-                    const float core = 0.55f + 0.45f * std::clamp(nd / 0.35f, 0.0f, 1.0f);
-                    bestLum = bl[i].lum * (0.72f + 0.28f * yb) * core;
+    for (int v = 0; v < kNumModels; ++v) {
+        Blade bl[kNumBlades];
+        const float fan = 15.0f + static_cast<float>(v) * 2.5f;  // 15..25 px — each model fans differently
+        for (int i = 0; i < kNumBlades; ++i) {
+            const u32 s = static_cast<u32>(i + v * 31);           // per-(variant,blade) seed
+            const float u = (static_cast<float>(i) + 0.5f) / kNumBlades;
+            bl[i].bx = (0.40f + 0.20f * u + (hash01(s, 11u, 1u) - 0.5f) * 0.06f) * kTuftW;  // clustered base
+            bl[i].lean = (u - 0.5f) * 2.0f * fan + (hash01(s, 13u, 2u) - 0.5f) * 5.0f;      // fan outward
+            bl[i].hFrac = 0.55f + 0.42f * hash01(s, 17u, 3u);
+            bl[i].baseHW = 1.2f + 1.5f * hash01(s, 19u, 4u);
+            bl[i].lum = 0.74f + 0.26f * hash01(s, 23u, 5u);
+        }
+        for (int y = 0; y < kTuftH; ++y) {
+            const float yf = static_cast<float>(kTuftH - 1 - y) / (kTuftH - 1);  // 0 base -> 1 top
+            for (int xl = 0; xl < kTuftW; ++xl) {
+                float bestCov = 0.0f, bestLum = 0.0f;
+                for (int i = 0; i < kNumBlades; ++i) {
+                    if (yf > bl[i].hFrac) continue;
+                    const float yb = yf / bl[i].hFrac;
+                    const float cx = bl[i].bx + bl[i].lean * (yb * yb);          // parabolic lean
+                    const float hw = std::max(0.35f, bl[i].baseHW * (1.0f - yb));
+                    const float d = std::fabs(static_cast<float>(xl) + 0.5f - cx);
+                    const float cov = std::clamp(hw - d + 0.5f, 0.0f, 1.0f);
+                    if (cov > bestCov) {
+                        bestCov = cov;
+                        const float nd = std::clamp(d / std::max(hw, 0.001f), 0.0f, 1.0f);
+                        const float core = 0.55f + 0.45f * std::clamp(nd / 0.35f, 0.0f, 1.0f);  // midrib
+                        bestLum = bl[i].lum * (0.72f + 0.28f * yb) * core;
+                    }
                 }
+                u8* o = &px[(static_cast<usize>(y) * AW + v * kTuftW + xl) * 4];
+                if (bestCov < 0.5f) { o[3] = 0; continue; }
+                const u8 lum = static_cast<u8>(std::clamp(bestLum * 255.0f, 0.0f, 255.0f));
+                o[0] = lum; o[1] = lum; o[2] = lum; o[3] = 255;
             }
-            u8* o = &px[(static_cast<usize>(y) * W + x) * 4];
-            if (bestCov < 0.5f) { o[3] = 0; continue; }  // outside the silhouette (cutout at 0.5)
-            const u8 lum = static_cast<u8>(std::clamp(bestLum * 255.0f, 0.0f, 255.0f));
-            o[0] = lum; o[1] = lum; o[2] = lum; o[3] = 255;
         }
     }
-    return bgfx::createTexture2D(static_cast<u16>(W), static_cast<u16>(H), false, 1,
+    return bgfx::createTexture2D(static_cast<u16>(AW), static_cast<u16>(kTuftH), false, 1,
                                  bgfx::TextureFormat::RGBA8,
                                  BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP,
                                  bgfx::copy(px.data(), static_cast<u32>(px.size())));
@@ -184,13 +186,15 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
                 const float gy = -(top + (bot - top) * jz) * 0.1f;
                 const float wx = static_cast<float>(W) - (static_cast<float>(x) + jx);  // X mirror (world = W - cell)
                 const float wz = static_cast<float>(y) + jz;
-                clumps_.push_back({wx, wz, gy, tint});
+                const int m = std::min(kNumModels - 1,
+                                       static_cast<int>(hash01(x, y, 3u + k * 7u) * kNumModels));  // random model
+                clumps_.push_back({wx, wz, gy, tint, static_cast<u8>(m)});
             }
         }
     }
     if (clumps_.empty()) { bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false; }
 
-    grassTex_ = makeGrassTexture();
+    grassTex_ = makeGrassAtlas();  // 5 tuft variants side by side (UV picks one per clump)
     sampler_ = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
     fade_ = bgfx::createUniform("u_spriteFade", bgfx::UniformType::Vec4);
     bias_ = bgfx::createUniform("u_spriteBias", bgfx::UniformType::Vec4);
@@ -210,23 +214,25 @@ void GrassRenderer::buildMesh(float heightFrac) {
     std::vector<u32> idx;
     verts.reserve(clumps_.size() * 8);
     idx.reserve(clumps_.size() * 12);
+    const float uStep = 1.0f / static_cast<float>(kNumModels);
     for (const Clump& c : clumps_) {
         const float by = c.groundY, ty = c.groundY + h;
         const u32 col = c.abgr;
+        const float u0 = static_cast<float>(c.model) * uStep, u1 = u0 + uStep;  // this clump's atlas cell
         // Quad A: spans X at the clump's Z (faces +/-Z).
         u32 base = static_cast<u32>(verts.size());
-        verts.push_back({c.x - hw, by, c.z, 0.0f, 1.0f, col});
-        verts.push_back({c.x + hw, by, c.z, 1.0f, 1.0f, col});
-        verts.push_back({c.x + hw, ty, c.z, 1.0f, 0.0f, col});
-        verts.push_back({c.x - hw, ty, c.z, 0.0f, 0.0f, col});
+        verts.push_back({c.x - hw, by, c.z, u0, 1.0f, col});
+        verts.push_back({c.x + hw, by, c.z, u1, 1.0f, col});
+        verts.push_back({c.x + hw, ty, c.z, u1, 0.0f, col});
+        verts.push_back({c.x - hw, ty, c.z, u0, 0.0f, col});
         idx.push_back(base + 0); idx.push_back(base + 1); idx.push_back(base + 2);
         idx.push_back(base + 0); idx.push_back(base + 2); idx.push_back(base + 3);
         // Quad B: spans Z at the clump's X (faces +/-X) — the perpendicular half of the cross.
         base = static_cast<u32>(verts.size());
-        verts.push_back({c.x, by, c.z - hw, 0.0f, 1.0f, col});
-        verts.push_back({c.x, by, c.z + hw, 1.0f, 1.0f, col});
-        verts.push_back({c.x, ty, c.z + hw, 1.0f, 0.0f, col});
-        verts.push_back({c.x, ty, c.z - hw, 0.0f, 0.0f, col});
+        verts.push_back({c.x, by, c.z - hw, u0, 1.0f, col});
+        verts.push_back({c.x, by, c.z + hw, u1, 1.0f, col});
+        verts.push_back({c.x, ty, c.z + hw, u1, 0.0f, col});
+        verts.push_back({c.x, ty, c.z - hw, u0, 0.0f, col});
         idx.push_back(base + 0); idx.push_back(base + 1); idx.push_back(base + 2);
         idx.push_back(base + 0); idx.push_back(base + 2); idx.push_back(base + 3);
     }

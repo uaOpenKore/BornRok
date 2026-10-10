@@ -32,7 +32,7 @@ inline float hash01(u32 a, u32 b, u32 c) {
     return static_cast<float>(h & 0xffffffu) / static_cast<float>(0x1000000u);
 }
 
-constexpr int kTuftW = 64, kTuftH = 64, kNumModels = 5, kNumBlades = 15;
+constexpr int kTuftW = 128, kTuftH = 128, kNumModels = 5, kNumBlades = 15;
 
 // A horizontal ATLAS of kNumModels distinct procedural grass tufts (S.: "сгенерируй 5 разных моделей
 // ... заполняй тайл случайными"). Each tuft = curved, tapering blades of varied height/lean/brightness
@@ -42,17 +42,18 @@ constexpr int kTuftW = 64, kTuftH = 64, kNumModels = 5, kNumBlades = 15;
 bgfx::TextureHandle makeGrassAtlas() {
     const int AW = kTuftW * kNumModels;
     std::vector<u8> px(static_cast<usize>(AW) * kTuftH * 4, 0);
+    const float sc = static_cast<float>(kTuftW) / 64.0f;  // pixel params were tuned at 64px -> scale up
     struct Blade { float bx, lean, hFrac, baseHW, lum; };
     for (int v = 0; v < kNumModels; ++v) {
         Blade bl[kNumBlades];
-        const float fan = 15.0f + static_cast<float>(v) * 2.5f;  // 15..25 px — each model fans differently
+        const float fan = (15.0f + static_cast<float>(v) * 2.5f) * sc;  // 15..25 px @64 — each model differs
         for (int i = 0; i < kNumBlades; ++i) {
             const u32 s = static_cast<u32>(i + v * 31);           // per-(variant,blade) seed
             const float u = (static_cast<float>(i) + 0.5f) / kNumBlades;
             bl[i].bx = (0.40f + 0.20f * u + (hash01(s, 11u, 1u) - 0.5f) * 0.06f) * kTuftW;  // clustered base
-            bl[i].lean = (u - 0.5f) * 2.0f * fan + (hash01(s, 13u, 2u) - 0.5f) * 5.0f;      // fan outward
+            bl[i].lean = (u - 0.5f) * 2.0f * fan + (hash01(s, 13u, 2u) - 0.5f) * 5.0f * sc; // fan outward
             bl[i].hFrac = 0.55f + 0.42f * hash01(s, 17u, 3u);
-            bl[i].baseHW = 1.2f + 1.5f * hash01(s, 19u, 4u);
+            bl[i].baseHW = (1.2f + 1.5f * hash01(s, 19u, 4u)) * sc;
             bl[i].lum = 0.74f + 0.26f * hash01(s, 23u, 5u);
         }
         for (int y = 0; y < kTuftH; ++y) {
@@ -63,9 +64,9 @@ bgfx::TextureHandle makeGrassAtlas() {
                     if (yf > bl[i].hFrac) continue;
                     const float yb = yf / bl[i].hFrac;
                     const float cx = bl[i].bx + bl[i].lean * (yb * yb);          // parabolic lean
-                    const float hw = std::max(0.35f, bl[i].baseHW * (1.0f - yb));
+                    const float hw = std::max(0.35f * sc, bl[i].baseHW * (1.0f - yb));
                     const float d = std::fabs(static_cast<float>(xl) + 0.5f - cx);
-                    const float cov = std::clamp(hw - d + 0.5f, 0.0f, 1.0f);
+                    const float cov = std::clamp((hw - d) / sc + 0.5f, 0.0f, 1.0f);  // ~1px AA at this res
                     if (cov > bestCov) {
                         bestCov = cov;
                         const float nd = std::clamp(d / std::max(hw, 0.001f), 0.0f, 1.0f);

@@ -266,7 +266,10 @@ void GrassRenderer::render(double /*time*/) {
     if (g_grassHeightFrac != builtHeight_) buildMesh(g_grassHeightFrac);
     if (quadCount_ == 0 || !bgfx::isValid(vbh_)) return;
     const float fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-    const float bias[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    // Small depth bias toward the camera so grass wins the depth test against the character standing in
+    // it -> the tufts overlap the char's lower body (S.: "трава всегда перекрывала чара"). vs_sprite3d
+    // subtracts u_spriteBias.x * w from clip-z. Kept small so grass doesn't punch through buildings.
+    const float bias[4] = {0.006f, 0.0f, 0.0f, 0.0f};
     // Alpha-cutout foliage: opaque where the blade is (fs_sprite3d discards a<0.5), writes depth so it
     // occludes / is occluded correctly. No blending.
     const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS;

@@ -239,7 +239,7 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
 
     models_.load(app, map_);  // RSM objects (best-effort; ground renders regardless)
     water_.load(app, map_);   // animated water surface (best-effort; skipped if none)
-    grass_.load(app, map_);   // ground-grass billboards on grassy cells (best-effort; #grass)
+    grass_.load(app, map_, water_.ready());  // ground-grass billboards on grassy cells (best-effort; #grass)
     return true;
 }
 

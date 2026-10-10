@@ -50,10 +50,11 @@ bgfx::TextureHandle makeGrassTexture() {
             u8* o = &px[(static_cast<usize>(y) * W + x) * 4];
             if (topH < 1.0f || yb > topH) { o[3] = 0; continue; }  // gap / above the blade tip
             const float t = std::clamp(yb / std::max(topH, 1.0f), 0.0f, 1.0f);  // 0 base -> 1 tip
-            o[0] = static_cast<u8>(34 + (130 - 34) * t);    // r
-            o[1] = static_cast<u8>(80 + (185 - 80) * t);    // g
-            o[2] = static_cast<u8>(24 + (70 - 24) * t);     // b
-            o[3] = 255;
+            // GRAYSCALE luminance gradient (darker at the base, bright at the tip). The actual colour
+            // comes from the per-tuft tint (the cell's mean ground colour), so grass matches the terrain
+            // (S.: "цвет кустика ... по среднему цвету тайла").
+            const u8 lum = static_cast<u8>(135 + (255 - 135) * t);
+            o[0] = lum; o[1] = lum; o[2] = lum; o[3] = 255;
         }
     }
     return bgfx::createTexture2D(static_cast<u16>(W), static_cast<u16>(H), false, 1,
@@ -76,15 +77,16 @@ void avgColor(const Image& img, float& ar, float& ag, float& ab) {
     ar = static_cast<float>(r) / n; ag = static_cast<float>(g) / n; ab = static_cast<float>(b) / n;
 }
 
-// Is the texture "grassy" (green-dominant field)? Looser than a strict green: green must be at least
-// as strong as red (excludes brown dirt where R>G) and clearly above blue (excludes grey stone and
-// water), and bright enough. Catches RO's muted/yellowish field grass too.
+// Is the texture "grassy" (green-dominant field)? Green must be at least as strong as red (excludes
+// sand/dirt/rock, which are red-dominant: R > G) AND clearly above blue (grass has low blue; grey
+// stone and tan rock have blue close to green). Tuned from prt_fild05 means: grass tex (118,125,54)
+// passes; rock (174,167,150)/stone (221,214,206)/sand (178,154,84) all have R>G or high blue -> out.
 bool isGrassy(float ar, float ag, float ab) {
-    return ag > 45.0f && ag >= ar * 0.95f && ag > ab + 6.0f;
+    return ag > 45.0f && ag >= ar && (ag - ab) > 20.0f;
 }
 }  // namespace
 
-bool GrassRenderer::load(Application& app, const MapData& map) {
+bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     program_ = load_program(app.assetDir(), "vs_sprite3d", "fs_sprite3d");
     if (!bgfx::isValid(program_)) {
         log::warn("GrassRenderer: sprite shader unavailable; no grass");
@@ -98,14 +100,18 @@ bool GrassRenderer::load(Application& app, const MapData& map) {
         bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false;
     }
 
-    // Which ground textures are grass (green-dominant)? Log the verdict (+ a few mean colours) so a
-    // "no grass" map can be diagnosed without a GPU here.
+    // Which ground textures are grass (green-dominant)? Also keep each tile's MEAN colour as the tuft
+    // tint (S.: "цвет кустика ... по среднему цвету тайла"). Log the verdict for GPU-less diagnosis.
     std::vector<bool> grassy(map.textures.size(), false);
+    std::vector<u32> texTint(map.textures.size(), 0xffffffffu);
     u32 grassyTex = 0;
     for (usize ti = 0; ti < map.textures.size(); ++ti) {
         if (!map.textures[ti]) continue;
         float ar, ag, ab;
         avgColor(*map.textures[ti], ar, ag, ab);
+        // Tint = the tile's mean colour, slightly brightened so the (grayscale) blades read as grass.
+        const auto ch = [](float v) { return static_cast<u32>(std::clamp(v * 1.25f, 0.0f, 255.0f)); };
+        texTint[ti] = ch(ar) | (ch(ag) << 8) | (ch(ab) << 16) | 0xff000000u;  // R | G<<8 | B<<16 | A<<24
         const bool gr = isGrassy(ar, ag, ab);
         if (gr) { grassy[ti] = true; ++grassyTex; }
         if (ti < 20)
@@ -117,6 +123,11 @@ bool GrassRenderer::load(Application& app, const MapData& map) {
         bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false;
     }
 
+    // Skip cells that are under water: use the SAME test as WaterRenderer (a corner above the
+    // level-waveHeight threshold means the ground there is below the water surface), so grass never
+    // grows where water is drawn (S.: "трава ... под водой").
+    const float wthresh = map.rsw.water().level - map.rsw.water().waveHeight;
+
     // Several tufts per grass cell (jittered within the cell) so a field reads as grass, up to the cap.
     constexpr int kPerCell = 2;
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
@@ -125,6 +136,11 @@ bool GrassRenderer::load(Application& app, const MapData& map) {
             if (c.tileUp < 0 || static_cast<usize>(c.tileUp) >= surfs.size()) continue;
             const int tid = surfs[c.tileUp].textureId;
             if (tid < 0 || static_cast<usize>(tid) >= grassy.size() || !grassy[tid]) continue;
+            // Under-water cell (any corner below the water surface) -> no grass. Only when the map
+            // actually has water (else the water level is meaningless and would wrongly cull the field).
+            if (hasWater && (c.height[0] > wthresh || c.height[1] > wthresh ||
+                             c.height[2] > wthresh || c.height[3] > wthresh)) continue;
+            const u32 tint = texTint[tid];
             for (int k = 0; k < kPerCell; ++k) {
                 const float jx = 0.15f + 0.7f * hash01(x, y, 1 + k * 7);  // keep tufts off the exact cell edge
                 const float jz = 0.15f + 0.7f * hash01(x, y, 2 + k * 7);
@@ -134,7 +150,7 @@ bool GrassRenderer::load(Application& app, const MapData& map) {
                 const float gy = -(top + (bot - top) * jz) * 0.1f;
                 const float wx = static_cast<float>(W) - (static_cast<float>(x) + jx);  // X mirror (world = W - cell)
                 const float wz = static_cast<float>(y) + jz;
-                clumps_.push_back({wx, wz, gy, 0xffffffffu});
+                clumps_.push_back({wx, wz, gy, tint});
             }
         }
     }

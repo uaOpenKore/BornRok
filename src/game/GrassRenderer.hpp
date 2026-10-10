@@ -18,7 +18,9 @@ struct MapData;
 // after the ground.
 class GrassRenderer {
 public:
-    bool load(Application& app, const MapData& map);
+    // hasWater: the map actually draws water (WaterRenderer built a surface) -> skip under-water cells.
+    // When false the water level is meaningless, so the under-water skip is not applied.
+    bool load(Application& app, const MapData& map, bool hasWater);
     void destroy();
     bool ready() const { return ready_; }
 

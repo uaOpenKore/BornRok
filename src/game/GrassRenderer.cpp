@@ -61,7 +61,14 @@ bgfx::TextureHandle makeGrassTexture() {
                 const float hw = std::max(0.35f, bl[i].baseHW * (1.0f - yb));  // taper to a point
                 const float d = std::fabs(static_cast<float>(x) + 0.5f - cx);
                 const float cov = std::clamp(hw - d + 0.5f, 0.0f, 1.0f);         // 1px soft edge
-                if (cov > bestCov) { bestCov = cov; bestLum = bl[i].lum * (0.62f + 0.38f * yb); }
+                if (cov > bestCov) {
+                    bestCov = cov;
+                    // Darker central line (a midrib / "сердцевинка", S.): darkest at the blade centre,
+                    // lightening toward the edges. nd = 0 centre -> 1 edge.
+                    const float nd = std::clamp(d / std::max(hw, 0.001f), 0.0f, 1.0f);
+                    const float core = 0.55f + 0.45f * std::clamp(nd / 0.35f, 0.0f, 1.0f);
+                    bestLum = bl[i].lum * (0.72f + 0.28f * yb) * core;
+                }
             }
             u8* o = &px[(static_cast<usize>(y) * W + x) * 4];
             if (bestCov < 0.5f) { o[3] = 0; continue; }  // outside the silhouette (cutout at 0.5)

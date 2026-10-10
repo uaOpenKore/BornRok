@@ -18,9 +18,10 @@ struct GVertex {
     f32 x, y, z, u, v;
     u32 abgr;
 };
-// Grass height is a fraction of this (one world unit ~ one map cell ~ a character's height). The
-// Normals level scales it: x1 = 0.20, x1.5 = 0.30, x2 = 0.40 (S.).
-constexpr float kCharHeight = 1.0f;
+// Grass height (and, proportionally, width) is a fraction of this. The Normals level scales it: x1 =
+// 0.20, x1.5 = 0.30, x2 = 0.40 of this. Set to 2.0 so tufts are 2x taller + wider (S.: "в 2 раза выше
+// и шире") -- doubling this scales both the height and the 0.45*h half-width, same aspect.
+constexpr float kCharHeight = 2.0f;
 constexpr u32 kMaxClumps = 120000;  // cap the scatter so a huge field can't flood the frame pool
 
 // Deterministic per-cell jitter in [0,1) (no RNG -> identical every load).
@@ -131,7 +132,7 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     const float wthresh = map.rsw.water().level - map.rsw.water().waveHeight;
 
     // Several tufts per grass cell (jittered within the cell) so a field reads as grass, up to the cap.
-    constexpr int kPerCell = 2;
+    constexpr int kPerCell = 3;  // 1.5x the previous 2 -> denser blades (S.)
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
         for (u32 x = 0; x < W && clumps_.size() < kMaxClumps; ++x) {
             const GndCube& c = cubes[x + y * W];

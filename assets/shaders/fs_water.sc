@@ -48,5 +48,8 @@ void main()
     vec3 refl = texture2D(s_refl, clamp(suv + ripple, vec2(0.0, 0.0), vec2(1.0, 1.0))).rgb;
     // Keep a little of the water's own colour so it still reads as water, not a mirror.
     vec3 col = mix(base, refl, clamp(u_waterRefl.y, 0.0, 1.0));
-    gl_FragColor = vec4(col, min(1.0, alpha + 0.2 * u_waterRefl.y));
+    // Fade the water OPAQUE as reflectivity rises, so a strong mirror isn't diluted by the terrain
+    // showing THROUGH the translucent surface (at 100% you see only the reflection, not the lakebed).
+    float a = mix(alpha, 1.0, clamp(u_waterRefl.y, 0.0, 1.0));
+    gl_FragColor = vec4(col, a);
 }

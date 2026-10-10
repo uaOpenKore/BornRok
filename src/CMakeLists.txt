@@ -722,7 +722,7 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
   # rest. Must be AFTER all client_compile_shaders() calls (it depends on their compiled .bin).
   client_embed_shaders(UaRO
     vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_romskin fs_romskin
-    fs_spritelit vs_overlay fs_overlay vs_glow fs_glow
+    fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
     vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight)
 endif()
 
@@ -842,7 +842,7 @@ if(CLIENT_BUILD_AVX2 AND NOT ANDROID AND NOT APPLE AND CLIENT_TARGET_X86 AND NOT
     client_embed_sprite_shaders(UaRO_avx2 UaRO)
     client_embed_shaders(UaRO_avx2
       vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_romskin fs_romskin
-      fs_spritelit vs_overlay fs_overlay vs_glow fs_glow
+      fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
       vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight)
   endif()
 endif()

@@ -42,6 +42,9 @@ void main()
     // SSR / Planar: the reflection texture was rendered with the mirror camera + the SAME
     // projection, so this fragment's own screen position indexes the reflected geometry.
     vec2 suv = gl_FragCoord.xy / u_viewRect.zw;
+    // Reflecting the camera across the horizontal water plane flips the image handedness, so the
+    // reflection comes out mirrored left<->right; undo it by flipping the sample X (backend-independent).
+    suv.x = 1.0 - suv.x;
     if (u_waterRefl.z > 0.5) suv.y = 1.0 - suv.y;  // RT origin flip (CPU passes caps.originBottomLeft)
     // Ripple: perturb the lookup by the water texture's deviation from grey so the mirror shimmers.
     vec2 ripple = (t.rg - vec2(0.5, 0.5)) * (u_waterRefl.w);

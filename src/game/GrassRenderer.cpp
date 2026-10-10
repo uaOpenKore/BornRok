@@ -21,7 +21,7 @@ struct GVertex {
 // Tuft height and (half-)width are independent fractions of the Normals level (x1 = 0.20, x1.5 = 0.30,
 // x2 = 0.40). Height was reduced 1.5x from the earlier 2.0 base (S.: "высоту уменьшить в 1.5 раза");
 // width kept where it was. Decoupled so height/width tune separately.
-constexpr float kHeightBase = 2.0f / 1.5f;  // ~1.333 (2.0 base, -1.5x height)
+constexpr float kHeightBase = 2.0f / 1.5f * 0.7f;  // ~0.933 (2.0 base, -1.5x, then -30% height)
 constexpr float kWidthBase = 0.9f;          // unchanged half-width (= old 0.45 * 2.0)
 constexpr u32 kMaxClumps = 500000;  // cap the scatter so a huge field can't flood the frame pool
 
@@ -155,8 +155,8 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     // Tufts per grass cell, spread EVENLY via stratified sampling (S.: "12 ... равномерно расбрасывать"):
     // split the cell into a gx*gy grid and drop one jittered tuft per sub-cell, so they cover the tile
     // uniformly instead of clumping like pure random jitter did.
-    constexpr int kPerCell = 12;
-    constexpr int kGx = 4, kGy = 3;  // 4*3 = 12 sub-cells
+    constexpr int kPerCell = 9;
+    constexpr int kGx = 3, kGy = 3;  // 3*3 = 9 sub-cells
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
         for (u32 x = 0; x < W && clumps_.size() < kMaxClumps; ++x) {
             const GndCube& c = cubes[x + y * W];

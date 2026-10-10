@@ -71,6 +71,7 @@ private:
     bgfx::UniformHandle ambient_ = BGFX_INVALID_HANDLE;          // u_ambient (RSW)
     bgfx::UniformHandle diffuse_ = BGFX_INVALID_HANDLE;          // u_diffuse (RSW)
     bgfx::UniformHandle fade_ = BGFX_INVALID_HANDLE;            // u_fade (ground x-ray opacity, #104)
+    bgfx::UniformHandle clip_ = BGFX_INVALID_HANDLE;            // u_clip (below-water reflection clip, #water)
     std::vector<Vec3> cellLight_;  // per-cell env light (W*H), for tinting actors in shadow (#118)
     ModelRenderer models_;  // RSM building/object meshes
     WaterRenderer water_;   // animated water surface

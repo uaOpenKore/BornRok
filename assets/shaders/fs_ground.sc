@@ -1,4 +1,4 @@
-$input v_texcoord0, v_color0, v_lightcoord, v_wnormal, v_wtangent
+$input v_texcoord0, v_color0, v_lightcoord, v_wnormal, v_wtangent, v_wpos
 
 #include <bgfx_shader.sh>
 
@@ -11,9 +11,14 @@ uniform vec4 u_diffuse;   // rgb = RSW diffuse (sun) light
 uniform vec4 u_fade;      // x = global ground opacity (1 = opaque; <1 in Camera Lock x-ray)
 uniform vec4 u_nrmParams; // x = has normal map (1/0), y = bump strength (#107)
 uniform vec4 u_lightDir;  // xyz = normalized direction TO the RSW sun (#107)
+uniform vec4 u_clip;      // x = enable below-water clip (water reflection), y = water plane world Y (#water)
 
 void main()
 {
+    // Water-reflection clip (#water): when rendering the reflection pass, keep ONLY above-water ground
+    // (world Y >= water level). Disabled (u_clip.x = 0) for the normal pass -> no effect there.
+    if (u_clip.x > 0.5 && v_wpos.y < u_clip.y)
+        discard;
     // Cut out the magenta colour-key (the texture load set those texels to alpha 0): RO uses
     // #ff00ff as the transparent border of floating walkways/platforms (S.: "розовый в текстурах
     // должен быть прозрачным"). Test the TEXTURE alpha, not texel — the ground vertex colour can

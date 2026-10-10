@@ -159,6 +159,7 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
     ambient_ = bgfx::createUniform("u_ambient", bgfx::UniformType::Vec4);
     diffuse_ = bgfx::createUniform("u_diffuse", bgfx::UniformType::Vec4);
     fade_ = bgfx::createUniform("u_fade", bgfx::UniformType::Vec4);  // ground x-ray opacity (#104)
+    clip_ = bgfx::createUniform("u_clip", bgfx::UniformType::Vec4);  // below-water reflection clip (#water)
     {
         int lw = 0, lh = 0;
         const std::vector<u8> limg = GroundMesh::buildLightmap(map_.gnd, lw, lh);
@@ -263,6 +264,7 @@ void MapRenderer::destroy() {
     if (bgfx::isValid(ambient_)) bgfx::destroy(ambient_);
     if (bgfx::isValid(diffuse_)) bgfx::destroy(diffuse_);
     if (bgfx::isValid(fade_)) bgfx::destroy(fade_);
+    if (bgfx::isValid(clip_)) bgfx::destroy(clip_);
     models_.destroy();
     water_.destroy();
     white_ = BGFX_INVALID_HANDLE;
@@ -379,6 +381,8 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
         bgfx::setUniform(fade_, fadeVec);
         bgfx::setUniform(nrmParams_, nrmParams);
         bgfx::setUniform(lightDir_, ldir);
+        const float clipOff[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // no below-water clip in the normal pass (#water)
+        bgfx::setUniform(clip_, clipOff);
         bgfx::setState(state);
         bgfx::submit(0, program_);
     }
@@ -397,12 +401,39 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
                       refl.mode, static_cast<int>(refl.view), map_.ground.batches.size(),
                       map_.placements.size(), bgfx::isValid(refl.reflectTex) ? 1 : 0);
         }
-        // Reflect only the SKY (the reflection FB's clear colour) + the RSM objects — NOT the ground.
-        // Reflecting the terrain made the water look like it just showed the lakebed beneath it (ground
-        // near the water mirrors almost onto itself, so it read as a see-through, not a reflection —
-        // S.: "отражение = тому что под самой водой"). Leaving the ground out means the water mirrors
-        // the sky and the upside-down trees/buildings above it — a real, camera-angle-dependent
-        // reflection of what's ABOVE the water (S.: "должна отражать то что над водой / объекты от угла камеры").
+        // Reflect the ground that is ABOVE the water, CLIPPING everything at/below the water level
+        // (S.: "нужно ещё отражать граунд который над водой, всё что ниже уровня воды - не отражать").
+        // The below-water clip (u_clip) stops the near-water terrain from mirroring onto itself, which
+        // is what made the earlier full-ground reflection look like a see-through to the lakebed.
+        bgfx::setViewTransform(refl.view, refl.mirror.m, refl.proj.m);
+        const u64 rstate = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
+                           BGFX_STATE_DEPTH_TEST_LESS;
+        const float one[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+        const float noNrm[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        const float clipOn[4] = {1.0f, waterLevelY(), 0.0f, 0.0f};  // discard ground with world Y < waterY
+        for (const auto& b : map_.ground.batches) {
+            bgfx::TextureHandle tex = white_;
+            if (b.textureId >= 0 && static_cast<usize>(b.textureId) < textures_.size() &&
+                bgfx::isValid(textures_[b.textureId]))
+                tex = textures_[b.textureId];
+            const u32 wFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP |
+                               (g_worldFilterMode == 0 ? BGFX_SAMPLER_POINT : 0u);
+            bgfx::setVertexBuffer(0, vbh_);
+            bgfx::setIndexBuffer(ibh_, b.indexStart, b.indexCount);
+            bgfx::setTexture(0, sampler_, tex, wFlags);
+            bgfx::setTexture(1, lightmapSampler_, lightmap_);
+            bgfx::setTexture(2, nrmSampler_, flatNrm_, wFlags);
+            bgfx::setUniform(mapDim_, mapDim);
+            bgfx::setUniform(ambient_, amb);
+            bgfx::setUniform(diffuse_, dif);
+            bgfx::setUniform(fade_, one);
+            bgfx::setUniform(nrmParams_, noNrm);
+            bgfx::setUniform(lightDir_, ldir);
+            bgfx::setUniform(clip_, clipOn);
+            bgfx::setState(rstate);
+            bgfx::submit(refl.view, program_);
+        }
+        // Objects too (trees/buildings above water). Same mirror camera + reflection view.
         models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time);
     }
 

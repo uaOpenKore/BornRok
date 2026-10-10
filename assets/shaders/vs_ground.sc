@@ -1,5 +1,5 @@
 $input a_position, a_normal, a_texcoord0, a_color0
-$output v_texcoord0, v_color0, v_lightcoord, v_wnormal, v_wtangent
+$output v_texcoord0, v_color0, v_lightcoord, v_wnormal, v_wtangent, v_wpos
 
 #include <bgfx_shader.sh>
 
@@ -12,6 +12,7 @@ void main()
     gl_Position = mul(u_modelViewProj, vec4(a_position, 1.0));
     v_texcoord0 = a_texcoord0;
     v_color0 = a_color0;
+    v_wpos = a_position;  // world position (model matrix is identity) — for the water-reflection clip (#water)
     // The ground is built X-mirrored (worldX = width - cellX, kTile = 1) and worldZ =
     // cellZ, so recover the lightmap UV (stored in original orientation) straight from
     // the world position — no extra vertex attribute needed.

@@ -32,30 +32,40 @@ inline float hash01(u32 a, u32 b, u32 c) {
     return static_cast<float>(h & 0xffffffu) / static_cast<float>(0x1000000u);
 }
 
-// A small procedural grass-tuft sprite: several green blades on transparent background, tips at the
-// top (row 0), darker at the base. Alpha-cutout keyed by the blade silhouette.
+// A detailed procedural grass-tuft sprite (S.: make the tufts richer): ~14 curved, tapering blades of
+// varied height/lean/brightness fanning out from the base, on a transparent background, tips at the
+// top. GRAYSCALE — the actual colour is the per-tuft tint (the tile's mean colour); the slight
+// per-blade + base-to-tip luminance variation only gives the blades depth, so the overall fill tone
+// still tracks the tile average. Alpha-cutout silhouette.
 bgfx::TextureHandle makeGrassTexture() {
-    constexpr int W = 24, H = 32;
-    const float peakX[5] = {0.12f, 0.30f, 0.50f, 0.68f, 0.86f};
-    const float peakH[5] = {0.72f, 1.00f, 0.88f, 1.00f, 0.68f};
-    const float hwFrac = 0.11f;  // blade half-width as a fraction of W
+    constexpr int W = 48, H = 64, NB = 14;
+    struct Blade { float bx, lean, hFrac, baseHW, lum; };
+    Blade bl[NB];
+    for (int i = 0; i < NB; ++i) {
+        const float u = (static_cast<float>(i) + 0.5f) / NB;
+        bl[i].bx = (0.10f + 0.80f * u + (hash01(i, 11u, 1u) - 0.5f) * 0.06f) * W;  // base x, spread + jitter
+        bl[i].lean = (hash01(i, 13u, 2u) - 0.5f) * 2.0f * 7.0f;                     // -7..7 px sideways curve
+        bl[i].hFrac = 0.58f + 0.40f * hash01(i, 17u, 3u);                           // blade height (frac of H)
+        bl[i].baseHW = 1.3f + 1.4f * hash01(i, 19u, 4u);                            // base half-width (px)
+        bl[i].lum = 0.74f + 0.26f * hash01(i, 23u, 5u);                             // per-blade brightness
+    }
     std::vector<u8> px(static_cast<usize>(W) * H * 4, 0);
-    for (int x = 0; x < W; ++x) {
-        const float xf = static_cast<float>(x) / (W - 1);
-        float topH = 0.0f;
-        for (int p = 0; p < 5; ++p) {
-            const float d = std::fabs(xf - peakX[p]);
-            if (d < hwFrac) topH = std::max(topH, (1.0f - d / hwFrac) * peakH[p] * H);
-        }
-        for (int y = 0; y < H; ++y) {
-            const float yb = static_cast<float>(H - 1 - y);  // height from the bottom
+    for (int y = 0; y < H; ++y) {
+        const float yf = static_cast<float>(H - 1 - y) / (H - 1);  // 0 at base -> 1 at the very top
+        for (int x = 0; x < W; ++x) {
+            float bestCov = 0.0f, bestLum = 0.0f;
+            for (int i = 0; i < NB; ++i) {
+                if (yf > bl[i].hFrac) continue;                       // above this blade's tip
+                const float yb = yf / bl[i].hFrac;                    // 0 base -> 1 this blade's tip
+                const float cx = bl[i].bx + bl[i].lean * (yb * yb);   // parabolic lean (curves near tip)
+                const float hw = std::max(0.35f, bl[i].baseHW * (1.0f - yb));  // taper to a point
+                const float d = std::fabs(static_cast<float>(x) + 0.5f - cx);
+                const float cov = std::clamp(hw - d + 0.5f, 0.0f, 1.0f);         // 1px soft edge
+                if (cov > bestCov) { bestCov = cov; bestLum = bl[i].lum * (0.62f + 0.38f * yb); }
+            }
             u8* o = &px[(static_cast<usize>(y) * W + x) * 4];
-            if (topH < 1.0f || yb > topH) { o[3] = 0; continue; }  // gap / above the blade tip
-            const float t = std::clamp(yb / std::max(topH, 1.0f), 0.0f, 1.0f);  // 0 base -> 1 tip
-            // Near-FULL grayscale (slight shade at the base, full at the tip) so after the per-tuft tint
-            // (the tile's exact mean colour) the grass FILL tone matches the tile average, with just a
-            // touch of blade shading (S.: "тон заливки ... среднему значению всех пикселей текстуры").
-            const u8 lum = static_cast<u8>(215 + (255 - 215) * t);
+            if (bestCov < 0.5f) { o[3] = 0; continue; }  // outside the silhouette (cutout at 0.5)
+            const u8 lum = static_cast<u8>(std::clamp(bestLum * 255.0f, 0.0f, 255.0f));
             o[0] = lum; o[1] = lum; o[2] = lum; o[3] = 255;
         }
     }

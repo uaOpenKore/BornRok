@@ -490,7 +490,8 @@ void RenderDevice::setWaterReflect(int mode) {
 }
 
 bgfx::TextureHandle RenderDevice::reflectTexture() const {
-    return bgfx::isValid(reflectFb_) ? bgfx::getTexture(reflectFb_, 0) : BGFX_INVALID_HANDLE;
+    if (!bgfx::isValid(reflectFb_)) return BGFX_INVALID_HANDLE;  // (brace-init macro can't be a ?: operand)
+    return bgfx::getTexture(reflectFb_, 0);
 }
 
 bool RenderDevice::reflectFlipY() const {

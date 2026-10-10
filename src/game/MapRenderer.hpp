@@ -76,7 +76,9 @@ private:
     std::vector<Vec3> cellLight_;  // per-cell env light (W*H), for tinting actors in shadow (#118)
     ModelRenderer models_;  // RSM building/object meshes
     WaterRenderer water_;   // animated water surface
-    GrassRenderer grass_;   // ground-grass billboards (#grass)
+    // mutable: render() is const but grass needs to rebuild its mesh live when the height
+    // (Normals level) changes, so grass_.render() mutates. (#grass)
+    mutable GrassRenderer grass_;   // ground-grass billboards
     Vec3 center_{0, 0, 0};
     float radius_ = 100.0f;
 };

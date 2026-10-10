@@ -23,7 +23,7 @@ struct GVertex {
 // width kept where it was. Decoupled so height/width tune separately.
 constexpr float kHeightBase = 2.0f / 1.5f;  // ~1.333 (2.0 base, -1.5x height)
 constexpr float kWidthBase = 0.9f;          // unchanged half-width (= old 0.45 * 2.0)
-constexpr u32 kMaxClumps = 200000;  // cap the scatter so a huge field can't flood the frame pool
+constexpr u32 kMaxClumps = 500000;  // cap the scatter so a huge field can't flood the frame pool
 
 // Deterministic per-cell jitter in [0,1) (no RNG -> identical every load).
 inline float hash01(u32 a, u32 b, u32 c) {
@@ -143,8 +143,11 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     // grows where water is drawn (S.: "трава ... под водой").
     const float wthresh = map.rsw.water().level - map.rsw.water().waveHeight;
 
-    // Several tufts per grass cell (jittered within the cell) so a field reads as grass, up to the cap.
-    constexpr int kPerCell = 6;  // tufts per grass cell (S.)
+    // Tufts per grass cell, spread EVENLY via stratified sampling (S.: "12 ... равномерно расбрасывать"):
+    // split the cell into a gx*gy grid and drop one jittered tuft per sub-cell, so they cover the tile
+    // uniformly instead of clumping like pure random jitter did.
+    constexpr int kPerCell = 12;
+    constexpr int kGx = 4, kGy = 3;  // 4*3 = 12 sub-cells
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
         for (u32 x = 0; x < W && clumps_.size() < kMaxClumps; ++x) {
             const GndCube& c = cubes[x + y * W];
@@ -162,8 +165,10 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
             if (hmax - hmin > 12.0f) continue;
             const u32 tint = texTint[tid];
             for (int k = 0; k < kPerCell; ++k) {
-                const float jx = 0.15f + 0.7f * hash01(x, y, 1 + k * 7);  // keep tufts off the exact cell edge
-                const float jz = 0.15f + 0.7f * hash01(x, y, 2 + k * 7);
+                // Stratified: sub-cell (sc,sr) + a jittered position inside it -> even coverage.
+                const int sc = k % kGx, sr = k / kGx;
+                const float jx = (static_cast<float>(sc) + 0.2f + 0.6f * hash01(x, y, 1u + k * 7u)) / kGx;
+                const float jz = (static_cast<float>(sr) + 0.2f + 0.6f * hash01(x, y, 2u + k * 7u)) / kGy;
                 // Bilinear corner height (same mapping as MapRenderer::heightAt), world Y = -h*0.1.
                 const float top = c.height[0] + (c.height[1] - c.height[0]) * jx;
                 const float bot = c.height[2] + (c.height[3] - c.height[2]) * jx;

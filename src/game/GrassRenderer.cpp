@@ -43,8 +43,10 @@ bgfx::TextureHandle makeGrassTexture() {
     Blade bl[NB];
     for (int i = 0; i < NB; ++i) {
         const float u = (static_cast<float>(i) + 0.5f) / NB;
-        bl[i].bx = (0.10f + 0.80f * u + (hash01(i, 11u, 1u) - 0.5f) * 0.06f) * W;  // base x, spread + jitter
-        bl[i].lean = (hash01(i, 13u, 2u) - 0.5f) * 2.0f * 7.0f;                     // -7..7 px sideways curve
+        bl[i].bx = (0.32f + 0.36f * u + (hash01(i, 11u, 1u) - 0.5f) * 0.05f) * W;   // bases clustered near the centre
+        // Fan out: outer blades lean outward (left blades left, right blades right), amplitude bigger
+        // so the tuft spreads wide at the tips (S.: "увеличь веер"). Plus a little per-blade jitter.
+        bl[i].lean = (u - 0.5f) * 2.0f * 15.0f + (hash01(i, 13u, 2u) - 0.5f) * 4.0f;
         bl[i].hFrac = 0.58f + 0.40f * hash01(i, 17u, 3u);                           // blade height (frac of H)
         bl[i].baseHW = 1.3f + 1.4f * hash01(i, 19u, 4u);                            // base half-width (px)
         bl[i].lum = 0.74f + 0.26f * hash01(i, 23u, 5u);                             // per-blade brightness

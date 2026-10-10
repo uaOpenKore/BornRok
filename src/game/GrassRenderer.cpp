@@ -18,11 +18,12 @@ struct GVertex {
     f32 x, y, z, u, v;
     u32 abgr;
 };
-// Grass height (and, proportionally, width) is a fraction of this. The Normals level scales it: x1 =
-// 0.20, x1.5 = 0.30, x2 = 0.40 of this. Set to 2.0 so tufts are 2x taller + wider (S.: "в 2 раза выше
-// и шире") -- doubling this scales both the height and the 0.45*h half-width, same aspect.
-constexpr float kCharHeight = 2.0f;
-constexpr u32 kMaxClumps = 120000;  // cap the scatter so a huge field can't flood the frame pool
+// Tuft height and (half-)width are independent fractions of the Normals level (x1 = 0.20, x1.5 = 0.30,
+// x2 = 0.40). Height was reduced 1.5x from the earlier 2.0 base (S.: "высоту уменьшить в 1.5 раза");
+// width kept where it was. Decoupled so height/width tune separately.
+constexpr float kHeightBase = 2.0f / 1.5f;  // ~1.333 (2.0 base, -1.5x height)
+constexpr float kWidthBase = 0.9f;          // unchanged half-width (= old 0.45 * 2.0)
+constexpr u32 kMaxClumps = 200000;  // cap the scatter so a huge field can't flood the frame pool
 
 // Deterministic per-cell jitter in [0,1) (no RNG -> identical every load).
 inline float hash01(u32 a, u32 b, u32 c) {
@@ -133,7 +134,7 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     const float wthresh = map.rsw.water().level - map.rsw.water().waveHeight;
 
     // Several tufts per grass cell (jittered within the cell) so a field reads as grass, up to the cap.
-    constexpr int kPerCell = 3;  // 1.5x the previous 2 -> denser blades (S.)
+    constexpr int kPerCell = 6;  // tufts per grass cell (S.)
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
         for (u32 x = 0; x < W && clumps_.size() < kMaxClumps; ++x) {
             const GndCube& c = cubes[x + y * W];
@@ -178,8 +179,9 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
 
 void GrassRenderer::buildMesh(float heightFrac) {
     if (!ready_ || clumps_.empty()) { quadCount_ = 0; return; }
-    const float h = kCharHeight * std::clamp(heightFrac, 0.05f, 1.0f);
-    const float hw = h * 0.45f;  // tuft half-width
+    const float frac = std::clamp(heightFrac, 0.05f, 1.0f);
+    const float h = kHeightBase * frac;    // tuft height
+    const float hw = kWidthBase * frac;    // tuft half-width (independent of height now)
     std::vector<GVertex> verts;
     std::vector<u32> idx;
     verts.reserve(clumps_.size() * 8);

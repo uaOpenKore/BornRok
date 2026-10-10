@@ -584,4 +584,61 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
     }
 }
 
+void ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
+                                     bgfx::ViewId view, double time) const {
+    if (!ready_ || !bgfx::isValid(program_)) return;
+    bgfx::setViewTransform(view, mirrorView.m, proj.m);
+    const f32 hw = map.gnd.width() * 0.5f, hh = map.gnd.height() * 0.5f;
+    const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
+                      BGFX_STATE_DEPTH_TEST_LESS;  // opaque; no fade/occlusion in the reflection
+    const f32 fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    const f32 noNrm[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // skip relief in the reflection (keep it cheap)
+    // Same world placement as render() (incl. the X mirror that aligns models with the flipped ground).
+    const Mat4 mirror = Mat4::translation({static_cast<f32>(map.gnd.width()), 0.0f, 0.0f}) *
+                        Mat4::scaling({-1.0f, 1.0f, 1.0f});
+    for (const auto& [obj, mi] : map.placements) {
+        if (mi < 0 || static_cast<usize>(mi) >= models_.size()) continue;
+        const Model& M = models_[mi];
+        if (!M.ok) continue;
+        const Mat4 place =
+            mirror *
+            Mat4::translation({obj.pos[0] * 0.1f + hw, -obj.pos[1] * 0.1f, obj.pos[2] * 0.1f + hh}) *
+            Mat4::rotationZ(-radians(obj.rot[2])) * Mat4::rotationX(-radians(obj.rot[0])) *
+            Mat4::rotationY(radians(obj.rot[1])) *
+            Mat4::scaling({obj.scale[0], obj.scale[1], obj.scale[2]}) *
+            Mat4::scaling({0.1f, -0.1f, 0.1f});
+        for (const Batch& b : M.batches) {
+            bgfx::setTransform(place.m);
+            bgfx::setVertexBuffer(0, M.vbh);
+            bgfx::setIndexBuffer(M.ibh, b.indexStart, b.indexCount);
+            bgfx::setTexture(0, sampler_, bgfx::isValid(b.tex) ? b.tex : white_);
+            bgfx::setTexture(1, nrmSampler_, flatNrm_);
+            bgfx::setUniform(nrmParams_, noNrm);
+            bgfx::setUniform(lightDir_, lightDirV_);
+            bgfx::setUniform(lightColor_, lightColorV_);
+            bgfx::setUniform(ambient_, ambientV_);
+            bgfx::setUniform(fade_, fade);
+            bgfx::setState(state);
+            bgfx::submit(view, program_);
+        }
+        for (const AnimNode& an : M.animNodes) {
+            const Mat4 nodeMat = place * an.basePart * animRotAt(an.rotKeys, an.animLength, time);
+            for (const Batch& b : an.batches) {
+                bgfx::setTransform(nodeMat.m);
+                bgfx::setVertexBuffer(0, an.vbh);
+                bgfx::setIndexBuffer(an.ibh, b.indexStart, b.indexCount);
+                bgfx::setTexture(0, sampler_, bgfx::isValid(b.tex) ? b.tex : white_);
+                bgfx::setTexture(1, nrmSampler_, flatNrm_);
+                bgfx::setUniform(nrmParams_, noNrm);
+                bgfx::setUniform(lightDir_, lightDirV_);
+                bgfx::setUniform(lightColor_, lightColorV_);
+                bgfx::setUniform(ambient_, ambientV_);
+                bgfx::setUniform(fade_, fade);
+                bgfx::setState(state);
+                bgfx::submit(view, program_);
+            }
+        }
+    }
+}
+
 } // namespace uaro

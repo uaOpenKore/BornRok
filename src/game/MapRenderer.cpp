@@ -416,6 +416,9 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
             bgfx::setState(rstate);
             bgfx::submit(refl.view, program_);
         }
+        // Reflect the RSM objects too (trees/buildings near water sell the effect — S.: "добавь
+        // отражение объектов"). Same mirror camera + reflection view.
+        models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time);
     }
 
     water_.render(time, refl);   // animated water surface, blended over the terrain it covers

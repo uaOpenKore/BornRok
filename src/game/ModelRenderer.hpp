@@ -30,6 +30,13 @@ public:
     void render(const MapData& map, const Vec3& camPos, const Vec3& playerPos,
                 double time, float forceFade = 1.0f) const;
 
+    // Planar-reflection pass (#water): draw every placement OPAQUE into `view` with the mirror
+    // camera (mirrorView = main view * reflection matrix), same projection as the scene. No
+    // camera-occlude fade (the reflection shows the full world). Used by MapRenderer for the
+    // water reflection; cheap-ish — one extra draw per placement into a small offscreen.
+    void renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
+                          bgfx::ViewId view, double time) const;
+
 private:
     struct Batch {
         bgfx::TextureHandle tex = BGFX_INVALID_HANDLE;

@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 6 * 34.0f + 44.0f  // + Normals + 2 interp toggles
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 7 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -551,6 +551,15 @@ public:
                 ui::button(sb, font, uin, cx + cw - 90.0f, ey - 4.0f, 90.0f, 26.0f,
                            app.fxInterp() ? "On" : "Off", 1.2f))
                 app.setFxInterp(!app.fxInterp());
+            // Water reflections (#water): Off / Light (sky tint) / SSR (half-res planar) / Planar
+            // (full-res mirror). Heavier modes default off on mobile/console/WARP. Cycles on click.
+            const float wry = ey + 34.0f;
+            const int wr = app.waterReflect();
+            const char* wrl = wr == 3 ? "Planar" : wr == 2 ? "SSR" : wr == 1 ? "Light" : "Off";
+            font.draw(sb, cx, wry, 1.1f, ui::color::kWinText, "Water Reflect");
+            if (selOpen_ < 0 &&
+                ui::button(sb, font, uin, cx + cw - 90.0f, wry - 4.0f, 90.0f, 26.0f, wrl, 1.2f))
+                app.setWaterReflect((wr + 1) % 4);
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

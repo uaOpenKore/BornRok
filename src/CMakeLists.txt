@@ -675,6 +675,14 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
       ${UARO_CLIENT_ROOT}/assets/shaders/fs_romskin.sc
     VARYING ${UARO_CLIENT_ROOT}/assets/shaders/varying_romskin.def.sc
   )
+  # Water surface (#water): animated texture + optional reflections (Light / SSR / Planar). Its own
+  # matched vs/fs pair (identical varyings -> no DX11 link trap). Modes selected by a uniform.
+  client_compile_shaders(UaRO
+    SHADERS
+      ${UARO_CLIENT_ROOT}/assets/shaders/vs_water.sc
+      ${UARO_CLIENT_ROOT}/assets/shaders/fs_water.sc
+    VARYING ${UARO_CLIENT_ROOT}/assets/shaders/varying_water.def.sc
+  )
   # Lit sprites (S.: normal maps on sprites like models/ground get): fs_spritelit pairs
   # with the SAME vs_sprite3d (identical varyings -- no DX11 link trap); the normal map is
   # generated per frame from the sprite's own luminance, the sun dir arrives as a uniform.

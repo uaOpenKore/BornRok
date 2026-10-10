@@ -39,7 +39,14 @@ bool WaterRenderer::load(Application& app, const MapData& map) {
     // water silently vanished (S. log: "createProgram vs_model+fs_sprite3d FAILED (dx11)"). vs_sprite3d
     // does the same u_modelViewProj transform and outputs exactly {v_texcoord0,v_color0}; its extra
     // u_spriteBias depth nudge is zeroed at draw time so the flat plane isn't pushed off its depth.
-    program_ = load_program(app.assetDir(), "vs_sprite3d", "fs_sprite3d");
+    // Dedicated water program (reflections). Fall back to the sprite shaders if it's missing so a
+    // build without the new shaders still renders classic water (never worse than before). (#water)
+    program_ = load_program(app.assetDir(), "vs_water", "fs_water");
+    newShader_ = bgfx::isValid(program_);
+    if (!newShader_) {
+        program_ = load_program(app.assetDir(), "vs_sprite3d", "fs_sprite3d");
+        if (bgfx::isValid(program_)) log::info("WaterRenderer: vs_water/fs_water missing -> classic sprite shader");
+    }
     if (!bgfx::isValid(program_)) {
         log::warn("WaterRenderer: shader unavailable; no water");
         return false;
@@ -137,8 +144,11 @@ bool WaterRenderer::load(Application& app, const MapData& map) {
     }
 
     sampler_ = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
+    reflSampler_ = bgfx::createUniform("s_refl", bgfx::UniformType::Sampler);  // reflection colour (slot 1)
     fade_ = bgfx::createUniform("u_spriteFade", bgfx::UniformType::Vec4);
-    bias_ = bgfx::createUniform("u_spriteBias", bgfx::UniformType::Vec4);  // vs_sprite3d depth nudge (kept 0)
+    bias_ = bgfx::createUniform("u_spriteBias", bgfx::UniformType::Vec4);  // sprite3d fallback depth nudge (kept 0)
+    reflParams_ = bgfx::createUniform("u_waterRefl", bgfx::UniformType::Vec4);  // mode, reflectivity, flipY, ripple
+    sky_ = bgfx::createUniform("u_waterSky", bgfx::UniformType::Vec4);          // sky/ambient reflection colour
 
     // Upload the per-cell water mesh built above (only the underwater cells).
     bgfx::VertexLayout layout;
@@ -166,19 +176,26 @@ void WaterRenderer::destroy() {
     if (bgfx::isValid(vbh_)) bgfx::destroy(vbh_);
     if (bgfx::isValid(ibh_)) bgfx::destroy(ibh_);
     if (bgfx::isValid(sampler_)) bgfx::destroy(sampler_);
+    if (bgfx::isValid(reflSampler_)) bgfx::destroy(reflSampler_);
     if (bgfx::isValid(fade_)) bgfx::destroy(fade_);
     if (bgfx::isValid(bias_)) bgfx::destroy(bias_);
+    if (bgfx::isValid(reflParams_)) bgfx::destroy(reflParams_);
+    if (bgfx::isValid(sky_)) bgfx::destroy(sky_);
     if (bgfx::isValid(program_)) bgfx::destroy(program_);
     vbh_ = BGFX_INVALID_HANDLE;
     ibh_ = BGFX_INVALID_HANDLE;
     sampler_ = BGFX_INVALID_HANDLE;
+    reflSampler_ = BGFX_INVALID_HANDLE;
     fade_ = BGFX_INVALID_HANDLE;
     bias_ = BGFX_INVALID_HANDLE;
+    reflParams_ = BGFX_INVALID_HANDLE;
+    sky_ = BGFX_INVALID_HANDLE;
     program_ = BGFX_INVALID_HANDLE;
+    newShader_ = false;
     ready_ = false;
 }
 
-void WaterRenderer::render(double time) const {
+void WaterRenderer::render(double time, const ReflectionParams& refl) const {
     if (!ready_ || frames_.empty()) return;
     // Cycle one texture every ~animSpeed*50ms (animSpeed 3 -> 0.15s/frame, ~5s loop).
     const double framePeriod = 0.05 * static_cast<double>(animSpeed_ > 0 ? animSpeed_ : 3);
@@ -191,12 +208,26 @@ void WaterRenderer::render(double time) const {
     // drawn afterwards stay visible rather than being clipped by the water plane. Drawn
     // after the opaque ground/models.
     const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LEQUAL | BGFX_STATE_BLEND_ALPHA;
-    const float bias[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // flat plane -> no per-layer depth bias
     bgfx::setVertexBuffer(0, vbh_);
     bgfx::setIndexBuffer(ibh_);
     bgfx::setTexture(0, sampler_, frames_[frame]);
     bgfx::setUniform(fade_, fade);
-    bgfx::setUniform(bias_, bias);
+    if (newShader_) {
+        // The reflection sampler (slot 1) must ALWAYS be bound (DX11 requires every declared sampler
+        // set); in modes 0/1 the shader ignores it. Use the reflection texture when a mirror pass ran
+        // this frame (modes 2/3 with a valid target), else a water frame as a harmless stand-in.
+        const bool haveRefl = refl.mode >= 2 && bgfx::isValid(refl.reflectTex);
+        bgfx::setTexture(1, reflSampler_, haveRefl ? refl.reflectTex : frames_[frame]);
+        const int shaderMode = haveRefl ? refl.mode : (refl.mode == 1 ? 1 : 0);  // drop to Light/Off if no RT
+        const float rp[4] = {static_cast<float>(shaderMode), refl.reflectivity,
+                             refl.flipY ? 1.0f : 0.0f, refl.ripple};
+        const float sky[4] = {refl.sky[0], refl.sky[1], refl.sky[2], 1.0f};
+        bgfx::setUniform(reflParams_, rp);
+        bgfx::setUniform(sky_, sky);
+    } else {
+        const float bias[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // sprite3d fallback: flat plane -> no depth bias
+        bgfx::setUniform(bias_, bias);
+    }
     bgfx::setState(state);
     bgfx::submit(0, program_);
 }

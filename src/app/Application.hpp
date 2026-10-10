@@ -103,6 +103,10 @@ public:
     // the sun and each local light). Persisted in game.cfg (key `godray`, back-compat with the old bool).
     int godrayMode() const { return godrayMode_; }
     void setGodrayMode(int mode);
+    // Water reflections (Settings -> Video, #water): 0 = off, 1 = light, 2 = ssr, 3 = planar.
+    // -1 = auto (resolve Planar on desktop GPU / Off on WARP+mobile at first run). Persisted.
+    int waterReflect() const { return waterReflect_; }
+    void setWaterReflect(int mode);
     // FSR1 upscale factor (#111): 1.0 = off; <1 renders lower-res + EASU/RCAS upscales. Persisted.
     float fsr() const { return fsr_; }
     void setFsr(float scale);
@@ -265,6 +269,7 @@ private:
     int godrayMode_ = 0;                         // volumetric light: 0 off, 1 glow, 2 rays (#117)
     float fsr_ = 1.0f;                           // FSR1 upscale factor, 1 = off (#111)
     float normalsMode_ = -1.0f;                  // Normals toggle; -1 = auto default
+    int waterReflect_ = -1;                      // water reflections: 0 off/1 light/2 ssr/3 planar; -1 = auto (#water)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)
     bool gamepadMode_ = false;                   // pad-driven control mode active (#102/#115)

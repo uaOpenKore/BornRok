@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "app/Application.hpp"
 #include "core/Log.hpp"
@@ -312,7 +313,7 @@ Vec3 MapRenderer::lightAt(float wx, float wz) const {
 }
 
 void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const Vec3& camPos,
-                         const Vec3& playerPos, float worldFade) const {
+                         const Vec3& playerPos, float worldFade, const ReflectionParams& refl) const {
     if (!ready_ || !bgfx::isValid(program_)) return;
     bgfx::setViewTransform(0, view.m, proj.m);
 
@@ -383,7 +384,46 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
     }
 
     models_.render(map_, camPos, playerPos, time, worldFade);  // RSM objects (faded too in x-ray; time spins animated nodes)
-    water_.render(time);   // animated water surface, blended over the terrain it covers
+
+    // Planar water reflection pass (#water): re-render the terrain from the mirror camera into the
+    // reflection view (its FB was bound in RenderDevice::beginFrame). Ground only for now (RSM models
+    // are a follow-up). Opaque, no culling (the mirror flips winding, and the ground never culls
+    // anyway). The water shader samples the result (one frame of latency — see kReflectView).
+    if (refl.mode >= 2 && bgfx::isValid(refl.reflectTex)) {
+        bgfx::setViewTransform(refl.view, refl.mirror.m, refl.proj.m);
+        const u64 rstate = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
+                           BGFX_STATE_DEPTH_TEST_LESS;
+        const float one[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+        const float noNrm[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // no relief in the reflection (keep it cheap)
+        for (const auto& b : map_.ground.batches) {
+            bgfx::TextureHandle tex = white_;
+            if (b.textureId >= 0 && static_cast<usize>(b.textureId) < textures_.size() &&
+                bgfx::isValid(textures_[b.textureId]))
+                tex = textures_[b.textureId];
+            const u32 wFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP |
+                               (g_worldFilterMode == 0 ? BGFX_SAMPLER_POINT : 0u);
+            bgfx::setVertexBuffer(0, vbh_);
+            bgfx::setIndexBuffer(ibh_, b.indexStart, b.indexCount);
+            bgfx::setTexture(0, sampler_, tex, wFlags);
+            bgfx::setTexture(1, lightmapSampler_, lightmap_);
+            bgfx::setTexture(2, nrmSampler_, flatNrm_, wFlags);
+            bgfx::setUniform(mapDim_, mapDim);
+            bgfx::setUniform(ambient_, amb);
+            bgfx::setUniform(diffuse_, dif);
+            bgfx::setUniform(fade_, one);
+            bgfx::setUniform(nrmParams_, noNrm);
+            bgfx::setUniform(lightDir_, ldir);
+            bgfx::setState(rstate);
+            bgfx::submit(refl.view, program_);
+        }
+    }
+
+    water_.render(time, refl);   // animated water surface, blended over the terrain it covers
+}
+
+float MapRenderer::waterLevelY() const {
+    if (!water_.ready()) return std::numeric_limits<float>::quiet_NaN();
+    return -map_.rsw.water().level * 0.1f;  // same -h*0.1 world convention as WaterRenderer/ground
 }
 
 } // namespace uaro

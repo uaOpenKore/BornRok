@@ -24,6 +24,14 @@ public:
     // tonemapped / FSR-upscaled / god-ray-smeared. Scene/world uses views 0..2; UI sits on top.
     static constexpr bgfx::ViewId kUiView = 250;
 
+    // Planar water reflection (#water). The mirror-camera scene re-render draws here, into its own
+    // offscreen (reflectFb_), and the water shader samples it. Kept in the contiguous LOW view band
+    // (4, just above the 0..3 post-reorder range) so it never collides with the setViewOrder inverse
+    // remap. It executes AFTER view 0 in the default ascending order, so the water reads LAST frame's
+    // reflection — a single frame of latency, imperceptible for the slow RO orbit camera, and the only
+    // way to avoid reshuffling the whole view order (a known bgfx footgun).
+    static constexpr bgfx::ViewId kReflectView = 4;
+
     RenderDevice() = default;
     ~RenderDevice();
     RenderDevice(const RenderDevice&) = delete;
@@ -80,6 +88,22 @@ public:
     // while HDR/render-scale own the offscreen — in that case Glow's world halos still show, just no
     // shafts. Persists. OFF (default) = byte-identical.
     void setGodrayMode(int mode);
+    // Water reflections (#water). Quality ladder: 0 = Off (classic translucent water), 1 = Light
+    // (sky/ambient tint + sheen, shader-only), 2 = SSR (half-res planar reflection), 3 = Planar
+    // (full-res planar reflection). Persists in game.cfg. OFF (default on mobile/console/WARP) keeps
+    // the water byte-identical. Modes 2/3 re-render the terrain from the mirror camera into an
+    // offscreen (reflectFb_) on kReflectView; the water shader samples it.
+    void setWaterReflect(int mode);
+    int waterReflect() const { return waterReflect_; }
+    // The reflection colour texture (color attachment of reflectFb_) for the water shader to sample,
+    // and whether the sampled UV must be Y-flipped (render-target origin). Valid only when a mirror
+    // pass actually ran this frame (reflectActive()).
+    bgfx::TextureHandle reflectTexture() const;
+    bool reflectFlipY() const;
+    // True while a planar mirror pass is live this frame (mode >= 2, in the 3D world, FB valid). The
+    // scene tells MapRenderer to render the mirror pass + feed the texture to the water only then.
+    bool reflectActive() const;
+
     // True when running on a software rasterizer (WARP: vendor 0x1414 Microsoft — the
     // no-GPU-driver case). Used to default heavy visuals (Normals) to Off.
     bool isSoftwareRenderer() const;
@@ -115,6 +139,8 @@ private:
     void destroyGradeTarget();
     void createGodrayTarget(); // (re)create the RGBA8 god-ray scene offscreen (native render size)
     void destroyGodrayTarget();
+    void createReflectTarget(); // (re)create the RGBA8+depth planar-reflection offscreen (#water)
+    void destroyReflectTarget();
     void recomputeRenderSize();  // sceneW_/sceneH_ = round(native * fsrScale_) for the 3D view
     bool upscaling() const { return fsrScale_ < 0.999f; }     // FSR1 (render below native)
     bool supersampling() const { return fsrScale_ > 1.001f; }  // SSAA (render above native)
@@ -151,6 +177,9 @@ private:
     bgfx::FrameBufferHandle easuFb_ = BGFX_INVALID_HANDLE;  // native EASU output (RGBA8)
     bgfx::FrameBufferHandle gradeFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (grade only)
     bgfx::FrameBufferHandle godrayFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (god rays, #117)
+    bgfx::FrameBufferHandle reflectFb_ = BGFX_INVALID_HANDLE;  // RGBA8+depth planar-reflection target (#water)
+    int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
+    int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)
     bgfx::ProgramHandle tonemapProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle easuProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle rcasProg_ = BGFX_INVALID_HANDLE;

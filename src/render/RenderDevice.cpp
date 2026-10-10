@@ -149,6 +149,7 @@ void RenderDevice::shutdown() {
         destroyFsrTargets();
         destroyGradeTarget();
         destroyGodrayTarget();
+        destroyReflectTarget();
         auto kill = [](bgfx::ProgramHandle& p) { if (bgfx::isValid(p)) bgfx::destroy(p); p = BGFX_INVALID_HANDLE; };
         kill(tonemapProg_);
         kill(easuProg_);
@@ -213,6 +214,7 @@ void RenderDevice::resize(int width, int height) {
     if (hdrActive()) createHdrTarget();  // resize the offscreen targets to match
     if (fsrActive()) createFsrTargets();
     if (bgfx::isValid(gradeFb_)) createGradeTarget();
+    if (bgfx::isValid(reflectFb_)) createReflectTarget();  // mirror the water-reflection target too (#water)
 }
 
 // ---- HDR post-processing (#111) ------------------------------------------------------------
@@ -445,6 +447,61 @@ void RenderDevice::destroyGodrayTarget() {
     godrayFb_ = BGFX_INVALID_HANDLE;
 }
 
+void RenderDevice::createReflectTarget() {
+    destroyReflectTarget();
+    // SSR (mode 2) renders the mirror pass at HALF resolution to cut fill cost; Planar (mode 3) at
+    // native. Clamp to >=1 so a tiny window can't make a 0-sized target.
+    const float s = (waterReflect_ == 2) ? 0.5f : 1.0f;
+    reflectW_ = std::max(1, static_cast<int>(width_ * s));
+    reflectH_ = std::max(1, static_cast<int>(height_ * s));
+    const u64 rt = BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;  // clamp: no wrap at the edges
+    bgfx::TextureHandle c = bgfx::createTexture2D(static_cast<u16>(reflectW_), static_cast<u16>(reflectH_),
+                                                  false, 1, bgfx::TextureFormat::RGBA8, rt);
+    bgfx::TextureHandle d = bgfx::createTexture2D(static_cast<u16>(reflectW_), static_cast<u16>(reflectH_),
+                                                  false, 1, bgfx::TextureFormat::D24S8,
+                                                  BGFX_TEXTURE_RT_WRITE_ONLY);
+    bgfx::TextureHandle a[2] = {c, d};
+    reflectFb_ = bgfx::createFrameBuffer(2, a, true);
+    if (!bgfx::isValid(reflectFb_)) log::error("render: water reflection framebuffer failed");
+}
+
+void RenderDevice::destroyReflectTarget() {
+    if (bgfx::isValid(reflectFb_)) bgfx::destroy(reflectFb_);
+    reflectFb_ = BGFX_INVALID_HANDLE;
+    reflectW_ = reflectH_ = 0;
+}
+
+void RenderDevice::setWaterReflect(int mode) {
+    mode = mode < 0 ? 0 : (mode > 3 ? 3 : mode);
+    if (mode == waterReflect_) return;
+    const bool wasPlanar = waterReflect_ >= 2;
+    waterReflect_ = mode;
+    // Planar/SSR need the offscreen; Off/Light don't. Drop it when leaving the heavy modes so we
+    // aren't holding a full-screen RT for nothing; (re)create lazily in beginFrame otherwise (also
+    // handles the SSR<->Planar resolution change).
+    if (waterReflect_ < 2 && wasPlanar) {
+        destroyReflectTarget();
+        bgfx::setViewFrameBuffer(kReflectView, BGFX_INVALID_HANDLE);
+    } else if (waterReflect_ >= 2) {
+        destroyReflectTarget();  // force a resize-aware recreate (SSR half vs Planar full)
+    }
+    log::info("render: water reflections mode {} ({})", mode,
+              mode == 0 ? "off" : mode == 1 ? "light" : mode == 2 ? "ssr" : "planar");
+}
+
+bgfx::TextureHandle RenderDevice::reflectTexture() const {
+    return bgfx::isValid(reflectFb_) ? bgfx::getTexture(reflectFb_, 0) : BGFX_INVALID_HANDLE;
+}
+
+bool RenderDevice::reflectFlipY() const {
+    const bgfx::Caps* caps = bgfx::getCaps();
+    return caps && caps->originBottomLeft;  // GL-family RTs sample bottom-up vs gl_FragCoord top-down
+}
+
+bool RenderDevice::reflectActive() const {
+    return waterReflect_ >= 2 && worldScene_ && bgfx::isValid(reflectFb_);
+}
+
 bool RenderDevice::isSoftwareRenderer() const {
     const bgfx::Caps* caps = bgfx::getCaps();
     return caps && caps->vendorId == BGFX_PCI_ID_MICROSOFT;  // WARP / software rasterizer
@@ -530,6 +587,25 @@ void RenderDevice::beginFrame() {
         for (bgfx::ViewId v = 0; v <= 2; ++v) bgfx::setViewFrameBuffer(v, BGFX_INVALID_HANDLE);
         bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
+    }
+    // Planar water reflection pass (#water): bind kReflectView to its own offscreen so the mirror
+    // re-render of the terrain lands there (MapRenderer submits it), independent of whichever
+    // offscreen the main scene is routed through above. Created lazily / resized here. The view runs
+    // after view 0 in ascending order -> the water samples last frame's reflection (1-frame latency).
+    if (waterReflect_ >= 2 && worldScene_) {
+        const float s = (waterReflect_ == 2) ? 0.5f : 1.0f;
+        const int wantW = std::max(1, static_cast<int>(width_ * s));
+        const int wantH = std::max(1, static_cast<int>(height_ * s));
+        if (!bgfx::isValid(reflectFb_) || reflectW_ != wantW || reflectH_ != wantH) createReflectTarget();
+        if (bgfx::isValid(reflectFb_)) {
+            bgfx::setViewFrameBuffer(kReflectView, reflectFb_);
+            bgfx::setViewRect(kReflectView, 0, 0, static_cast<u16>(reflectW_), static_cast<u16>(reflectH_));
+            // Clear to the map's sky colour so water areas with no reflected geometry mirror the sky.
+            bgfx::setViewClear(kReflectView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, clearColor_, 1.0f, 0);
+            bgfx::touch(kReflectView);
+        }
+    } else {
+        bgfx::setViewFrameBuffer(kReflectView, BGFX_INVALID_HANDLE);
     }
     bgfx::touch(0);  // ensure view 0 is cleared even with no draw calls
 }

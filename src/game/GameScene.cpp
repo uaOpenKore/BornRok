@@ -13053,7 +13053,38 @@ void GameScene::render(Application& app) {
 #else
         const float worldFade = (camLock && !playerVisible_) ? 0.5f : 1.0f;
 #endif
-        renderer_.render(view, proj, time_, eye, fadeTarget, worldFade);
+        // Water reflections (#water): build the reflection inputs from the user's quality setting.
+        // Light (1) is shader-only; SSR (2) / Planar (3) need a live mirror pass (reflectActive()),
+        // else they gracefully drop to Light. The mirror camera reflects eye+target across the water
+        // plane (y = waterY) with a flipped up vector.
+        ReflectionParams refl;
+        const int wr = app.render().waterReflect();
+        const float waterY = renderer_.waterLevelY();
+        if (wr >= 1 && std::isfinite(waterY)) {
+            const RswLight& RL = renderer_.data().rsw.light();
+            // Sky/ambient reflection tint: lean on the RSW diffuse+ambient so each map's water picks up
+            // its own light mood. Clamped to stay a believable sky colour.
+            refl.sky[0] = std::min(1.0f, 0.5f * RL.ambient[0] + 0.5f * RL.diffuse[0] + 0.2f);
+            refl.sky[1] = std::min(1.0f, 0.5f * RL.ambient[1] + 0.5f * RL.diffuse[1] + 0.25f);
+            refl.sky[2] = std::min(1.0f, 0.5f * RL.ambient[2] + 0.5f * RL.diffuse[2] + 0.35f);
+            const bool planar = wr >= 2 && app.render().reflectActive() &&
+                                bgfx::isValid(app.render().reflectTexture());
+            refl.mode = planar ? wr : 1;  // no mirror target -> Light
+            if (planar) {
+                const Vec3 eyeR{eye.x, 2.0f * waterY - eye.y, eye.z};
+                const Vec3 tgtR{target.x, 2.0f * waterY - target.y, target.z};
+                refl.mirror = Mat4::lookAt(eyeR, tgtR, Vec3{0, -1, 0});  // flipped up = mirrored across the plane
+                refl.proj = proj;
+                refl.view = RenderDevice::kReflectView;
+                refl.reflectTex = app.render().reflectTexture();
+                refl.flipY = app.render().reflectFlipY() ? 1 : 0;
+            }
+            // Per-tier strength/ripple. Light is a gentle tint; SSR a touch rougher (half-res + ripple);
+            // Planar the strongest, cleanest mirror.
+            refl.reflectivity = refl.mode == 1 ? 0.32f : refl.mode == 2 ? 0.5f : 0.6f;
+            refl.ripple = refl.mode == 2 ? 0.03f : 0.015f;
+        }
+        renderer_.render(view, proj, time_, eye, fadeTarget, worldFade, refl);
         vp = proj * view;
         haveVp = true;
         // Volumetric light source (#117). S.: on outdoor maps use a POINT light source in view, NOT a

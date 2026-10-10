@@ -31,7 +31,11 @@ public:
     // layout + objects through interior walls; actors are drawn on top by the caller). (#104)
     void render(const Mat4& view, const Mat4& proj, double time = 0.0,
                 const Vec3& camPos = Vec3{0, 0, 0}, const Vec3& playerPos = Vec3{0, 0, 0},
-                float worldFade = 1.0f) const;
+                float worldFade = 1.0f, const ReflectionParams& refl = {}) const;
+
+    // World Y of the water plane (RSW water level in world units), or NaN if the map has no water.
+    // GameScene uses it to build the mirror camera for planar reflections (#water).
+    float waterLevelY() const;
 
     const MapData& data() const { return map_; }
     Vec3 center() const { return center_; }

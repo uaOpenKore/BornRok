@@ -77,12 +77,14 @@ void avgColor(const Image& img, float& ar, float& ag, float& ab) {
     ar = static_cast<float>(r) / n; ag = static_cast<float>(g) / n; ab = static_cast<float>(b) / n;
 }
 
-// Is the texture "grassy" (green-dominant field)? Green must be at least as strong as red (excludes
-// sand/dirt/rock, which are red-dominant: R > G) AND clearly above blue (grass has low blue; grey
-// stone and tan rock have blue close to green). Tuned from prt_fild05 means: grass tex (118,125,54)
-// passes; rock (174,167,150)/stone (221,214,206)/sand (178,154,84) all have R>G or high blue -> out.
+// Is the texture "grassy" (green-dominant field)? Green must lead red (excludes red-dominant sand/
+// dirt/stone) AND clearly exceed the mean of red+blue — i.e. little red/blue beside the green (S.:
+// "уменьшить если много красного/синего"). This rejects greenish-GREY mossy rock, whose red and blue
+// sit much closer to green than real grass does. Grass tiles (118,125,54)/(98,102,41)/(82,87,31) have
+// a green-excess ~30-39; mossy rock ~17; sand/stone are red-dominant.
 bool isGrassy(float ar, float ag, float ab) {
-    return ag > 45.0f && ag >= ar && (ag - ab) > 20.0f;
+    const float greenExcess = ag - (ar + ab) * 0.5f;  // how much green stands out over the red/blue mean
+    return ag > 45.0f && ag >= ar && greenExcess > 28.0f;
 }
 }  // namespace
 
@@ -140,6 +142,11 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
             // actually has water (else the water level is meaningless and would wrongly cull the field).
             if (hasWater && (c.height[0] > wthresh || c.height[1] > wthresh ||
                              c.height[2] > wthresh || c.height[3] > wthresh)) continue;
+            // Steep cell (cliff / rock face) -> no grass: grass fields are near-flat, rock slopes aren't
+            // (S.: трава лезет на камни). Skip when the corner height spread is large (> ~1.2 world units).
+            float hmin = c.height[0], hmax = c.height[0];
+            for (int k = 1; k < 4; ++k) { hmin = std::min(hmin, c.height[k]); hmax = std::max(hmax, c.height[k]); }
+            if (hmax - hmin > 12.0f) continue;
             const u32 tint = texTint[tid];
             for (int k = 0; k < kPerCell; ++k) {
                 const float jx = 0.15f + 0.7f * hash01(x, y, 1 + k * 7);  // keep tufts off the exact cell edge

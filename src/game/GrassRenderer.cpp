@@ -21,7 +21,7 @@ struct GVertex {
 // Grass height is a fraction of this (one world unit ~ one map cell ~ a character's height). The
 // Normals level scales it: x1 = 0.20, x1.5 = 0.30, x2 = 0.40 (S.).
 constexpr float kCharHeight = 1.0f;
-constexpr u32 kMaxClumps = 40000;  // cap the scatter so a huge field can't flood the frame pool
+constexpr u32 kMaxClumps = 120000;  // cap the scatter so a huge field can't flood the frame pool
 
 // Deterministic per-cell jitter in [0,1) (no RNG -> identical every load).
 inline float hash01(u32 a, u32 b, u32 c) {
@@ -62,19 +62,25 @@ bgfx::TextureHandle makeGrassTexture() {
                                  bgfx::copy(px.data(), static_cast<u32>(px.size())));
 }
 
-// Average colour of a decoded texture (sampled sparsely) -> is it "grassy" (green-dominant)?
-bool isGrassy(const Image& img) {
-    if (!img.valid()) return false;
+// Mean colour of a decoded texture (sampled sparsely).
+void avgColor(const Image& img, float& ar, float& ag, float& ab) {
+    ar = ag = ab = 0.0f;
+    if (!img.valid()) return;
     u64 r = 0, g = 0, b = 0, n = 0;
     const usize step = std::max<usize>(1, (static_cast<usize>(img.width) * img.height) / 4096);
     for (usize i = 0; i < static_cast<usize>(img.width) * img.height; i += step) {
         const u8* p = &img.rgba[i * 4];
         r += p[0]; g += p[1]; b += p[2]; ++n;
     }
-    if (n == 0) return false;
-    const float ar = static_cast<float>(r) / n, ag = static_cast<float>(g) / n, ab = static_cast<float>(b) / n;
-    // Green must clearly lead red and blue (fields), and not be near-black. Dirt/stone are r>=g or grey.
-    return ag > 45.0f && ag > ar * 1.08f && ag - ar > 10.0f && ag - ab > 18.0f;
+    if (n == 0) return;
+    ar = static_cast<float>(r) / n; ag = static_cast<float>(g) / n; ab = static_cast<float>(b) / n;
+}
+
+// Is the texture "grassy" (green-dominant field)? Looser than a strict green: green must be at least
+// as strong as red (excludes brown dirt where R>G) and clearly above blue (excludes grey stone and
+// water), and bright enough. Catches RO's muted/yellowish field grass too.
+bool isGrassy(float ar, float ag, float ab) {
+    return ag > 45.0f && ag >= ar * 0.95f && ag > ab + 6.0f;
 }
 }  // namespace
 
@@ -92,31 +98,44 @@ bool GrassRenderer::load(Application& app, const MapData& map) {
         bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false;
     }
 
-    // Which ground textures are grass (green-dominant)?
+    // Which ground textures are grass (green-dominant)? Log the verdict (+ a few mean colours) so a
+    // "no grass" map can be diagnosed without a GPU here.
     std::vector<bool> grassy(map.textures.size(), false);
     u32 grassyTex = 0;
-    for (usize ti = 0; ti < map.textures.size(); ++ti)
-        if (map.textures[ti] && isGrassy(*map.textures[ti])) { grassy[ti] = true; ++grassyTex; }
+    for (usize ti = 0; ti < map.textures.size(); ++ti) {
+        if (!map.textures[ti]) continue;
+        float ar, ag, ab;
+        avgColor(*map.textures[ti], ar, ag, ab);
+        const bool gr = isGrassy(ar, ag, ab);
+        if (gr) { grassy[ti] = true; ++grassyTex; }
+        if (ti < 20)
+            log::info("Grass: tex[{}] avg rgb=({},{},{}) grassy={}", ti,
+                      static_cast<int>(ar), static_cast<int>(ag), static_cast<int>(ab), gr ? 1 : 0);
+    }
+    log::info("GrassRenderer: {}/{} ground textures flagged grassy", grassyTex, map.textures.size());
     if (grassyTex == 0) {  // no grass on this map -> nothing to do (indoor/desert/etc.)
         bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false;
     }
 
-    // One tuft per grass cell (jittered within the cell), up to the cap.
+    // Several tufts per grass cell (jittered within the cell) so a field reads as grass, up to the cap.
+    constexpr int kPerCell = 2;
     for (u32 y = 0; y < H && clumps_.size() < kMaxClumps; ++y) {
         for (u32 x = 0; x < W && clumps_.size() < kMaxClumps; ++x) {
             const GndCube& c = cubes[x + y * W];
             if (c.tileUp < 0 || static_cast<usize>(c.tileUp) >= surfs.size()) continue;
             const int tid = surfs[c.tileUp].textureId;
             if (tid < 0 || static_cast<usize>(tid) >= grassy.size() || !grassy[tid]) continue;
-            const float jx = 0.2f + 0.6f * hash01(x, y, 1);  // keep tufts off the exact cell edge
-            const float jz = 0.2f + 0.6f * hash01(x, y, 2);
-            // Bilinear corner height (same mapping as MapRenderer::heightAt), world Y = -h*0.1.
-            const float top = c.height[0] + (c.height[1] - c.height[0]) * jx;
-            const float bot = c.height[2] + (c.height[3] - c.height[2]) * jx;
-            const float gy = -(top + (bot - top) * jz) * 0.1f;
-            const float wx = static_cast<float>(W) - (static_cast<float>(x) + jx);  // X mirror (world = W - cell)
-            const float wz = static_cast<float>(y) + jz;
-            clumps_.push_back({wx, wz, gy, 0xffffffffu});
+            for (int k = 0; k < kPerCell; ++k) {
+                const float jx = 0.15f + 0.7f * hash01(x, y, 1 + k * 7);  // keep tufts off the exact cell edge
+                const float jz = 0.15f + 0.7f * hash01(x, y, 2 + k * 7);
+                // Bilinear corner height (same mapping as MapRenderer::heightAt), world Y = -h*0.1.
+                const float top = c.height[0] + (c.height[1] - c.height[0]) * jx;
+                const float bot = c.height[2] + (c.height[3] - c.height[2]) * jx;
+                const float gy = -(top + (bot - top) * jz) * 0.1f;
+                const float wx = static_cast<float>(W) - (static_cast<float>(x) + jx);  // X mirror (world = W - cell)
+                const float wz = static_cast<float>(y) + jz;
+                clumps_.push_back({wx, wz, gy, 0xffffffffu});
+            }
         }
     }
     if (clumps_.empty()) { bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false; }

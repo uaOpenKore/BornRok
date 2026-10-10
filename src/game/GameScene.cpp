@@ -13086,11 +13086,10 @@ void GameScene::render(Application& app) {
                 refl.reflectTex = app.render().reflectTexture();
                 refl.flipY = app.render().reflectFlipY() ? 1 : 0;
             }
-            // Per-tier strength/ripple. Light is a gentle tint; SSR a touch rougher (half-res + ripple);
-            // Planar the strongest, cleanest mirror. Reflectivity bumped so the mirror reads clearly over
-            // the water texture; ripple cut to ~20% (S.: "рябь очень сильная, снизим до 20%").
-            refl.reflectivity = refl.mode == 1 ? 0.35f : refl.mode == 2 ? 0.7f : 0.82f;
-            refl.ripple = refl.mode == 2 ? 0.006f : 0.003f;
+            // Per-tier strength. Ripple DISABLED for now + Planar at 100% so S. can verify a flat mirror
+            // first (S.: "отключи рябь совсем, сделай отражение 100%, хочу увидеть плоское зеркало").
+            refl.reflectivity = refl.mode == 1 ? 0.5f : refl.mode == 2 ? 0.85f : 1.0f;
+            refl.ripple = 0.0f;
         }
         renderer_.render(view, proj, time_, eye, fadeTarget, worldFade, refl);
         vp = proj * view;

@@ -390,6 +390,13 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
     // are a follow-up). Opaque, no culling (the mirror flips winding, and the ground never culls
     // anyway). The water shader samples the result (one frame of latency — see kReflectView).
     if (refl.mode >= 2 && bgfx::isValid(refl.reflectTex)) {
+        static bool loggedRefl = false;  // one-shot diagnostic: confirm the mirror pass runs + has content
+        if (!loggedRefl) {
+            loggedRefl = true;
+            log::info("water-reflect pass: mode={} view={} groundBatches={} placements={} reflectTexValid={}",
+                      refl.mode, static_cast<int>(refl.view), map_.ground.batches.size(),
+                      map_.placements.size(), bgfx::isValid(refl.reflectTex) ? 1 : 0);
+        }
         bgfx::setViewTransform(refl.view, refl.mirror.m, refl.proj.m);
         const u64 rstate = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
                            BGFX_STATE_DEPTH_TEST_LESS;

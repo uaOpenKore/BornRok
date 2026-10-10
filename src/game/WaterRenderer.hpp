@@ -25,6 +25,7 @@ struct ReflectionParams {
     float sky[3] = {0.45f, 0.58f, 0.78f};  // sky/ambient reflection colour (Light tier)
     float reflectivity = 0.5f;  // 0 = water only, 1 = full reflection
     float ripple = 0.02f;       // reflection UV distortion amount
+    float alpha = 0.5f;         // water surface opacity for reflective modes (0 = invisible, 1 = opaque)
 };
 
 // Renders a map's animated water surface: one translucent plane at the RSW water

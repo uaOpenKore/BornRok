@@ -221,7 +221,7 @@ void WaterRenderer::render(double time, const ReflectionParams& refl) const {
         const int shaderMode = haveRefl ? refl.mode : (refl.mode == 1 ? 1 : 0);  // drop to Light/Off if no RT
         const float rp[4] = {static_cast<float>(shaderMode), refl.reflectivity,
                              refl.flipY ? 1.0f : 0.0f, refl.ripple};
-        const float sky[4] = {refl.sky[0], refl.sky[1], refl.sky[2], 1.0f};
+        const float sky[4] = {refl.sky[0], refl.sky[1], refl.sky[2], refl.alpha};  // .w = surface opacity
         bgfx::setUniform(reflParams_, rp);
         bgfx::setUniform(sky_, sky);
     } else {

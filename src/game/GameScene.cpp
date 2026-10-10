@@ -13071,22 +13071,22 @@ void GameScene::render(Application& app) {
                                 bgfx::isValid(app.render().reflectTexture());
             refl.mode = planar ? wr : 1;  // no mirror target -> Light
             if (planar) {
-                // Mirror camera: reflect eye+target across the water plane, flip the up vector. This is
-                // the version where reflections were clearly visible (S. asked to return to the pre-
-                // left-right-flip state). May read mirrored horizontally; we refine orientation after
-                // confirming visibility.
-                const Vec3 eyeR{eye.x, 2.0f * waterY - eye.y, eye.z};
-                const Vec3 tgtR{target.x, 2.0f * waterY - target.y, target.z};
-                refl.mirror = Mat4::lookAt(eyeR, tgtR, Vec3{0, -1, 0});
+                // Mirror camera via reflection matrix mirror = view * M (M reflects the world across
+                // the water plane: y' = -y + 2*waterY). This is the horizontal flip of the lookAt-with-
+                // flipped-up version -> fixes the left<->right mirroring (S.: "флип камеры слева направо").
+                Mat4 M = Mat4::identity();
+                M.m[5] = -1.0f;
+                M.m[13] = 2.0f * waterY;
+                refl.mirror = view * M;
                 refl.proj = proj;
                 refl.view = RenderDevice::kReflectView;
                 refl.reflectTex = app.render().reflectTexture();
                 refl.flipY = app.render().reflectFlipY() ? 1 : 0;
             }
-            // Per-tier strength. Ripple DISABLED for now + Planar at 100% so S. can verify a flat mirror
-            // first (S.: "отключи рябь совсем, сделай отражение 100%, хочу увидеть плоское зеркало").
-            refl.reflectivity = refl.mode == 1 ? 0.5f : refl.mode == 2 ? 0.85f : 1.0f;
-            refl.ripple = 0.0f;
+            // S. tuning: reflection 50%, water transparency 50%, ripple ~5% of the original strength.
+            refl.reflectivity = 0.5f;
+            refl.alpha = 0.5f;
+            refl.ripple = refl.mode == 2 ? 0.0015f : 0.00075f;  // ~5% of the initial 0.03/0.015
         }
         renderer_.render(view, proj, time_, eye, fadeTarget, worldFade, refl);
         vp = proj * view;

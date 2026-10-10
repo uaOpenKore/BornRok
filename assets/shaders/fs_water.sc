@@ -29,13 +29,16 @@ void main()
         return;
     }
 
+    // Reflective modes use the surface opacity passed in u_waterSky.w (S. transparency control).
+    float surfA = clamp(u_waterSky.w, 0.0, 1.0);
+
     if (mode == 1) {
         // Light: fold a sky/ambient colour into the surface for a cheap reflective tint. The water
         // texture's own luma gives a subtle animated sheen so it isn't a flat wash.
         float sheen = dot(t.rgb, vec3(0.299, 0.587, 0.114));
         vec3 sky = u_waterSky.rgb * (0.7 + 0.3 * sheen);
         vec3 col = mix(base, sky, clamp(u_waterRefl.y, 0.0, 1.0));
-        gl_FragColor = vec4(col, min(1.0, alpha + 0.15 * u_waterRefl.y));
+        gl_FragColor = vec4(col, surfA);
         return;
     }
 
@@ -48,8 +51,5 @@ void main()
     vec3 refl = texture2D(s_refl, clamp(suv + ripple, vec2(0.0, 0.0), vec2(1.0, 1.0))).rgb;
     // Keep a little of the water's own colour so it still reads as water, not a mirror.
     vec3 col = mix(base, refl, clamp(u_waterRefl.y, 0.0, 1.0));
-    // Fade the water OPAQUE as reflectivity rises, so a strong mirror isn't diluted by the terrain
-    // showing THROUGH the translucent surface (at 100% you see only the reflection, not the lakebed).
-    float a = mix(alpha, 1.0, clamp(u_waterRefl.y, 0.0, 1.0));
-    gl_FragColor = vec4(col, a);
+    gl_FragColor = vec4(col, surfA);
 }

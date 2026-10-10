@@ -13071,16 +13071,13 @@ void GameScene::render(Application& app) {
                                 bgfx::isValid(app.render().reflectTexture());
             refl.mode = planar ? wr : 1;  // no mirror target -> Light
             if (planar) {
-                // Reflect the WORLD across the water plane (y = waterY) with a reflection matrix, then
-                // view it with the UNCHANGED main camera: mirror = view * M. This keeps the image's
-                // left-right orientation correct (building a lookAt with a flipped up vector instead
-                // mirrored the reflection horizontally — S.: "лево-право наоборот"). M only flips Y and
-                // offsets by 2*waterY; its determinant is negative so winding reverses, but the ground
-                // never culls so that's fine. Sampled by the water fragment's own screen UV — no flip.
-                Mat4 M = Mat4::identity();
-                M.m[5] = -1.0f;            // y' = -y ...
-                M.m[13] = 2.0f * waterY;   // ... + 2*waterY
-                refl.mirror = view * M;
+                // Mirror camera: reflect eye+target across the water plane, flip the up vector. This is
+                // the version where reflections were clearly visible (S. asked to return to the pre-
+                // left-right-flip state). May read mirrored horizontally; we refine orientation after
+                // confirming visibility.
+                const Vec3 eyeR{eye.x, 2.0f * waterY - eye.y, eye.z};
+                const Vec3 tgtR{target.x, 2.0f * waterY - target.y, target.z};
+                refl.mirror = Mat4::lookAt(eyeR, tgtR, Vec3{0, -1, 0});
                 refl.proj = proj;
                 refl.view = RenderDevice::kReflectView;
                 refl.reflectTex = app.render().reflectTexture();

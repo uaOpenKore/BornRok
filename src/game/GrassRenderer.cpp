@@ -51,10 +51,10 @@ bgfx::TextureHandle makeGrassTexture() {
             u8* o = &px[(static_cast<usize>(y) * W + x) * 4];
             if (topH < 1.0f || yb > topH) { o[3] = 0; continue; }  // gap / above the blade tip
             const float t = std::clamp(yb / std::max(topH, 1.0f), 0.0f, 1.0f);  // 0 base -> 1 tip
-            // GRAYSCALE luminance gradient (darker at the base, bright at the tip). The actual colour
-            // comes from the per-tuft tint (the cell's mean ground colour), so grass matches the terrain
-            // (S.: "цвет кустика ... по среднему цвету тайла").
-            const u8 lum = static_cast<u8>(135 + (255 - 135) * t);
+            // Near-FULL grayscale (slight shade at the base, full at the tip) so after the per-tuft tint
+            // (the tile's exact mean colour) the grass FILL tone matches the tile average, with just a
+            // touch of blade shading (S.: "тон заливки ... среднему значению всех пикселей текстуры").
+            const u8 lum = static_cast<u8>(215 + (255 - 215) * t);
             o[0] = lum; o[1] = lum; o[2] = lum; o[3] = 255;
         }
     }
@@ -64,15 +64,16 @@ bgfx::TextureHandle makeGrassTexture() {
                                  bgfx::copy(px.data(), static_cast<u32>(px.size())));
 }
 
-// Mean colour of a decoded texture (sampled sparsely).
+// Mean colour over ALL pixels of a decoded texture (S.: the grass tone must equal the tile's average
+// of every pixel). Cheap — run once per ground texture at load.
 void avgColor(const Image& img, float& ar, float& ag, float& ab) {
     ar = ag = ab = 0.0f;
     if (!img.valid()) return;
-    u64 r = 0, g = 0, b = 0, n = 0;
-    const usize step = std::max<usize>(1, (static_cast<usize>(img.width) * img.height) / 4096);
-    for (usize i = 0; i < static_cast<usize>(img.width) * img.height; i += step) {
+    u64 r = 0, g = 0, b = 0;
+    const usize n = static_cast<usize>(img.width) * img.height;
+    for (usize i = 0; i < n; ++i) {
         const u8* p = &img.rgba[i * 4];
-        r += p[0]; g += p[1]; b += p[2]; ++n;
+        r += p[0]; g += p[1]; b += p[2];
     }
     if (n == 0) return;
     ar = static_cast<float>(r) / n; ag = static_cast<float>(g) / n; ab = static_cast<float>(b) / n;
@@ -112,8 +113,8 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
         if (!map.textures[ti]) continue;
         float ar, ag, ab;
         avgColor(*map.textures[ti], ar, ag, ab);
-        // Tint = the tile's mean colour, slightly brightened so the (grayscale) blades read as grass.
-        const auto ch = [](float v) { return static_cast<u32>(std::clamp(v * 1.25f, 0.0f, 255.0f)); };
+        // Tint = the tile's EXACT mean colour (S.: match the average of all pixels, no brightening).
+        const auto ch = [](float v) { return static_cast<u32>(std::clamp(v, 0.0f, 255.0f)); };
         texTint[ti] = ch(ar) | (ch(ag) << 8) | (ch(ab) << 16) | 0xff000000u;  // R | G<<8 | B<<16 | A<<24
         const bool gr = isGrassy(ar, ag, ab);
         if (gr) { grassy[ti] = true; ++grassyTex; }

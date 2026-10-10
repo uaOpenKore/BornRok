@@ -397,34 +397,12 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
                       refl.mode, static_cast<int>(refl.view), map_.ground.batches.size(),
                       map_.placements.size(), bgfx::isValid(refl.reflectTex) ? 1 : 0);
         }
-        bgfx::setViewTransform(refl.view, refl.mirror.m, refl.proj.m);
-        const u64 rstate = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
-                           BGFX_STATE_DEPTH_TEST_LESS;
-        const float one[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-        const float noNrm[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // no relief in the reflection (keep it cheap)
-        for (const auto& b : map_.ground.batches) {
-            bgfx::TextureHandle tex = white_;
-            if (b.textureId >= 0 && static_cast<usize>(b.textureId) < textures_.size() &&
-                bgfx::isValid(textures_[b.textureId]))
-                tex = textures_[b.textureId];
-            const u32 wFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP |
-                               (g_worldFilterMode == 0 ? BGFX_SAMPLER_POINT : 0u);
-            bgfx::setVertexBuffer(0, vbh_);
-            bgfx::setIndexBuffer(ibh_, b.indexStart, b.indexCount);
-            bgfx::setTexture(0, sampler_, tex, wFlags);
-            bgfx::setTexture(1, lightmapSampler_, lightmap_);
-            bgfx::setTexture(2, nrmSampler_, flatNrm_, wFlags);
-            bgfx::setUniform(mapDim_, mapDim);
-            bgfx::setUniform(ambient_, amb);
-            bgfx::setUniform(diffuse_, dif);
-            bgfx::setUniform(fade_, one);
-            bgfx::setUniform(nrmParams_, noNrm);
-            bgfx::setUniform(lightDir_, ldir);
-            bgfx::setState(rstate);
-            bgfx::submit(refl.view, program_);
-        }
-        // Reflect the RSM objects too (trees/buildings near water sell the effect — S.: "добавь
-        // отражение объектов"). Same mirror camera + reflection view.
+        // Reflect only the SKY (the reflection FB's clear colour) + the RSM objects — NOT the ground.
+        // Reflecting the terrain made the water look like it just showed the lakebed beneath it (ground
+        // near the water mirrors almost onto itself, so it read as a see-through, not a reflection —
+        // S.: "отражение = тому что под самой водой"). Leaving the ground out means the water mirrors
+        // the sky and the upside-down trees/buildings above it — a real, camera-angle-dependent
+        // reflection of what's ABOVE the water (S.: "должна отражать то что над водой / объекты от угла камеры").
         models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time);
     }
 

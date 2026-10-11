@@ -128,6 +128,7 @@ int Application::run(const AppConfig& cfg) {
     godrayMode_ = 0;
     if (waterReflect_ < 0) waterReflect_ = 0;  // Android default: reflections off (S.: off on mobile/Switch)
     if (grassEnabled_ < 0) grassEnabled_ = 0;  // Android default: grass off (S.)
+    if (lod_ < 0) lod_ = 60;  // Android default: LOD radius 60 (S.: LOD for Switch/Android)
 #else
     render_.setHdr(hdr_);      // apply the saved HDR toggle (#111)
     hdr_ = render_.hdr();      // reconcile: a saved "on" is dropped if the GPU can't render RGBA16F
@@ -152,6 +153,9 @@ int Application::run(const AppConfig& cfg) {
     if (grassEnabled_ < 0) grassEnabled_ = render_.isSoftwareRenderer() ? 0 : 1;
     g_grassEnabled = grassEnabled_ != 0;
     g_grassHeightFrac = (normalsMode_ < 1.0f ? 1.0f : normalsMode_) * 0.20f;
+    // LOD (#lod): default Off on desktop (draw everything); a saved value wins. Apply the radius.
+    if (lod_ < 0) lod_ = 0;
+    g_lodRadius = static_cast<float>(lod_);
 
     // Pick the starting scene:
     //  - an explicit map name on the CLI -> offline map viewer (dev path);
@@ -500,6 +504,10 @@ void Application::loadConfig() {
             else if (key == "waterreflect")  // water reflections: 0 off / 1 light / 2 ssr / 3 planar (#water)
                 waterReflect_ = std::clamp(static_cast<int>(v + 0.5f), 0, 3);
             else if (key == "grass") grassEnabled_ = (v != 0.0f) ? 1 : 0;  // ground grass on/off (#grass)
+            else if (key == "lod") {  // object draw-radius LOD: 0 off / 25 / 40 / 60 / 80 (#lod)
+                const int lv = static_cast<int>(v + 0.5f);
+                lod_ = (lv >= 70) ? 80 : (lv >= 50) ? 60 : (lv >= 32) ? 40 : (lv >= 12) ? 25 : 0;
+            }
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
             else if (key == "uiscaleauto") uiScaleAuto_ = (v != 0.0f);
             else if (key == "padinvlx") padInvertLX_ = (v != 0.0f);  // stick-axis inversion (#102/#115)
@@ -653,6 +661,7 @@ void Application::saveConfig() const {
     if (normalsMode_ >= 0.0f) out << "normals " << normalsMode_ << "\n";  // -1 = auto (unsaved)
     if (waterReflect_ >= 0) out << "waterreflect " << waterReflect_ << "\n";  // -1 = auto (unsaved) (#water)
     if (grassEnabled_ >= 0) out << "grass " << grassEnabled_ << "\n";          // -1 = auto (unsaved) (#grass)
+    if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -734,6 +743,13 @@ void Application::setWaterReflect(int mode) {
 void Application::setGrassEnabled(bool on) {
     grassEnabled_ = on ? 1 : 0;
     g_grassEnabled = on;
+    saveConfig();
+}
+
+void Application::setLod(int radius) {
+    // Snap to the allowed steps: 0 (off) / 25 / 40 / 60 / 80.
+    lod_ = (radius >= 70) ? 80 : (radius >= 50) ? 60 : (radius >= 32) ? 40 : (radius >= 12) ? 25 : 0;
+    g_lodRadius = static_cast<float>(lod_);
     saveConfig();
 }
 

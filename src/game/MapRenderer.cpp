@@ -390,7 +390,7 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
     }
 
     models_.render(map_, camPos, playerPos, time, worldFade);  // RSM objects (faded too in x-ray; time spins animated nodes)
-    grass_.render(time);   // ground-grass billboards (#grass); gated on g_grassEnabled, height from Normals level
+    grass_.render(time, playerPos.x, playerPos.z);  // ground-grass (#grass); LOD-radius culled around the player (#lod)
 
     // Planar water reflection pass (#water): re-render the terrain from the mirror camera into the
     // reflection view (its FB was bound in RenderDevice::beginFrame). Ground only for now (RSM models

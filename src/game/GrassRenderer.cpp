@@ -1,6 +1,7 @@
 #include "game/GrassRenderer.hpp"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -24,6 +25,10 @@ struct GVertex {
 constexpr float kHeightBase = 2.0f / 1.5f * 0.7f;  // ~0.933 (2.0 base, -1.5x, then -30% height)
 constexpr float kWidthBase = 0.9f;          // unchanged half-width (= old 0.45 * 2.0)
 constexpr u32 kMaxClumps = 500000;  // cap the scatter so a huge field can't flood the frame pool
+constexpr float kChunkSize = 16.0f;  // grass spatial chunk = 16x16 world units, for LOD-radius culling
+inline int grassChunkId(float x, float z) {
+    return static_cast<int>(z / kChunkSize) * 100000 + static_cast<int>(x / kChunkSize);  // x,z >= 0
+}
 
 // Deterministic per-cell jitter in [0,1) (no RNG -> identical every load).
 inline float hash01(u32 a, u32 b, u32 c) {
@@ -195,6 +200,11 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     }
     if (clumps_.empty()) { bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false; }
 
+    // Group tufts into spatial chunks so render() can draw only the chunks within the LOD radius (#lod).
+    std::stable_sort(clumps_.begin(), clumps_.end(), [](const Clump& a, const Clump& b) {
+        return grassChunkId(a.x, a.z) < grassChunkId(b.x, b.z);
+    });
+
     grassTex_ = makeGrassAtlas();  // 5 tuft variants side by side (UV picks one per clump)
     sampler_ = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
     fade_ = bgfx::createUniform("u_spriteFade", bgfx::UniformType::Vec4);
@@ -215,8 +225,34 @@ void GrassRenderer::buildMesh(float heightFrac) {
     std::vector<u32> idx;
     verts.reserve(clumps_.size() * 8);
     idx.reserve(clumps_.size() * 12);
+    chunks_.clear();
+    const float tuftReach = hw + h + 0.5f;  // pad the chunk circle by a tuft's size so edge tufts aren't culled
+    int curChunk = INT_MIN;
+    u32 chunkIdxStart = 0;
+    float cMinX = 0, cMaxX = 0, cMinZ = 0, cMaxZ = 0;
+    auto closeChunk = [&](u32 idxEnd) {
+        if (curChunk == INT_MIN || idxEnd == chunkIdxStart) return;
+        Chunk ch;
+        ch.cx = (cMinX + cMaxX) * 0.5f;
+        ch.cz = (cMinZ + cMaxZ) * 0.5f;
+        const float ex = (cMaxX - cMinX) * 0.5f, ez = (cMaxZ - cMinZ) * 0.5f;
+        ch.radius = std::sqrt(ex * ex + ez * ez) + tuftReach;
+        ch.idxStart = chunkIdxStart;
+        ch.idxCount = idxEnd - chunkIdxStart;
+        chunks_.push_back(ch);
+    };
+
     const float uStep = 1.0f / static_cast<float>(kNumModels);
     for (const Clump& c : clumps_) {
+        const int cid = grassChunkId(c.x, c.z);
+        if (cid != curChunk) {
+            closeChunk(static_cast<u32>(idx.size()));
+            curChunk = cid;
+            chunkIdxStart = static_cast<u32>(idx.size());
+            cMinX = cMaxX = c.x; cMinZ = cMaxZ = c.z;
+        }
+        cMinX = std::min(cMinX, c.x); cMaxX = std::max(cMaxX, c.x);
+        cMinZ = std::min(cMinZ, c.z); cMaxZ = std::max(cMaxZ, c.z);
         const float by = c.groundY, ty = c.groundY + h;
         const u32 col = c.abgr;
         const float u0 = static_cast<float>(c.model) * uStep, u1 = u0 + uStep;  // this clump's atlas cell
@@ -237,6 +273,7 @@ void GrassRenderer::buildMesh(float heightFrac) {
         idx.push_back(base + 0); idx.push_back(base + 1); idx.push_back(base + 2);
         idx.push_back(base + 0); idx.push_back(base + 2); idx.push_back(base + 3);
     }
+    closeChunk(static_cast<u32>(idx.size()));  // finalise the last chunk
     if (bgfx::isValid(vbh_)) { bgfx::destroy(vbh_); vbh_ = BGFX_INVALID_HANDLE; }
     if (bgfx::isValid(ibh_)) { bgfx::destroy(ibh_); ibh_ = BGFX_INVALID_HANDLE; }
     bgfx::VertexLayout layout;
@@ -268,7 +305,7 @@ void GrassRenderer::destroy() {
     ready_ = false;
 }
 
-void GrassRenderer::render(double /*time*/) {
+void GrassRenderer::render(double /*time*/, float playerX, float playerZ) {
     if (!ready_ || !g_grassEnabled) return;
     if (g_grassHeightFrac != builtHeight_) buildMesh(g_grassHeightFrac);
     if (quadCount_ == 0 || !bgfx::isValid(vbh_)) return;
@@ -281,13 +318,28 @@ void GrassRenderer::render(double /*time*/) {
     // Alpha-cutout foliage: opaque where the blade is (fs_sprite3d discards a<0.5), writes depth so it
     // occludes / is occluded correctly. No blending.
     const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS;
-    bgfx::setVertexBuffer(0, vbh_);
-    bgfx::setIndexBuffer(ibh_);
-    bgfx::setTexture(0, sampler_, grassTex_);
-    bgfx::setUniform(fade_, fade);
-    bgfx::setUniform(bias_, bias);
-    bgfx::setState(state);
-    bgfx::submit(0, program_);
+    const float lodR = g_lodRadius;  // #lod: grass also honours the LOD radius (S.)
+
+    auto submitRange = [&](u32 start, u32 count) {
+        bgfx::setVertexBuffer(0, vbh_);
+        bgfx::setIndexBuffer(ibh_, start, count);
+        bgfx::setTexture(0, sampler_, grassTex_);
+        bgfx::setUniform(fade_, fade);
+        bgfx::setUniform(bias_, bias);
+        bgfx::setState(state);
+        bgfx::submit(0, program_);
+    };
+
+    if (lodR <= 0.5f || chunks_.empty()) {
+        submitRange(0, quadCount_ * 6u);  // LOD off: draw the whole grass mesh in one call (2 quads*6 idx per tuft)
+        return;
+    }
+    // LOD on: draw only chunks whose bounding circle is within the radius of the player.
+    for (const Chunk& ch : chunks_) {
+        const float dx = ch.cx - playerX, dz = ch.cz - playerZ;
+        if (std::sqrt(dx * dx + dz * dz) - ch.radius > lodR) continue;
+        submitRange(ch.idxStart, ch.idxCount);
+    }
 }
 
 } // namespace uaro

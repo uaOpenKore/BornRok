@@ -118,17 +118,18 @@ int Application::run(const AppConfig& cfg) {
     setJobSpriteResolver([this](u16 classId) { return grfData_.jobSpriteName(classId); });
     audio_.init();  // open the audio device (#103); silent no-op if built without audio
     loadConfig();   // apply saved sound volumes (settings/game.cfg) before any scene plays BGM (#104)
-#if defined(__ANDROID__)
-    // Post-processing (HDR/FSR/grade/god-rays/volumetric light) is FORCED OFF on Android: budget mobile
-    // GLES drivers (Mali/Adreno) are fragile on the offscreen RGBA16F/D24S8 render targets these passes
-    // create -> broken render or a null-deref crash in bgfx GL submit. The plain backbuffer path is used.
-    // The settings rows are hidden on Android too. (S.: mobile-GPU render-glitch audit)
+#if defined(__ANDROID__) || defined(CLIENT_NX)
+    // Post-processing (HDR/FSR/grade/god-rays/volumetric light) is FORCED OFF on Android AND Nintendo
+    // Switch: budget mobile GLES drivers (Mali/Adreno) are fragile on the offscreen RGBA16F/D24S8 render
+    // targets these passes create -> broken render or a null-deref crash in bgfx GL submit; the Switch
+    // backend is likewise light. The plain backbuffer path is used; the settings rows are hidden too.
+    // (S.: mobile-GPU render-glitch audit; LOD for Switch/Android)
     hdr_ = false;
     fsr_ = 1.0f;
     godrayMode_ = 0;
-    if (waterReflect_ < 0) waterReflect_ = 0;  // Android default: reflections off (S.: off on mobile/Switch)
-    if (grassEnabled_ < 0) grassEnabled_ = 0;  // Android default: grass off (S.)
-    if (lod_ < 0) lod_ = 60;  // Android default: LOD radius 60 (S.: LOD for Switch/Android)
+    if (waterReflect_ < 0) waterReflect_ = 0;  // mobile/Switch default: reflections off (S.)
+    if (grassEnabled_ < 0) grassEnabled_ = 0;  // mobile/Switch default: grass off (S.)
+    if (lod_ < 0) lod_ = 25;  // mobile/Switch default: LOD radius 25 (S.: 25 not 60)
 #else
     render_.setHdr(hdr_);      // apply the saved HDR toggle (#111)
     hdr_ = render_.hdr();      // reconcile: a saved "on" is dropped if the GPU can't render RGBA16F

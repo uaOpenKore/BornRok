@@ -23,4 +23,10 @@ inline float g_normalsFactor = 0.75f;
 inline bool g_grassEnabled = true;
 inline float g_grassHeightFrac = 0.20f;  // 0.20 / 0.30 / 0.40
 
+// LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
+// world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear
+// 180° (behind the player relative to the camera's view direction) are also skipped. Read by
+// ModelRenderer each frame.
+inline float g_lodRadius = 0.0f;  // 0 off / 25 / 40 / 60 / 80
+
 }  // namespace uaro

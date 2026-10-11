@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 8 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 9 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + LOD
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -567,6 +567,16 @@ public:
                 ui::button(sb, font, uin, cx + cw - 90.0f, gsy - 4.0f, 90.0f, 26.0f,
                            app.grassEnabled() ? "On" : "Off", 1.2f))
                 app.setGrassEnabled(!app.grassEnabled());
+            // LOD (#lod, Switch/Android perf): Off / 25 / 40 / 60 / 80 draw radius. Cycles on click.
+            const float ly = gsy + 34.0f;
+            const int lv = app.lod();
+            const char* ll = lv == 80 ? "80" : lv == 60 ? "60" : lv == 40 ? "40" : lv == 25 ? "25" : "Off";
+            font.draw(sb, cx, ly, 1.1f, ui::color::kWinText, "LOD");
+            if (selOpen_ < 0 &&
+                ui::button(sb, font, uin, cx + cw - 90.0f, ly - 4.0f, 90.0f, 26.0f, ll, 1.2f)) {
+                const int nl = lv == 0 ? 25 : lv == 25 ? 40 : lv == 40 ? 60 : lv == 60 ? 80 : 0;
+                app.setLod(nl);
+            }
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

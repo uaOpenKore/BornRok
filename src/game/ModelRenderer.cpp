@@ -500,6 +500,13 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
     const f32 abx = playerPos.x - tcamX, abz = playerPos.z - tcamZ;
     const f32 abXZ2 = abx * abx + abz * abz;
 
+    // LOD (#lod, Switch/Android perf): when g_lodRadius > 0 draw only objects within that radius of the
+    // player (in every direction — S. decided to KEEP objects behind the char). Radius is in world
+    // units == map cells (1 cell = 1 unit).
+    const f32 lodR = g_lodRadius;
+    const bool lodOn = lodR > 0.5f;
+    const f32 lodR2 = lodR * lodR;
+
     for (const auto& [obj, mi] : map.placements) {
         if (mi < 0 || static_cast<usize>(mi) >= models_.size()) continue;
         const Model& M = models_[mi];
@@ -515,6 +522,12 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
             Mat4::rotationY(radians(obj.rot[1])) *
             Mat4::scaling({obj.scale[0], obj.scale[1], obj.scale[2]}) *
             Mat4::scaling({0.1f, -0.1f, 0.1f});
+
+        // LOD cull: skip objects outside the radius (all directions).
+        if (lodOn) {
+            const f32 ox = place.m[12] - playerPos.x, oz = place.m[14] - playerPos.z;
+            if (ox * ox + oz * oz > lodR2) continue;
+        }
 
         // Occlusion test in the XZ plane: project the placement footprint (origin x/z) onto the
         // flattened cam->player line. Occludes when t in (0.05..1.0) (between the camera and the

@@ -4375,12 +4375,14 @@ void GameScene::pumpStream(Application& app) {
                     // distance: some magic mobs also strike from afar and must NOT show an arrow, while
                     // some ranged-phys plants/insects sit only 1 cell away. This whitelist = real bow
                     // users (Archer Skeleton, Orc/Kobold/Raydric/Goblin Archer, Gargoyle, Archer/Bow
-                    // Guardian, Sniper/Ranger Cecil) + ranged-phys plants/insects whose basic attack is a
-                    // flying projectile (Mandragora, Flora, Parasite, Anolian). Derived from mob_db + the
-                    // list S. supplied; extend by adding class ids here. (S. #138)
+                    // Guardian, Sniper/Ranger Cecil). NOTE: plant mobs are NOT here — their basic attack is
+                    // their OWN sprite animation (tongue/root lash etc.), not a flying arrow, so drawing
+                    // skel_archer_arrow on top was wrong (S. 2026-10-23). Excluded: Mandragora (1020),
+                    // Flora (1118/1575), Anolian (1206/1488), Parasite (1500/1555). Derived from mob_db +
+                    // the list S. supplied; extend by adding class ids here. (S. #138)
                     static const std::unordered_set<u16> kArrowMobs = {
-                        1016, 1020, 1118, 1189, 1206, 1253, 1258, 1276, 1282, 1285, 1420, 1453,
-                        1455, 1473, 1488, 1500, 1555, 1575, 1577, 1589, 1597, 1644, 1650, 1803,
+                        1016, 1189, 1253, 1258, 1276, 1282, 1285, 1420, 1453,
+                        1455, 1473, 1577, 1589, 1597, 1644, 1650, 1803,
                         1809, 1830, 1859, 1900, 1982, 2042, 2183, 2287, 2469, 2720, 2765, 2784,
                         2826, 2827, 2899, 3003, 3197, 3435, 3445,
                     };

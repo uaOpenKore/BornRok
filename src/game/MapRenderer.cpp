@@ -9,11 +9,37 @@
 #include "formats/ImageIO.hpp"
 #include "render/SamplerFilter.hpp"
 #include "render/Shader.hpp"
+#include "render/Xbr.hpp"
 #include "world/MapLoader.hpp"
 
 namespace uaro {
 
 namespace {
+// xBR 4x upscale of a ground texture (#xbr), in place. Ground UVs are normalised [0,1] per tile, so an
+// upscaled tile needs no logical bookkeeping -- just denser pixels. No-op when the toggle is off.
+void xbrUpscaleImage(Image& img) {
+    if (!g_xbrUpscale || !img.valid()) return;
+    const int w = static_cast<int>(img.width), h = static_cast<int>(img.height);
+    if (static_cast<usize>(w) * static_cast<usize>(h) * 4u != img.rgba.size()) return;
+    std::vector<uint32_t> argb(static_cast<usize>(w) * static_cast<usize>(h));
+    for (usize i = 0; i < argb.size(); ++i) {
+        const u8* p = &img.rgba[i * 4];
+        argb[i] = (uint32_t(p[3]) << 24) | (uint32_t(p[0]) << 16) | (uint32_t(p[1]) << 8) | uint32_t(p[2]);
+    }
+    std::vector<uint32_t> up = xbr::scale4(argb.data(), w, h);
+    if (up.empty()) return;
+    img.width = static_cast<u32>(w * 4);
+    img.height = static_cast<u32>(h * 4);
+    img.rgba.resize(static_cast<usize>(img.width) * static_cast<usize>(img.height) * 4u);
+    for (usize i = 0; i < up.size(); ++i) {
+        const uint32_t c = up[i];
+        u8* p = &img.rgba[i * 4];
+        p[0] = u8((c >> 16) & 255);
+        p[1] = u8((c >> 8) & 255);
+        p[2] = u8(c & 255);
+        p[3] = u8((c >> 24) & 255);
+    }
+}
 // Build a tightly-packed RGBA mip chain (2x2 box filter) so ground textures can
 // use mipmaps + anisotropic filtering — removes the shimmer/moire at distance.
 std::vector<u8> buildMipChain(const Image& img) {
@@ -93,6 +119,7 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
             // soft edges over magenta doesn't leave a pink halo (shared with the model path).
             Image keyed = *img;
             keyAndDespillMagenta(keyed);
+            xbrUpscaleImage(keyed);  // #xbr: optional 4x pixel-art upscale (normalised UVs -> safe)
             const std::vector<u8> chain = buildMipChain(keyed);
             textures_.push_back(bgfx::createTexture2D(
                 static_cast<u16>(keyed.width), static_cast<u16>(keyed.height), true, 1,

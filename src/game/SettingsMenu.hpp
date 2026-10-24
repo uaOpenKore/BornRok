@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 17 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Water Ripples
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 18 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Water Ripples + xBR
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -626,6 +626,12 @@ public:
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wry2 - 4.0f, 90.0f, 26.0f,
                                            app.waterRipples() ? "On" : "Off", 1.2f))
                 app.setWaterRipples(!app.waterRipples());
+            // xBR 4x texture upscale (#xbr): sharper sprites/ground. Default OFF (heavy ~16x memory).
+            const float xby = wry2 + 34.0f;
+            font.draw(sb, cx, xby, 1.1f, ui::color::kWinText, "xBR Textures");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, xby - 4.0f, 90.0f, 26.0f,
+                                           app.xbrUpscale() ? "On" : "Off", 1.2f))
+                app.setXbrUpscale(!app.xbrUpscale());
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

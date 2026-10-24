@@ -366,6 +366,7 @@ add_library(client_render STATIC
   render/RenderDevice.cpp
   render/SpriteBatch.cpp
   render/EmbeddedShaders.cpp
+  render/Xbr.cpp
 )
 target_include_directories(client_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # bgfx is PUBLIC: render's public headers (SpriteBatch.hpp/Texture.hpp) expose

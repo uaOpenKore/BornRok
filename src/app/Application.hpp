@@ -133,6 +133,10 @@ public:
     // Animated water surface ripple (Settings -> Video -> Water Ripples, #waterripples). Default on.
     bool waterRipples() const { return waterRipples_ != 0; }
     void setWaterRipples(bool on);
+    // xBR 4x texture upscale (Settings -> Video -> xBR Textures, #xbr). Default OFF (heavy: ~16x texture
+    // memory/decode). Applies as caches refill (map / appearance re-load).
+    bool xbrUpscale() const { return xbr_ != 0; }
+    void setXbrUpscale(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
     // Off on desktop). For Switch/Android perf.
@@ -310,6 +314,7 @@ private:
     int fxSmoke_ = 1;                            // ambient chimney smoke on/off; default on
     int fxSparkle_ = 1;                          // ambient sparkle on/off; default on
     int waterRipples_ = 1;                       // animated water ripple on/off; default on (#waterripples)
+    int xbr_ = 0;                                // xBR 4x texture upscale: 0 off / 1 on; default OFF (#xbr)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)

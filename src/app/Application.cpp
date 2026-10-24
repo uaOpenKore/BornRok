@@ -164,6 +164,7 @@ int Application::run(const AppConfig& cfg) {
     g_fxSmoke = fxSmoke_ != 0;
     g_fxSparkle = fxSparkle_ != 0;
     g_waterRipples = waterRipples_ != 0;  // animated water ripple (#waterripples): default on
+    g_xbrUpscale = xbr_ != 0;             // xBR 4x texture upscale (#xbr): default off (heavy)
     // LOD (#lod): default Off on desktop (draw everything); a saved value wins. Apply the radius.
     if (lod_ < 0) lod_ = 0;
     g_lodRadius = static_cast<float>(lod_);
@@ -523,6 +524,7 @@ void Application::loadConfig() {
             else if (key == "fxsmoke") fxSmoke_ = (v != 0.0f) ? 1 : 0;          // ambient: chimney smoke
             else if (key == "fxsparkle") fxSparkle_ = (v != 0.0f) ? 1 : 0;      // ambient: sparkle glints
             else if (key == "waterripples") waterRipples_ = (v != 0.0f) ? 1 : 0;  // animated water ripple (#waterripples)
+            else if (key == "xbrupscale") xbr_ = (v != 0.0f) ? 1 : 0;  // xBR 4x texture upscale (#xbr), default off
             else if (key == "lod") {  // object draw-radius LOD: 0 off / 25 / 40 / 60 / 80 (#lod)
                 const int lv = static_cast<int>(v + 0.5f);
                 lod_ = (lv >= 70) ? 80 : (lv >= 50) ? 60 : (lv >= 32) ? 40 : (lv >= 12) ? 25 : 0;
@@ -688,6 +690,7 @@ void Application::saveConfig() const {
     out << "fxsmoke " << fxSmoke_ << "\n";
     out << "fxsparkle " << fxSparkle_ << "\n";
     out << "waterripples " << waterRipples_ << "\n";
+    out << "xbrupscale " << xbr_ << "\n";
     if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
@@ -796,6 +799,13 @@ void Application::setFxFireflies(bool on) { fxFireflies_ = on ? 1 : 0; g_fxFiref
 void Application::setFxSmoke(bool on) { fxSmoke_ = on ? 1 : 0; g_fxSmoke = on; saveConfig(); }
 void Application::setFxSparkle(bool on) { fxSparkle_ = on ? 1 : 0; g_fxSparkle = on; saveConfig(); }
 void Application::setWaterRipples(bool on) { waterRipples_ = on ? 1 : 0; g_waterRipples = on; saveConfig(); }
+void Application::setXbrUpscale(bool on) {
+    // xBR (#xbr): textures are cached post-upscale, so the change shows as caches refill (re-entering a
+    // map re-decodes the ground; a new appearance re-uploads sprite frames). Cheap to flip the flag.
+    xbr_ = on ? 1 : 0;
+    g_xbrUpscale = on;
+    saveConfig();
+}
 
 void Application::setLod(int radius) {
     // Snap to the allowed steps: 0 (off) / 25 / 40 / 60 / 80.

@@ -44,6 +44,12 @@ inline bool g_fxSparkle = true;    // white sparkle glints (map emitter id 165)
 // water shimmers; applies in all reflection modes. Default on; off is byte-identical to the classic look.
 inline bool g_waterRipples = true;
 
+// xBR 4x texture upscale (#xbr, Settings -> Video). Sharpens sprite frames and ground tiles with the xBR
+// pixel-art scaler at load. Default OFF (unlike the other effects): it multiplies texture memory and
+// decode cost ~16x, which can stutter or exhaust VRAM on weaker GPUs, so it is opt-in. Read where a
+// just-decoded frame/tile is uploaded; a change applies as caches refill (on map / appearance re-load).
+inline bool g_xbrUpscale = false;
+
 // LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
 // world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear
 // 180° (behind the player relative to the camera's view direction) are also skipped. Read by

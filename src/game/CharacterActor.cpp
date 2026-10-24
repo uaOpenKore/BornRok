@@ -15,6 +15,7 @@
 #include "game/AccessorySprites.hpp"
 #include "render/SamplerFilter.hpp"
 #include "render/SpriteBatch.hpp"
+#include "render/Xbr.hpp"
 #include "resource/Vfs.hpp"
 #include "world/SpriteComposer.hpp"
 
@@ -1064,6 +1065,33 @@ void CharacterActor::clearActorCache() {
     }
 }
 
+// xBR 4x upscale of a just-decoded RGBA8 frame (#xbr), in place: converts to the 0xAARRGGBB the scaler
+// wants, runs it, writes the 4x result back and reports the new pixel size. The caller keeps the frame's
+// LOGICAL size (SprFrame.width/height / the override dims) for geometry, so only the texture gets denser
+// -- the same trick as the PNG override and the hi-res map textures. No-op when the toggle is off.
+static void xbrUpscaleFrame(std::vector<u8>& rgba, int& w, int& h) {
+    if (!g_xbrUpscale || w <= 0 || h <= 0) return;
+    if (static_cast<usize>(w) * static_cast<usize>(h) * 4u != rgba.size()) return;  // unexpected: skip
+    std::vector<uint32_t> argb(static_cast<usize>(w) * static_cast<usize>(h));
+    for (usize i = 0; i < argb.size(); ++i) {
+        const u8* p = &rgba[i * 4];
+        argb[i] = (uint32_t(p[3]) << 24) | (uint32_t(p[0]) << 16) | (uint32_t(p[1]) << 8) | uint32_t(p[2]);
+    }
+    std::vector<uint32_t> up = xbr::scale4(argb.data(), w, h);
+    if (up.empty()) return;
+    w *= 4;
+    h *= 4;
+    rgba.resize(static_cast<usize>(w) * static_cast<usize>(h) * 4u);
+    for (usize i = 0; i < up.size(); ++i) {
+        const uint32_t c = up[i];
+        u8* p = &rgba[i * 4];
+        p[0] = u8((c >> 16) & 255);
+        p[1] = u8((c >> 8) & 255);
+        p[2] = u8(c & 255);
+        p[3] = u8((c >> 24) & 255);
+    }
+}
+
 Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
     const int key = part * 100000 + idx;  // pngOverride_ (per-actor) is still int-keyed
     const std::string skey = appearanceKey_ + (indexed ? "#i" : "#r") + std::to_string(key);
@@ -1082,8 +1110,9 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
                                static_cast<int>(ov->second.height));  // webp exported w/ opaque black bg -> transparent
             bleedEdges(rgba, static_cast<int>(ov->second.width),
                        static_cast<int>(ov->second.height));
-            t.create(static_cast<u16>(ov->second.width), static_cast<u16>(ov->second.height),
-                     rgba.data(), /*smooth=*/true);
+            int tw = static_cast<int>(ov->second.width), th = static_cast<int>(ov->second.height);
+            xbrUpscaleFrame(rgba, tw, th);  // #xbr: denser texture, logical quad size unchanged
+            t.create(static_cast<u16>(tw), static_cast<u16>(th), rgba.data(), /*smooth=*/true);
             uploaded = true;
         }
     }
@@ -1104,8 +1133,9 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
             }
             if (fr.width > 0 && fr.height > 0 && !rgba.empty()) {
                 bleedEdges(rgba, static_cast<int>(fr.width), static_cast<int>(fr.height));
-                t.create(static_cast<u16>(fr.width), static_cast<u16>(fr.height), rgba.data(),
-                         /*smooth=*/true);
+                int tw = static_cast<int>(fr.width), th = static_cast<int>(fr.height);
+                xbrUpscaleFrame(rgba, tw, th);  // #xbr: fr.width/height stay logical for composeFrame
+                t.create(static_cast<u16>(tw), static_cast<u16>(th), rgba.data(), /*smooth=*/true);
                 uploaded = true;
             }
         }

@@ -169,6 +169,40 @@ public:
         const float wh = std::min(whFull, H - 24.0f);
         const float maxScroll = std::max(0.0f, whFull - wh);
         const float wx = (W - ww) * 0.5f, wy = (H - wh) * 0.5f;
+        // Draggable vertical scrollbar thumb (S.: "сам ползунок для вертикального скроллинга"). The
+        // thumb geometry matches the indicator drawn below; grabbing it maps the cursor 1:1 to the
+        // scroll range, and clicking the empty track jumps the thumb to the cursor. Handled before the
+        // body-drag/wheel so it takes priority and swallows the click (controls under the bar can't fire).
+        float sbTrackY = 0.0f, sbTrackH = 0.0f, sbThumbY = 0.0f, sbThumbH = 0.0f;
+        const float sbW = 8.0f;  // interactive grab width (the drawn bar is thinner)
+        const float sbX = wx + ww - sbW - 2.0f;
+        if (maxScroll > 0.0f) {
+            sbTrackY = wy + ui::kTitleBarH + 2.0f;
+            sbTrackH = wh - ui::kTitleBarH - 6.0f;
+            sbThumbH = std::max(20.0f, sbTrackH * wh / whFull);
+            sbThumbY = sbTrackY + (sbTrackH - sbThumbH) * (scroll_ / maxScroll);
+            if (uin.mousePressed && uin.hit(sbX, sbTrackY, sbW + 6.0f, sbTrackH)) {
+                if (uin.mouseY >= sbThumbY && uin.mouseY <= sbThumbY + sbThumbH)
+                    scrollbarGrab_ = static_cast<float>(uin.mouseY) - sbThumbY;  // grab where clicked
+                else
+                    scrollbarGrab_ = sbThumbH * 0.5f;  // clicked the track -> centre the thumb on the cursor
+                scrollbarDrag_ = true;
+                uin.mousePressed = false;
+                selSwallow_ = true;
+            }
+            if (scrollbarDrag_ && uin.mouseDown) {
+                const float denom = std::max(1.0f, sbTrackH - sbThumbH);
+                const float t = std::clamp(
+                    (static_cast<float>(uin.mouseY) - sbTrackY - scrollbarGrab_) / denom, 0.0f, 1.0f);
+                scroll_ = t * maxScroll;
+                sbThumbY = sbTrackY + (sbTrackH - sbThumbH) * t;
+                uin.mousePressed = false;
+                uin.mouseDown = false;  // swallow so a control beneath the bar doesn't also react
+            }
+            if (!uin.mouseDown) scrollbarDrag_ = false;
+        } else {
+            scrollbarDrag_ = false;
+        }
         if (maxScroll > 0.0f && uin.wheel != 0.0f && uin.hit(wx, wy, ww, wh)) {
             scroll_ = std::clamp(scroll_ - uin.wheel * 40.0f, 0.0f, maxScroll);
             uin.wheel = 0.0f;
@@ -215,11 +249,12 @@ public:
         // Scrollbar indicator on the right edge when the panel is taller than the window (S.: "без
         // скроллбара"). Thumb size/position track the visible fraction + scroll offset.
         if (maxScroll > 0.0f) {
-            const float trackY = wy + ui::kTitleBarH + 2.0f, trackH = wh - ui::kTitleBarH - 6.0f;
-            const float thumbH = std::max(20.0f, trackH * wh / whFull);
-            const float thumbY = trackY + (trackH - thumbH) * (scroll_ / maxScroll);
-            sb.draw(wx + ww - 5.0f, trackY, 3.0f, trackH, ui::rgba(255, 255, 255, 40));
-            sb.draw(wx + ww - 5.0f, thumbY, 3.0f, thumbH, ui::rgba(255, 255, 255, 170));
+            // Reuse the geometry computed above (sbTrackY/sbThumbY already reflect a live drag). Draw the
+            // track faint and the thumb wider than before (grabbable), brighter while dragged.
+            const float barX = wx + ww - sbW;
+            sb.draw(barX, sbTrackY, sbW - 2.0f, sbTrackH, ui::rgba(255, 255, 255, 40));
+            sb.draw(barX, sbThumbY, sbW - 2.0f, sbThumbH,
+                    scrollbarDrag_ ? ui::rgba(255, 255, 255, 235) : ui::rgba(255, 255, 255, 180));
         }
         const float cx = wx + 14.0f, cw = ww - 28.0f;
         const float cy = wy + ui::kTitleBarH + 6.0f - scroll_;
@@ -787,6 +822,8 @@ private:
     bool scrollDragging_ = false;   // a touch/mouse drag inside a too-tall panel is scrolling it
     int scrollDragLastY_ = 0;       // last mouse Y during a scroll-drag
     float scrollDragMoved_ = 0.0f;  // accumulated drag distance (to tell a scroll from a tap)
+    bool scrollbarDrag_ = false;    // the vertical scrollbar THUMB is being dragged (S.: "сам ползунок")
+    float scrollbarGrab_ = 0.0f;    // cursor offset within the thumb at grab time, so it doesn't jump
     int selOpen_ = -1;  // open dropdown index in the video/general panel
     float selListScroll_ = 0.0f;  // wheel-scroll offset for a long open dropdown (language list)
     bool selSwallow_ = false;  // eat the held click after a dropdown pick (slider-under-list guard)

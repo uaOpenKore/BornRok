@@ -119,7 +119,7 @@ bool isGrassy(float ar, float ag, float ab) {
 }  // namespace
 
 bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
-    program_ = load_program(app.assetDir(), "vs_sprite3d", "fs_sprite3d");
+    program_ = load_program(app.assetDir(), "vs_grass", "fs_sprite3d");
     if (!bgfx::isValid(program_)) {
         log::warn("GrassRenderer: sprite shader unavailable; no grass");
         return false;
@@ -209,6 +209,7 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
     sampler_ = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
     fade_ = bgfx::createUniform("u_spriteFade", bgfx::UniformType::Vec4);
     bias_ = bgfx::createUniform("u_spriteBias", bgfx::UniformType::Vec4);
+    wind_ = bgfx::createUniform("u_wind", bgfx::UniformType::Vec4);
     ready_ = true;
     buildMesh(g_grassHeightFrac);
     log::info("GrassRenderer: {} tufts on {} grassy textures ({}x{}), height frac {}",
@@ -295,9 +296,11 @@ void GrassRenderer::destroy() {
     if (bgfx::isValid(sampler_)) bgfx::destroy(sampler_);
     if (bgfx::isValid(fade_)) bgfx::destroy(fade_);
     if (bgfx::isValid(bias_)) bgfx::destroy(bias_);
+    if (bgfx::isValid(wind_)) bgfx::destroy(wind_);
     if (bgfx::isValid(program_)) bgfx::destroy(program_);
     vbh_ = BGFX_INVALID_HANDLE; ibh_ = BGFX_INVALID_HANDLE; grassTex_ = BGFX_INVALID_HANDLE;
     sampler_ = BGFX_INVALID_HANDLE; fade_ = BGFX_INVALID_HANDLE; bias_ = BGFX_INVALID_HANDLE;
+    wind_ = BGFX_INVALID_HANDLE;
     program_ = BGFX_INVALID_HANDLE;
     clumps_.clear();
     quadCount_ = 0;
@@ -305,11 +308,17 @@ void GrassRenderer::destroy() {
     ready_ = false;
 }
 
-void GrassRenderer::render(double /*time*/, float playerX, float playerZ) {
+void GrassRenderer::render(double time, float playerX, float playerZ) {
     if (!ready_ || !g_grassEnabled) return;
     if (g_grassHeightFrac != builtHeight_) buildMesh(g_grassHeightFrac);
     if (quadCount_ == 0 || !bgfx::isValid(vbh_)) return;
     const float fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    // Wind sway of the blade tips (#grasswind, default on). One slow wind for the whole field; the tip
+    // amplitude scales with the tuft height so short grass barely stirs and tall grass leans. Toggle off
+    // -> amplitude 0, so vs_grass keeps drawing but holds the blades still.
+    static const float kWindDirX = 0.9578f, kWindDirZ = 0.2873f;  // fixed over-the-ground direction (unit)
+    const float amp = g_grassWind ? (kHeightBase * g_grassHeightFrac * 0.18f) : 0.0f;
+    const float wind[4] = {kWindDirX, kWindDirZ, static_cast<float>(time), amp};
     // No depth bias: grass uses honest depth so 3D models (fences/trees/buildings) occlude it correctly
     // (a forward bias made grass punch THROUGH models — S.: "почему трава перекрывает 3д модели?").
     // Foreground grass (nearer the camera than an actor) still covers the char/mobs' lower body via
@@ -326,6 +335,7 @@ void GrassRenderer::render(double /*time*/, float playerX, float playerZ) {
         bgfx::setTexture(0, sampler_, grassTex_);
         bgfx::setUniform(fade_, fade);
         bgfx::setUniform(bias_, bias);
+        bgfx::setUniform(wind_, wind);
         bgfx::setState(state);
         bgfx::submit(0, program_);
     };

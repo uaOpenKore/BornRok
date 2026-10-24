@@ -669,6 +669,14 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
       ${UARO_CLIENT_ROOT}/assets/shaders/fs_sprite3d.sc
     VARYING ${UARO_CLIENT_ROOT}/assets/shaders/varying_model.def.sc
   )
+  # Ground grass (#grasswind): vs_sprite3d + a wind sway of the blade tips; pairs with fs_sprite3d
+  # (identical varyings -> no DX11 link trap). Its own VS so the sway never touches the character
+  # billboards that share vs_sprite3d.
+  client_compile_shaders(UaRO
+    SHADERS
+      ${UARO_CLIENT_ROOT}/assets/shaders/vs_grass.sc
+    VARYING ${UARO_CLIENT_ROOT}/assets/shaders/varying_model.def.sc
+  )
   # Skinned RoM models (ROeM mobs): 4-bone LBS with a CPU-built bone palette.
   client_compile_shaders(UaRO
     SHADERS
@@ -722,7 +730,7 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
   # single file with no external shaders/ folder. The sprite pair is already embedded above; add the
   # rest. Must be AFTER all client_compile_shaders() calls (it depends on their compiled .bin).
   client_embed_shaders(UaRO
-    vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_romskin fs_romskin
+    vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_grass vs_romskin fs_romskin
     fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
     vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight)
 endif()
@@ -842,7 +850,7 @@ if(CLIENT_BUILD_AVX2 AND NOT ANDROID AND NOT APPLE AND CLIENT_TARGET_X86 AND NOT
   if(CLIENT_BUILD_SHADERS AND TARGET UaRO)
     client_embed_sprite_shaders(UaRO_avx2 UaRO)
     client_embed_shaders(UaRO_avx2
-      vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_romskin fs_romskin
+      vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_grass vs_romskin fs_romskin
       fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
       vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight)
   endif()

@@ -42,10 +42,11 @@ private:
     };
     void buildMesh(float heightFrac);  // (re)upload the cross-quad mesh at the given height fraction
 
-    bgfx::ProgramHandle program_ = BGFX_INVALID_HANDLE;  // vs_sprite3d + fs_sprite3d
+    bgfx::ProgramHandle program_ = BGFX_INVALID_HANDLE;  // vs_grass + fs_sprite3d
     bgfx::UniformHandle sampler_ = BGFX_INVALID_HANDLE;   // s_tex
     bgfx::UniformHandle fade_ = BGFX_INVALID_HANDLE;      // u_spriteFade (.x = 1)
     bgfx::UniformHandle bias_ = BGFX_INVALID_HANDLE;      // u_spriteBias (0)
+    bgfx::UniformHandle wind_ = BGFX_INVALID_HANDLE;      // u_wind (xy dir, z time, w amplitude)
     bgfx::TextureHandle grassTex_ = BGFX_INVALID_HANDLE;  // procedural grass-blade sprite
     bgfx::VertexBufferHandle vbh_ = BGFX_INVALID_HANDLE;
     bgfx::IndexBufferHandle ibh_ = BGFX_INVALID_HANDLE;

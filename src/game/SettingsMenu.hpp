@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 21 * 34.0f + 44.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 21 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header

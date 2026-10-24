@@ -163,6 +163,8 @@ int Application::run(const AppConfig& cfg) {
     g_fxFireflies = fxFireflies_ != 0;
     g_fxSmoke = fxSmoke_ != 0;
     g_fxSparkle = fxSparkle_ != 0;
+    g_fxButterflies = fxButterflies_ != 0;  // atmospheric life (#fxlife): default on
+    g_fxMotes = fxMotes_ != 0;
     g_waterRipples = waterRipples_ != 0;  // animated water ripple (#waterripples): default on
     g_xbrUpscale = xbr_ != 0;             // xBR 4x texture upscale (#xbr): default off (heavy)
     // LOD (#lod): default Off on desktop (draw everything); a saved value wins. Apply the radius.
@@ -523,6 +525,8 @@ void Application::loadConfig() {
             else if (key == "fxfireflies") fxFireflies_ = (v != 0.0f) ? 1 : 0;  // ambient: fireflies
             else if (key == "fxsmoke") fxSmoke_ = (v != 0.0f) ? 1 : 0;          // ambient: chimney smoke
             else if (key == "fxsparkle") fxSparkle_ = (v != 0.0f) ? 1 : 0;      // ambient: sparkle glints
+            else if (key == "fxbutterflies") fxButterflies_ = (v != 0.0f) ? 1 : 0;  // atmospheric life: butterflies
+            else if (key == "fxmotes") fxMotes_ = (v != 0.0f) ? 1 : 0;          // atmospheric life: dust motes
             else if (key == "waterripples") waterRipples_ = (v != 0.0f) ? 1 : 0;  // animated water ripple (#waterripples)
             else if (key == "xbrupscale") xbr_ = (v != 0.0f) ? 1 : 0;  // xBR 4x texture upscale (#xbr), default off
             else if (key == "lod") {  // object draw-radius LOD: 0 off / 25 / 40 / 60 / 80 (#lod)
@@ -689,6 +693,8 @@ void Application::saveConfig() const {
     out << "fxfireflies " << fxFireflies_ << "\n";
     out << "fxsmoke " << fxSmoke_ << "\n";
     out << "fxsparkle " << fxSparkle_ << "\n";
+    out << "fxbutterflies " << fxButterflies_ << "\n";
+    out << "fxmotes " << fxMotes_ << "\n";
     out << "waterripples " << waterRipples_ << "\n";
     out << "xbrupscale " << xbr_ << "\n";
     if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
@@ -798,6 +804,8 @@ void Application::setFxWeather(bool on) { fxWeather_ = on ? 1 : 0; g_fxWeather =
 void Application::setFxFireflies(bool on) { fxFireflies_ = on ? 1 : 0; g_fxFireflies = on; saveConfig(); }
 void Application::setFxSmoke(bool on) { fxSmoke_ = on ? 1 : 0; g_fxSmoke = on; saveConfig(); }
 void Application::setFxSparkle(bool on) { fxSparkle_ = on ? 1 : 0; g_fxSparkle = on; saveConfig(); }
+void Application::setFxButterflies(bool on) { fxButterflies_ = on ? 1 : 0; g_fxButterflies = on; saveConfig(); }
+void Application::setFxMotes(bool on) { fxMotes_ = on ? 1 : 0; g_fxMotes = on; saveConfig(); }
 void Application::setWaterRipples(bool on) { waterRipples_ = on ? 1 : 0; g_waterRipples = on; saveConfig(); }
 void Application::setXbrUpscale(bool on) {
     // xBR (#xbr): textures are cached post-upscale, so the change shows as caches refill (re-entering a

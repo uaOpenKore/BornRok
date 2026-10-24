@@ -10956,6 +10956,68 @@ void GameScene::updateAmbientFx(float dt) {
             ambientFx_.emit(p);
         }
     }
+    // Atmospheric life (#fxlife): wandering butterflies + floating dust motes around the player.
+    // Gated to open-air maps only (field "_fild" maps and a known set of open towns) so a butterfly
+    // never drifts through a dungeon or interior; any map we don't recognise gets nothing (safe
+    // default). Both families fade in/out and stay within a small radius of the player.
+    {
+        auto isOutdoorLifeMap = [](const std::string& b) -> bool {
+            if (b.find("_fild") != std::string::npos) return true;  // all field maps
+            static const char* kOpenTowns[] = {
+                "prontera", "izlude", "geffen", "payon", "morocc", "alberta", "aldebaran",
+                "comodo", "umbala", "amatsu", "gonryun", "louyang", "ayothaya", "einbroch",
+                "einbech", "lighthalzen", "hugel", "rachel", "veins", "yuno", "jawaii",
+                "xmas", "moscovia", "dewata", "malangdo", "malaya", "eclage", "mora"};
+            for (const char* t : kOpenTowns)
+                if (b.rfind(t, 0) == 0) return true;  // prefix match (e.g. "prt_fild" handled above)
+            return false;
+        };
+        if (isOutdoorLifeMap(mapBase_)) {
+            constexpr float kLifeRadius = 16.0f;
+            if (g_fxButterflies) {  // a few coloured butterflies, slow fluttering wander near head height
+                butterflyAcc_ += 1.6f * dt;  // ~1.6 spawns/sec, each lives several seconds
+                while (butterflyAcc_ >= 1.0f) {
+                    butterflyAcc_ -= 1.0f;
+                    const int s = butterflySeed_++;
+                    const float ang = h(s) * 6.2831853f, rad = std::sqrt(h(s + 1)) * kLifeRadius;
+                    ambientFx_.setEmitter({playerPos_.x + std::cos(ang) * rad,
+                                           playerPos_.y + 1.0f + h(s + 2) * 2.0f,
+                                           playerPos_.z + std::sin(ang) * rad});
+                    Particle p;
+                    p.vel = {(h(s + 3) - 0.5f) * 1.2f, (h(s + 4) - 0.5f) * 0.8f, (h(s + 5) - 0.5f) * 1.2f};
+                    p.accel = {(h(s + 6) - 0.5f) * 1.6f, (h(s + 7) - 0.5f) * 1.2f, (h(s + 8) - 0.5f) * 1.6f};
+                    // Palette: white / yellow / orange / blue wings (reads as varied butterflies).
+                    const float c = h(s + 9);
+                    if (c < 0.25f)      { p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; }
+                    else if (c < 0.5f)  { p.r = 1.0f; p.g = 0.9f; p.b = 0.35f; }
+                    else if (c < 0.75f) { p.r = 1.0f; p.g = 0.55f; p.b = 0.2f; }
+                    else                { p.r = 0.5f; p.g = 0.7f; p.b = 1.0f; }
+                    p.a = 0.85f; p.da = -0.16f;  // steady, then fade out before death (alpha floors at 0)
+                    p.size = 0.11f + h(s + 10) * 0.05f;
+                    p.life = 4.0f + h(s + 11) * 3.0f;
+                    ambientFx_.emit(p);
+                }
+            }
+            if (g_fxMotes) {  // soft slow-floating dust/pollen motes catching the light
+                moteAcc_ += 8.0f * dt;
+                while (moteAcc_ >= 1.0f) {
+                    moteAcc_ -= 1.0f;
+                    const int s = moteSeed_++;
+                    const float ang = h(s) * 6.2831853f, rad = std::sqrt(h(s + 1)) * kLifeRadius;
+                    ambientFx_.setEmitter({playerPos_.x + std::cos(ang) * rad,
+                                           playerPos_.y + 0.3f + h(s + 2) * 3.0f,
+                                           playerPos_.z + std::sin(ang) * rad});
+                    Particle p;
+                    p.vel = {(h(s + 3) - 0.5f) * 0.3f, 0.1f + h(s + 4) * 0.2f, (h(s + 5) - 0.5f) * 0.3f};
+                    p.r = 1.0f; p.g = 0.97f; p.b = 0.85f;  // warm pale, additive → faint shimmer
+                    p.a = 0.45f; p.da = -0.06f;            // faint, slow fade-out (alpha floors at 0)
+                    p.size = 0.04f + h(s + 6) * 0.03f;
+                    p.life = 5.0f + h(s + 7) * 3.0f;
+                    ambientFx_.emit(p);
+                }
+            }
+        }
+    }
     if (ambientEmitters_.empty()) return;
     constexpr float kCullDist = 80.0f;  // emit only near the player; far chimneys are invisible anyway
     for (AmbientEmitter& em : ambientEmitters_) {

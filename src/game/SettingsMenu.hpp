@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 18 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Water Ripples + xBR
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 20 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -620,8 +620,19 @@ public:
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxKy - 4.0f, 90.0f, 26.0f,
                                            app.fxSparkle() ? "On" : "Off", 1.2f))
                 app.setFxSparkle(!app.fxSparkle());
+            // Atmospheric life (#fxlife): wandering butterflies + floating dust motes (open-air maps).
+            const float fxBy = fxKy + 34.0f;
+            font.draw(sb, cx, fxBy, 1.1f, ui::color::kWinText, "Butterflies");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxBy - 4.0f, 90.0f, 26.0f,
+                                           app.fxButterflies() ? "On" : "Off", 1.2f))
+                app.setFxButterflies(!app.fxButterflies());
+            const float fxMy = fxBy + 34.0f;
+            font.draw(sb, cx, fxMy, 1.1f, ui::color::kWinText, "Dust Motes");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxMy - 4.0f, 90.0f, 26.0f,
+                                           app.fxMotes() ? "On" : "Off", 1.2f))
+                app.setFxMotes(!app.fxMotes());
             // Animated water surface ripple (#waterripples).
-            const float wry2 = fxKy + 34.0f;
+            const float wry2 = fxMy + 34.0f;
             font.draw(sb, cx, wry2, 1.1f, ui::color::kWinText, "Water Ripples");
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wry2 - 4.0f, 90.0f, 26.0f,
                                            app.waterRipples() ? "On" : "Off", 1.2f))

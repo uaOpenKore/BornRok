@@ -130,6 +130,12 @@ public:
     void setFxSmoke(bool on);
     bool fxSparkle() const { return fxSparkle_ != 0; }
     void setFxSparkle(bool on);
+    // Atmospheric life (Settings -> Video, #fxlife): wandering butterflies and floating dust motes on
+    // open-air maps. Both default on.
+    bool fxButterflies() const { return fxButterflies_ != 0; }
+    void setFxButterflies(bool on);
+    bool fxMotes() const { return fxMotes_ != 0; }
+    void setFxMotes(bool on);
     // Animated water surface ripple (Settings -> Video -> Water Ripples, #waterripples). Default on.
     bool waterRipples() const { return waterRipples_ != 0; }
     void setWaterRipples(bool on);
@@ -313,6 +319,8 @@ private:
     int fxFireflies_ = 1;                        // ambient fireflies on/off; default on
     int fxSmoke_ = 1;                            // ambient chimney smoke on/off; default on
     int fxSparkle_ = 1;                          // ambient sparkle on/off; default on
+    int fxButterflies_ = 1;                      // atmospheric butterflies on/off; default on (#fxlife)
+    int fxMotes_ = 1;                            // atmospheric dust motes on/off; default on (#fxlife)
     int waterRipples_ = 1;                       // animated water ripple on/off; default on (#waterripples)
     int xbr_ = 0;                                // xBR 4x texture upscale: 0 off / 1 on; default OFF (#xbr)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)

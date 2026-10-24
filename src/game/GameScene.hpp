@@ -293,6 +293,12 @@ private:
     std::vector<int> weather_;   // active weather EF ids (161 rain / 162 snow / 163 sakura / 333 leaves)
     float weatherAcc_ = 0;       // fractional particles owed to the emission rate
     int weatherSeed_ = 0;
+    // Atmospheric life (#fxlife): player-centred wandering butterflies and floating dust motes,
+    // independent of RSW emitters (like weather). Deterministic hash seeds; each gated by its toggle.
+    float butterflyAcc_ = 0;
+    int butterflySeed_ = 0;
+    float moteAcc_ = 0;
+    int moteSeed_ = 0;
     // Airship sky clouds (ported from roBrowser Renderer/Effects/Sky.js): the airship maps
     // (airplane/airplane_01) and a few "sky" maps render a field of slowly drifting cloud billboards
     // around the player. Purely client-side, keyed on the map name (same list as skyColorForMap).

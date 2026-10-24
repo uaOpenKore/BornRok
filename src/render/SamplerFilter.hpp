@@ -39,6 +39,8 @@ inline bool g_fxWeather = true;    // server weather fall: rain / snow / sakura 
 inline bool g_fxFireflies = true;  // wandering warm fireflies (map emitter id 45)
 inline bool g_fxSmoke = true;      // chimney smoke puffs (map emitter id 44)
 inline bool g_fxSparkle = true;    // white sparkle glints (map emitter id 165)
+inline bool g_fxButterflies = true;// wandering coloured butterflies drifting around the player (outdoor)
+inline bool g_fxMotes = true;      // soft floating dust/pollen motes catching the light (outdoor)
 
 // Animated water surface ripple (#waterripples, Settings -> Video). A tiny time-driven UV wobble so the
 // water shimmers; applies in all reflection modes. Default on; off is byte-identical to the classic look.

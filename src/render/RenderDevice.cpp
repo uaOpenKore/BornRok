@@ -798,7 +798,10 @@ void RenderDevice::endFrame() {
             const float aoParams[4] = {1.0f / width_, 1.0f / height_, aoNear_, aoFar_};
             const bool aoFinal = !bl;
             const float neutral[4] = {0.5f, 0.5f, 0.0f, 0.0f};  // identity grade when Bloom grades later
-            bgfx::setViewFrameBuffer(kAoView, aoFinal ? BGFX_INVALID_HANDLE : composePing_);
+            // BGFX_INVALID_HANDLE is a brace-init macro and can't sit in a ternary; pick the target first.
+            bgfx::FrameBufferHandle aoTgt = composePing_;
+            if (aoFinal) aoTgt = BGFX_INVALID_HANDLE;
+            bgfx::setViewFrameBuffer(kAoView, aoTgt);
             bgfx::setViewRect(kAoView, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
             bgfx::setViewClear(kAoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
             bgfx::setTexture(0, sTex_, sceneTex);

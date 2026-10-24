@@ -157,10 +157,10 @@ private:
     void destroyGodrayTarget();
     void createReflectTarget(); // (re)create the RGBA8+depth planar-reflection offscreen (#water)
     void destroyReflectTarget();
-    void createBloomTargets();  // (re)create the scene offscreen + two half-res blur targets (#bloom)
-    void destroyBloomTargets();
-    void createAoTargets();     // (re)create the scene offscreen with a SAMPLEABLE depth attachment (#ao)
-    void destroyAoTargets();
+    // Composable post-process (#ao B): ONE scene offscreen (SAMPLEABLE depth when AO is supported) + two
+    // half-res bloom-blur targets + a full-res ping buffer, so AO -> Bloom -> grade stack in one frame.
+    void createComposeTargets();
+    void destroyComposeTargets();
     void recomputeRenderSize();  // sceneW_/sceneH_ = round(native * fsrScale_) for the 3D view
     bool upscaling() const { return fsrScale_ < 0.999f; }     // FSR1 (render below native)
     bool supersampling() const { return fsrScale_ > 1.001f; }  // SSAA (render above native)
@@ -170,24 +170,27 @@ private:
                bgfx::isValid(easuFb_);
     }
     bool gradeNonNeutral() const { return gradeB_ != 0.5f || gradeC_ != 0.5f; }
-    bool gradeActive() const {
-        return gradeNonNeutral() && !hdrActive() && !fsrActive() && !godrayActive() && !bloomActive() &&
-               !aoActive() && postReady_ && bgfx::isValid(gradeProg_) && bgfx::isValid(gradeFb_);
-    }
     bool godrayActive() const {  // the shaft composite (sun always, local lights in mode 2)
         return godrayMode_ >= 1 && worldScene_ && !hdrActive() && !fsrActive() && postReady_ &&
                bgfx::isValid(godrayFb_) &&
                bgfx::isValid(godrayMode_ >= 2 ? vollightProg_ : godrayProg_);
     }
-    bool aoActive() const {  // SSAO pass; its own offscreen, above Bloom in precedence (AO wins if both on)
-        return aoOn_ && worldScene_ && !hdrActive() && !fsrActive() && !godrayActive() && postReady_ &&
-               bgfx::isValid(aoProg_) && bgfx::isValid(aoSceneFb_);
+    // Composable path (#ao B): AO, Bloom and grade run together in one frame, chained through the scene
+    // offscreen (+ a ping buffer), so they are no longer mutually exclusive. Still suppressed while
+    // HDR/FSR/God Rays own the offscreen (those are folded in a later pass). aoWanted needs a sampleable
+    // depth target; bloomWanted needs its three programs.
+    bool aoWanted() const {
+        return aoOn_ && aoSupported() && postReady_ && bgfx::isValid(aoProg_);
     }
-    bool bloomActive() const {  // soft glow pass; its own offscreen, after HDR/FSR/God Rays in precedence
-        return bloomOn_ && worldScene_ && !aoActive() && !hdrActive() && !fsrActive() && !godrayActive() &&
-               postReady_ && bgfx::isValid(bloomBrightProg_) && bgfx::isValid(bloomBlurProg_) &&
-               bgfx::isValid(bloomCombineProg_) && bgfx::isValid(bloomSceneFb_);
+    bool bloomWanted() const {
+        return bloomOn_ && postReady_ && bgfx::isValid(bloomBrightProg_) &&
+               bgfx::isValid(bloomBlurProg_) && bgfx::isValid(bloomCombineProg_);
     }
+    bool composeWanted() const {  // any of AO/Bloom/grade, and no HDR/FSR/God-Ray owning the offscreen
+        return worldScene_ && postReady_ && !hdrActive() && !fsrActive() && !godrayActive() &&
+               (aoWanted() || bloomWanted() || gradeNonNeutral());
+    }
+    bool composeActive() const { return composeWanted() && bgfx::isValid(composeFb_); }
 
     int width_ = 0;   // native window / backbuffer size (what everything renders + hit-tests at)
     int height_ = 0;
@@ -207,13 +210,15 @@ private:
     bgfx::FrameBufferHandle gradeFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (grade only)
     bgfx::FrameBufferHandle godrayFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (god rays, #117)
     bgfx::FrameBufferHandle reflectFb_ = BGFX_INVALID_HANDLE;  // RGBA8+depth planar-reflection target (#water)
-    bgfx::FrameBufferHandle bloomSceneFb_ = BGFX_INVALID_HANDLE;  // RGBA8+depth native scene target (#bloom)
-    bgfx::FrameBufferHandle bloomDownA_ = BGFX_INVALID_HANDLE;    // half-res bright/blur ping (#bloom)
-    bgfx::FrameBufferHandle bloomDownB_ = BGFX_INVALID_HANDLE;    // half-res blur pong (#bloom)
-    int bloomW_ = 0, bloomH_ = 0;    // size bloomSceneFb_ was created at (native)
+    // Composable post-process targets (#ao B). composeFb_ is the single native scene offscreen (color +
+    // depth; depth SAMPLEABLE when AO is supported). composePing_ holds AO's output when Bloom follows.
+    // The half-res down buffers are the bloom bright/blur ping-pong.
+    bgfx::FrameBufferHandle composeFb_ = BGFX_INVALID_HANDLE;    // RGBA8 + depth native scene target
+    bgfx::FrameBufferHandle composePing_ = BGFX_INVALID_HANDLE;  // RGBA8 native (AO -> Bloom handoff)
+    bgfx::FrameBufferHandle bloomDownA_ = BGFX_INVALID_HANDLE;   // half-res bright/blur ping (#bloom)
+    bgfx::FrameBufferHandle bloomDownB_ = BGFX_INVALID_HANDLE;   // half-res blur pong (#bloom)
+    int bloomW_ = 0, bloomH_ = 0;    // size composeFb_/composePing_ were created at (native)
     int bloomDW_ = 0, bloomDH_ = 0;  // size the half-res blur targets were created at
-    bgfx::FrameBufferHandle aoSceneFb_ = BGFX_INVALID_HANDLE;  // RGBA8 + SAMPLEABLE depth scene target (#ao)
-    int aoW_ = 0, aoH_ = 0;          // size aoSceneFb_ was created at (native)
     float aoNear_ = 1.0f, aoFar_ = 4000.0f;  // in-game camera near/far (matches GameScene perspective)
     int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
     int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)

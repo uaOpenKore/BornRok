@@ -150,8 +150,7 @@ void RenderDevice::shutdown() {
         destroyGradeTarget();
         destroyGodrayTarget();
         destroyReflectTarget();
-        destroyBloomTargets();
-        destroyAoTargets();
+        destroyComposeTargets();
         auto kill = [](bgfx::ProgramHandle& p) { if (bgfx::isValid(p)) bgfx::destroy(p); p = BGFX_INVALID_HANDLE; };
         kill(tonemapProg_);
         kill(easuProg_);
@@ -228,7 +227,7 @@ void RenderDevice::resize(int width, int height) {
     if (fsrActive()) createFsrTargets();
     if (bgfx::isValid(gradeFb_)) createGradeTarget();
     if (bgfx::isValid(reflectFb_)) createReflectTarget();  // mirror the water-reflection target too (#water)
-    if (bloomOn_ && bgfx::isValid(bloomSceneFb_)) createBloomTargets();  // resize bloom targets too (#bloom)
+    if (bgfx::isValid(composeFb_)) createComposeTargets();  // resize the composable scene/ping/blur targets
 }
 
 // ---- HDR post-processing (#111) ------------------------------------------------------------
@@ -241,8 +240,9 @@ constexpr bgfx::ViewId kTonemapView = 200;
 // Bloom intermediate pass views (#bloom): above the scene (0..2) and reflect (4) so they run after the
 // scene in the default ascending order, and below the UI (250). Combine (204) is last -> it presents.
 constexpr bgfx::ViewId kBloomBright = 201, kBloomBlurH = 202, kBloomBlurV = 203, kBloomCombine = 204;
-// SSAO composite view (#ao): past the scene (0..2) and reflect (4), below the UI (250). Single blit.
-constexpr bgfx::ViewId kAoView = 210;
+// SSAO view (#ao): past the scene (0..2) and reflect (4) but BEFORE the bloom passes (201+) so, in the
+// composable chain, AO writes its result before bloom reads it (views run in ascending order).
+constexpr bgfx::ViewId kAoView = 199;
 struct FsVert { float x, y, z, u, v; };  // z is required: the layout declares Position = 3 floats
 bgfx::VertexLayout fsLayout() {
     bgfx::VertexLayout l;
@@ -536,38 +536,6 @@ bool RenderDevice::isSoftwareRenderer() const {
     return caps && caps->vendorId == BGFX_PCI_ID_MICROSOFT;  // WARP / software rasterizer
 }
 
-void RenderDevice::createBloomTargets() {
-    destroyBloomTargets();
-    const u64 rt = BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
-    bloomW_ = width_;
-    bloomH_ = height_;
-    // Native scene target (RGBA8 + depth): the 3D scene renders here, then the post passes read it.
-    bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
-                                                   false, 1, bgfx::TextureFormat::RGBA8, rt);
-    bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
-                                                   false, 1, bgfx::TextureFormat::D24S8,
-                                                   BGFX_TEXTURE_RT_WRITE_ONLY);
-    bgfx::TextureHandle sa[2] = {sc, sd};
-    bloomSceneFb_ = bgfx::createFrameBuffer(2, sa, true);
-    // Half-res ping/pong for the bright-pass + separable blur (bilinear sampling, clamped).
-    bloomDW_ = std::max(1, bloomW_ / 2);
-    bloomDH_ = std::max(1, bloomH_ / 2);
-    bloomDownA_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
-                                          bgfx::TextureFormat::RGBA8, rt);
-    bloomDownB_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
-                                          bgfx::TextureFormat::RGBA8, rt);
-    if (!bgfx::isValid(bloomSceneFb_) || !bgfx::isValid(bloomDownA_) || !bgfx::isValid(bloomDownB_))
-        log::error("render: bloom framebuffers failed");
-}
-
-void RenderDevice::destroyBloomTargets() {
-    if (bgfx::isValid(bloomSceneFb_)) bgfx::destroy(bloomSceneFb_);
-    if (bgfx::isValid(bloomDownA_)) bgfx::destroy(bloomDownA_);
-    if (bgfx::isValid(bloomDownB_)) bgfx::destroy(bloomDownB_);
-    bloomSceneFb_ = bloomDownA_ = bloomDownB_ = BGFX_INVALID_HANDLE;
-    bloomW_ = bloomH_ = bloomDW_ = bloomDH_ = 0;
-}
-
 // A depth target is sampleable for the AO pass only if the backend advertises the depth format as a
 // 2D texture (D24S8 first, D32F fallback). Software/GLES backends that lack it keep AO disabled so
 // toggling it on can never black-screen them.
@@ -584,28 +552,45 @@ bool RenderDevice::aoSupported() const {
     return inited_ && aoDepthFormat() != bgfx::TextureFormat::Count;
 }
 
-void RenderDevice::createAoTargets() {
-    destroyAoTargets();
+void RenderDevice::createComposeTargets() {
+    destroyComposeTargets();
     const u64 rt = BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
-    aoW_ = width_;
-    aoH_ = height_;
-    // Scene colour target, plus a depth target created SAMPLEABLE (no RT_WRITE_ONLY) so the AO pass can
-    // read it. This is the one place depth is a readable texture; all other offscreens keep it write-only.
-    const bgfx::TextureFormat::Enum df = aoDepthFormat();
-    if (df == bgfx::TextureFormat::Count) { log::error("render: AO depth format unsupported"); return; }
-    bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(aoW_), static_cast<u16>(aoH_),
+    bloomW_ = width_;
+    bloomH_ = height_;
+    // Native scene target (RGBA8 + depth). The depth is created SAMPLEABLE when AO is supported so the AO
+    // pass can read it; otherwise it stays write-only (Bloom/grade do not read depth). This is the only
+    // offscreen whose depth is a readable texture.
+    bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
                                                    false, 1, bgfx::TextureFormat::RGBA8, rt);
-    bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(aoW_), static_cast<u16>(aoH_),
-                                                   false, 1, df, rt);
+    const bool depthReadable = aoSupported();
+    const bgfx::TextureFormat::Enum df = depthReadable ? aoDepthFormat() : bgfx::TextureFormat::D24S8;
+    const u64 df_flags = depthReadable ? rt : BGFX_TEXTURE_RT_WRITE_ONLY;
+    bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
+                                                   false, 1, df, df_flags);
     bgfx::TextureHandle sa[2] = {sc, sd};
-    aoSceneFb_ = bgfx::createFrameBuffer(2, sa, true);
-    if (!bgfx::isValid(aoSceneFb_)) log::error("render: AO framebuffer failed");
+    composeFb_ = bgfx::createFrameBuffer(2, sa, true);
+    // Full-res ping buffer (AO -> Bloom handoff), colour only.
+    composePing_ = bgfx::createFrameBuffer(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
+                                           bgfx::TextureFormat::RGBA8, rt);
+    // Half-res ping/pong for the bloom bright-pass + separable blur (bilinear sampling, clamped).
+    bloomDW_ = std::max(1, bloomW_ / 2);
+    bloomDH_ = std::max(1, bloomH_ / 2);
+    bloomDownA_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
+                                          bgfx::TextureFormat::RGBA8, rt);
+    bloomDownB_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
+                                          bgfx::TextureFormat::RGBA8, rt);
+    if (!bgfx::isValid(composeFb_) || !bgfx::isValid(composePing_) || !bgfx::isValid(bloomDownA_) ||
+        !bgfx::isValid(bloomDownB_))
+        log::error("render: compose framebuffers failed");
 }
 
-void RenderDevice::destroyAoTargets() {
-    if (bgfx::isValid(aoSceneFb_)) bgfx::destroy(aoSceneFb_);
-    aoSceneFb_ = BGFX_INVALID_HANDLE;
-    aoW_ = aoH_ = 0;
+void RenderDevice::destroyComposeTargets() {
+    if (bgfx::isValid(composeFb_)) bgfx::destroy(composeFb_);
+    if (bgfx::isValid(composePing_)) bgfx::destroy(composePing_);
+    if (bgfx::isValid(bloomDownA_)) bgfx::destroy(bloomDownA_);
+    if (bgfx::isValid(bloomDownB_)) bgfx::destroy(bloomDownB_);
+    composeFb_ = composePing_ = bloomDownA_ = bloomDownB_ = BGFX_INVALID_HANDLE;
+    bloomW_ = bloomH_ = bloomDW_ = bloomDH_ = 0;
 }
 
 void RenderDevice::setAo(bool on) {
@@ -617,8 +602,9 @@ void RenderDevice::setAo(bool on) {
     if (on && !aoSupported()) { log::warn("render: AO unsupported (no sampleable depth) -> staying off"); return; }
     if (on && !bgfx::isValid(aoProg_)) { log::warn("render: fs_ao shader missing -> AO off"); return; }
     aoOn_ = on;
-    if (on) createAoTargets();
-    else destroyAoTargets();
+    // Targets are shared with Bloom/grade and created lazily in beginFrame; if the compose offscreen
+    // already exists with a WRITE-ONLY depth (AO was off at creation), rebuild it so AO can sample depth.
+    if (on && bgfx::isValid(composeFb_)) createComposeTargets();
     log::info("render: AO {}", on ? "on" : "off");
 }
 
@@ -629,8 +615,8 @@ void RenderDevice::setBloom(bool on) {
     if (on == bloomOn_) return;
     if (on && !postReady_) { log::warn("render: bloom requested but post-process unavailable"); return; }
     bloomOn_ = on;
-    if (on) createBloomTargets();
-    else destroyBloomTargets();
+    // The compose offscreen is shared with AO/grade and created lazily in beginFrame; no per-toggle
+    // (re)allocation needed here.
     log::info("render: bloom {}", on ? "on" : "off");
 }
 
@@ -703,24 +689,12 @@ void RenderDevice::beginFrame() {
             bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         }
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
-    } else if (aoActive()) {
-        if (aoW_ != width_ || aoH_ != height_) createAoTargets();
+    } else if (composeWanted()) {
+        // Composable path (#ao B): route the scene into the single compose offscreen; AO/Bloom/grade then
+        // chain off it in endFrame. Created lazily / resized here.
+        if (!bgfx::isValid(composeFb_) || bloomW_ != width_ || bloomH_ != height_) createComposeTargets();
         for (bgfx::ViewId v = 0; v <= 2; ++v) {
-            bgfx::setViewFrameBuffer(v, aoSceneFb_);
-            bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
-        }
-        bgfx::setViewOrder(0, UINT16_MAX, nullptr);
-    } else if (bloomActive()) {
-        if (bloomW_ != width_ || bloomH_ != height_) createBloomTargets();
-        for (bgfx::ViewId v = 0; v <= 2; ++v) {
-            bgfx::setViewFrameBuffer(v, bloomSceneFb_);
-            bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
-        }
-        bgfx::setViewOrder(0, UINT16_MAX, nullptr);
-    } else if (gradeActive()) {
-        if (fbW_ != width_ || fbH_ != height_) createGradeTarget();
-        for (bgfx::ViewId v = 0; v <= 2; ++v) {
-            bgfx::setViewFrameBuffer(v, gradeFb_);
+            bgfx::setViewFrameBuffer(v, composeFb_);
             bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         }
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
@@ -809,55 +783,60 @@ void RenderDevice::endFrame() {
         }
         blit(kTonemapView, BGFX_INVALID_HANDLE, bgfx::getTexture(godrayFb_, 0), width_, height_,
              comp, uGrade_, grade);
-    } else if (aoActive()) {
-        // SSAO: a single fullscreen pass reads the scene colour + its (sampleable) depth and darkens
-        // contact/crevice pixels, then applies the grade, straight to the backbuffer. Two textures + two
-        // uniforms, so it is submitted directly (like the bloom combine) rather than via the blit helper.
-        const float homog = bgfx::getCaps()->homogeneousDepth ? 1.0f : 0.0f;
-        const float aoP[4] = {0.9f /*intensity*/, 0.010f /*radius UV*/, 60.0f /*range (eye-z)*/, homog};
-        const float aoParams[4] = {1.0f / width_, 1.0f / height_, aoNear_, aoFar_};
-        bgfx::setViewFrameBuffer(kAoView, BGFX_INVALID_HANDLE);
-        bgfx::setViewRect(kAoView, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
-        bgfx::setViewClear(kAoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
-        bgfx::setTexture(0, sTex_, bgfx::getTexture(aoSceneFb_, 0));
-        bgfx::setTexture(1, sDepth_, bgfx::getTexture(aoSceneFb_, 1));
-        bgfx::setUniform(uAo_, aoP);
-        bgfx::setUniform(uAoParams_, aoParams);
-        bgfx::setUniform(uGrade_, grade);
-        bgfx::setVertexBuffer(0, fsTri_);
-        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-        bgfx::submit(kAoView, aoProg_);
-    } else if (bloomActive()) {
-        // Bloom: bright-pass the scene into half-res, blur it H then V, then composite scene + glow and
-        // grade onto the backbuffer. threshold/intensity tuned for a tasteful default-on glow.
-        const float threshold = 0.70f, intensity = 0.5f;
-        const float bright[4] = {threshold, intensity, 1.0f / bloomW_, 1.0f / bloomH_};
-        blit(kBloomBright, bloomDownA_, bgfx::getTexture(bloomSceneFb_, 0), bloomDW_, bloomDH_,
-             bloomBrightProg_, uBloom_, bright);
-        const float blurH[4] = {threshold, intensity, 1.0f / bloomDW_, 0.0f};
-        blit(kBloomBlurH, bloomDownB_, bgfx::getTexture(bloomDownA_, 0), bloomDW_, bloomDH_,
-             bloomBlurProg_, uBloom_, blurH);
-        const float blurV[4] = {threshold, intensity, 0.0f, 1.0f / bloomDH_};
-        blit(kBloomBlurV, bloomDownA_, bgfx::getTexture(bloomDownB_, 0), bloomDW_, bloomDH_,
-             bloomBlurProg_, uBloom_, blurV);
-        // Combine needs two textures (scene + glow) and two uniforms (bloom intensity + grade), so it is
-        // submitted directly rather than through the single-texture blit helper.
-        const float comb[4] = {threshold, intensity, 0.0f, 0.0f};
-        bgfx::setViewFrameBuffer(kBloomCombine, BGFX_INVALID_HANDLE);
-        bgfx::setViewRect(kBloomCombine, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
-        bgfx::setViewClear(kBloomCombine, BGFX_CLEAR_NONE, 0, 1.0f, 0);
-        bgfx::setTexture(0, sTex_, bgfx::getTexture(bloomSceneFb_, 0));
-        bgfx::setTexture(1, sBloom_, bgfx::getTexture(bloomDownA_, 0));
-        bgfx::setUniform(uBloom_, comb);
-        bgfx::setUniform(uGrade_, grade);
-        bgfx::setVertexBuffer(0, fsTri_);
-        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-        bgfx::submit(kBloomCombine, bloomCombineProg_);
-    } else if (gradeActive()) {
-        // Neither HDR nor render-scale: still route through the grade offscreen so contrast can be
-        // raised (the old fullscreen overlay could only lower it).
-        blit(kTonemapView, BGFX_INVALID_HANDLE, bgfx::getTexture(gradeFb_, 0), width_, height_,
-             gradeProg_, uGrade_, grade);
+    } else if (composeActive()) {
+        // Composable post chain (#ao B): AO -> Bloom -> grade in one frame (no longer mutually exclusive).
+        // Each stage runs only if wanted; the LAST active stage applies the real grade and writes to the
+        // backbuffer, earlier stages pass a neutral (identity) grade so it is applied exactly once.
+        const bool ao = aoWanted();
+        const bool bl = bloomWanted();
+        bgfx::TextureHandle sceneTex = bgfx::getTexture(composeFb_, 0);
+        // Stage 1 - SSAO: read scene colour + sampleable depth, darken contact/crevice pixels. If Bloom
+        // follows, write to the ping buffer with neutral grade; else it is final -> backbuffer + grade.
+        if (ao) {
+            const float homog = bgfx::getCaps()->homogeneousDepth ? 1.0f : 0.0f;
+            const float aoP[4] = {0.9f /*intensity*/, 0.010f /*radius UV*/, 60.0f /*range (eye-z)*/, homog};
+            const float aoParams[4] = {1.0f / width_, 1.0f / height_, aoNear_, aoFar_};
+            const bool aoFinal = !bl;
+            const float neutral[4] = {0.5f, 0.5f, 0.0f, 0.0f};  // identity grade when Bloom grades later
+            bgfx::setViewFrameBuffer(kAoView, aoFinal ? BGFX_INVALID_HANDLE : composePing_);
+            bgfx::setViewRect(kAoView, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+            bgfx::setViewClear(kAoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+            bgfx::setTexture(0, sTex_, sceneTex);
+            bgfx::setTexture(1, sDepth_, bgfx::getTexture(composeFb_, 1));
+            bgfx::setUniform(uAo_, aoP);
+            bgfx::setUniform(uAoParams_, aoParams);
+            bgfx::setUniform(uGrade_, aoFinal ? grade : &neutral[0]);
+            bgfx::setVertexBuffer(0, fsTri_);
+            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+            bgfx::submit(kAoView, aoProg_);
+            sceneTex = bgfx::getTexture(composePing_, 0);  // Bloom reads AO's result (views run in order)
+        }
+        // Stage 2 - Bloom: bright-pass -> blur H/V (half-res) -> combine scene + glow, final -> backbuffer.
+        if (bl) {
+            const float threshold = 0.70f, intensity = 0.5f;
+            const float bright[4] = {threshold, intensity, 1.0f / bloomW_, 1.0f / bloomH_};
+            blit(kBloomBright, bloomDownA_, sceneTex, bloomDW_, bloomDH_, bloomBrightProg_, uBloom_, bright);
+            const float blurH[4] = {threshold, intensity, 1.0f / bloomDW_, 0.0f};
+            blit(kBloomBlurH, bloomDownB_, bgfx::getTexture(bloomDownA_, 0), bloomDW_, bloomDH_,
+                 bloomBlurProg_, uBloom_, blurH);
+            const float blurV[4] = {threshold, intensity, 0.0f, 1.0f / bloomDH_};
+            blit(kBloomBlurV, bloomDownA_, bgfx::getTexture(bloomDownB_, 0), bloomDW_, bloomDH_,
+                 bloomBlurProg_, uBloom_, blurV);
+            const float comb[4] = {threshold, intensity, 0.0f, 0.0f};
+            bgfx::setViewFrameBuffer(kBloomCombine, BGFX_INVALID_HANDLE);
+            bgfx::setViewRect(kBloomCombine, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+            bgfx::setViewClear(kBloomCombine, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+            bgfx::setTexture(0, sTex_, sceneTex);
+            bgfx::setTexture(1, sBloom_, bgfx::getTexture(bloomDownA_, 0));
+            bgfx::setUniform(uBloom_, comb);
+            bgfx::setUniform(uGrade_, grade);
+            bgfx::setVertexBuffer(0, fsTri_);
+            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+            bgfx::submit(kBloomCombine, bloomCombineProg_);
+        } else if (!ao) {
+            // Only the grade is non-neutral: a single grade blit (compose scene -> backbuffer).
+            blit(kTonemapView, BGFX_INVALID_HANDLE, sceneTex, width_, height_, gradeProg_, uGrade_, grade);
+        }
     }
     bgfx::frame();
 }

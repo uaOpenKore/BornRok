@@ -54,6 +54,7 @@ private:
     std::vector<Chunk> chunks_;  // index ranges for per-frame LOD-radius culling
     u32 quadCount_ = 0;          // tuft crosses uploaded (2 quads each)
     float builtHeight_ = -1.0f;  // height fraction the current VB was built at
+    bool builtFlowers_ = false;  // whether the current VB was built with flower heads (#grassflowers)
     bool ready_ = false;
 };
 

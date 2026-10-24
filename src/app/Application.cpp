@@ -155,6 +155,7 @@ int Application::run(const AppConfig& cfg) {
     g_grassEnabled = grassEnabled_ != 0;
     g_grassHeightFrac = (normalsMode_ < 1.0f ? 1.0f : normalsMode_) * 0.20f;
     g_grassWind = grassWind_ != 0;  // grass wind sway (#grasswind): default on, cheap enough for mobile too
+    g_grassFlowers = grassFlowers_ != 0;  // grass flowers (#grassflowers): default on
     // LOD (#lod): default Off on desktop (draw everything); a saved value wins. Apply the radius.
     if (lod_ < 0) lod_ = 0;
     g_lodRadius = static_cast<float>(lod_);
@@ -507,6 +508,7 @@ void Application::loadConfig() {
                 waterReflect_ = std::clamp(static_cast<int>(v + 0.5f), 0, 3);
             else if (key == "grass") grassEnabled_ = (v != 0.0f) ? 1 : 0;  // ground grass on/off (#grass)
             else if (key == "grasswind") grassWind_ = (v != 0.0f) ? 1 : 0;  // grass wind sway on/off (#grasswind)
+            else if (key == "grassflowers") grassFlowers_ = (v != 0.0f) ? 1 : 0;  // grass flowers on/off (#grassflowers)
             else if (key == "lod") {  // object draw-radius LOD: 0 off / 25 / 40 / 60 / 80 (#lod)
                 const int lv = static_cast<int>(v + 0.5f);
                 lod_ = (lv >= 70) ? 80 : (lv >= 50) ? 60 : (lv >= 32) ? 40 : (lv >= 12) ? 25 : 0;
@@ -665,6 +667,7 @@ void Application::saveConfig() const {
     if (waterReflect_ >= 0) out << "waterreflect " << waterReflect_ << "\n";  // -1 = auto (unsaved) (#water)
     if (grassEnabled_ >= 0) out << "grass " << grassEnabled_ << "\n";          // -1 = auto (unsaved) (#grass)
     out << "grasswind " << grassWind_ << "\n";                                 // grass wind sway (#grasswind)
+    out << "grassflowers " << grassFlowers_ << "\n";                           // grass flowers (#grassflowers)
     if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
@@ -753,6 +756,12 @@ void Application::setGrassEnabled(bool on) {
 void Application::setGrassWind(bool on) {
     grassWind_ = on ? 1 : 0;
     g_grassWind = on;
+    saveConfig();
+}
+
+void Application::setGrassFlowers(bool on) {
+    grassFlowers_ = on ? 1 : 0;
+    g_grassFlowers = on;
     saveConfig();
 }
 

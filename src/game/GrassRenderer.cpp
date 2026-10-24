@@ -37,6 +37,27 @@ inline float hash01(u32 a, u32 b, u32 c) {
     return static_cast<float>(h & 0xffffffu) / static_cast<float>(0x1000000u);
 }
 
+// Pack straight RGB (0..1) into the Color0 vertex format (ABGR byte order: R in the low byte), alpha 255.
+inline u32 packABGR(float r, float g, float b) {
+    auto q = [](float v) { return static_cast<u32>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f); };
+    return 0xff000000u | (q(b) << 16) | (q(g) << 8) | q(r);
+}
+// Flower-head palette (#grassflowers): a handful of bright heads scattered through the field, keyed by a
+// cell hash so the same tufts flower every load. Colours follow the source client's flower palette
+// (whites/pinks, reds/oranges/yellows, magentas). The head colour tints only a tuft's TOP vertices; the
+// base stays the grass green and the vertex colour interpolates up the blade -> green stem, bright head.
+constexpr int kNumFlowers = 6;
+inline u32 flowerColour(int i) {
+    switch (i) {
+        case 0: return packABGR(0.98f, 0.80f, 0.86f);  // pale pink
+        case 1: return packABGR(0.98f, 0.90f, 0.42f);  // yellow
+        case 2: return packABGR(0.95f, 0.35f, 0.45f);  // red
+        case 3: return packABGR(0.99f, 0.65f, 0.25f);  // orange
+        case 4: return packABGR(0.90f, 0.55f, 0.80f);  // magenta
+        default: return packABGR(0.98f, 0.95f, 0.97f); // white
+    }
+}
+
 constexpr int kTuftW = 128, kTuftH = 128, kNumModels = 5, kNumBlades = 15;
 
 // A horizontal ATLAS of kNumModels distinct procedural grass tufts (S.: "сгенерируй 5 разных моделей
@@ -220,6 +241,7 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
 void GrassRenderer::buildMesh(float heightFrac) {
     if (!ready_ || clumps_.empty()) { quadCount_ = 0; return; }
     const float frac = std::clamp(heightFrac, 0.05f, 1.0f);
+    const bool flowers = g_grassFlowers;  // #grassflowers: bright heads on a scattered subset of tufts
     const float h = kHeightBase * frac;    // tuft height
     const float hw = kWidthBase * frac;    // tuft half-width (independent of height now)
     std::vector<GVertex> verts;
@@ -255,22 +277,27 @@ void GrassRenderer::buildMesh(float heightFrac) {
         cMinX = std::min(cMinX, c.x); cMaxX = std::max(cMaxX, c.x);
         cMinZ = std::min(cMinZ, c.z); cMaxZ = std::max(cMaxZ, c.z);
         const float by = c.groundY, ty = c.groundY + h;
-        const u32 col = c.abgr;
+        const u32 col = c.abgr;  // base (rooted) colour = the cell tile's mean grass green
+        // Flower head (#grassflowers): a scattered subset gets a bright head colour on the TOP verts only.
+        const u32 cellX = static_cast<u32>(c.x * 2.0f), cellZ = static_cast<u32>(c.z * 2.0f);
+        u32 topCol = col;
+        if (flowers && hash01(cellX, cellZ, 0x51u) < 0.16f)
+            topCol = flowerColour(static_cast<int>(hash01(cellX, cellZ, 0x9cu) * kNumFlowers) % kNumFlowers);
         const float u0 = static_cast<float>(c.model) * uStep, u1 = u0 + uStep;  // this clump's atlas cell
         // Quad A: spans X at the clump's Z (faces +/-Z).
         u32 base = static_cast<u32>(verts.size());
         verts.push_back({c.x - hw, by, c.z, u0, 1.0f, col});
         verts.push_back({c.x + hw, by, c.z, u1, 1.0f, col});
-        verts.push_back({c.x + hw, ty, c.z, u1, 0.0f, col});
-        verts.push_back({c.x - hw, ty, c.z, u0, 0.0f, col});
+        verts.push_back({c.x + hw, ty, c.z, u1, 0.0f, topCol});
+        verts.push_back({c.x - hw, ty, c.z, u0, 0.0f, topCol});
         idx.push_back(base + 0); idx.push_back(base + 1); idx.push_back(base + 2);
         idx.push_back(base + 0); idx.push_back(base + 2); idx.push_back(base + 3);
         // Quad B: spans Z at the clump's X (faces +/-X) — the perpendicular half of the cross.
         base = static_cast<u32>(verts.size());
         verts.push_back({c.x, by, c.z - hw, u0, 1.0f, col});
         verts.push_back({c.x, by, c.z + hw, u1, 1.0f, col});
-        verts.push_back({c.x, ty, c.z + hw, u1, 0.0f, col});
-        verts.push_back({c.x, ty, c.z - hw, u0, 0.0f, col});
+        verts.push_back({c.x, ty, c.z + hw, u1, 0.0f, topCol});
+        verts.push_back({c.x, ty, c.z - hw, u0, 0.0f, topCol});
         idx.push_back(base + 0); idx.push_back(base + 1); idx.push_back(base + 2);
         idx.push_back(base + 0); idx.push_back(base + 2); idx.push_back(base + 3);
     }
@@ -287,6 +314,7 @@ void GrassRenderer::buildMesh(float heightFrac) {
     ibh_ = bgfx::createIndexBuffer(bgfx::copy(idx.data(), static_cast<u32>(idx.size() * sizeof(u32))), BGFX_BUFFER_INDEX32);
     quadCount_ = static_cast<u32>(clumps_.size()) * 2;
     builtHeight_ = heightFrac;
+    builtFlowers_ = flowers;
 }
 
 void GrassRenderer::destroy() {
@@ -310,7 +338,7 @@ void GrassRenderer::destroy() {
 
 void GrassRenderer::render(double time, float playerX, float playerZ) {
     if (!ready_ || !g_grassEnabled) return;
-    if (g_grassHeightFrac != builtHeight_) buildMesh(g_grassHeightFrac);
+    if (g_grassHeightFrac != builtHeight_ || g_grassFlowers != builtFlowers_) buildMesh(g_grassHeightFrac);
     if (quadCount_ == 0 || !bgfx::isValid(vbh_)) return;
     const float fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
     // Wind sway of the blade tips (#grasswind, default on). One slow wind for the whole field; the tip

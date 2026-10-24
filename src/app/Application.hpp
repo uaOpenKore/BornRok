@@ -114,6 +114,10 @@ public:
     // Grass wind sway (Settings -> Video -> Grass Wind, #grasswind): sways the blade tips. Default on.
     bool grassWind() const { return grassWind_ != 0; }
     void setGrassWind(bool on);
+    // Grass flowers (Settings -> Video -> Grass Flowers, #grassflowers): scatters bright flower heads
+    // through the grass. Default on.
+    bool grassFlowers() const { return grassFlowers_ != 0; }
+    void setGrassFlowers(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
     // Off on desktop). For Switch/Android perf.
@@ -284,6 +288,7 @@ private:
     int waterReflect_ = -1;                      // water reflections: 0 off/1 light/2 ssr/3 planar; -1 = auto (#water)
     int grassEnabled_ = -1;                      // ground grass: 0 off / 1 on; -1 = auto (#grass)
     int grassWind_ = 1;                          // grass wind sway: 0 off / 1 on; default on (#grasswind)
+    int grassFlowers_ = 1;                       // grass flowers: 0 off / 1 on; default on (#grassflowers)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)

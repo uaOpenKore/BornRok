@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 10 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + Grass Wind + LOD
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 11 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -574,8 +574,15 @@ public:
                 ui::button(sb, font, uin, cx + cw - 90.0f, gwy - 4.0f, 90.0f, 26.0f,
                            app.grassWind() ? "On" : "Off", 1.2f))
                 app.setGrassWind(!app.grassWind());
+            // Grass Flowers (#grassflowers): scattered bright flower heads. Default on.
+            const float gfy = gwy + 34.0f;
+            font.draw(sb, cx, gfy, 1.1f, ui::color::kWinText, "Grass Flowers");
+            if (selOpen_ < 0 &&
+                ui::button(sb, font, uin, cx + cw - 90.0f, gfy - 4.0f, 90.0f, 26.0f,
+                           app.grassFlowers() ? "On" : "Off", 1.2f))
+                app.setGrassFlowers(!app.grassFlowers());
             // LOD (#lod, Switch/Android perf): Off / 25 / 40 / 60 / 80 draw radius. Cycles on click.
-            const float ly = gwy + 34.0f;
+            const float ly = gfy + 34.0f;
             const int lv = app.lod();
             const char* ll = lv == 80 ? "80" : lv == 60 ? "60" : lv == 40 ? "40" : lv == 25 ? "25" : "Off";
             font.draw(sb, cx, ly, 1.1f, ui::color::kWinText, "LOD");

@@ -28,6 +28,10 @@ inline float g_grassHeightFrac = 0.20f;  // 0.20 / 0.30 / 0.40
 // GrassRenderer each frame.
 inline bool g_grassWind = true;
 
+// Grass flowers (#grassflowers, Settings -> Video). Scatters bright flower heads through the grass (a
+// subset of tufts get a coloured tip). Default on; a change triggers a cheap grass-mesh rebuild.
+inline bool g_grassFlowers = true;
+
 // LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
 // world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear
 // 180° (behind the player relative to the camera's view direction) are also skipped. Read by

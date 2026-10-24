@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 20 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 21 * 34.0f + 44.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -536,9 +536,17 @@ public:
                 ui::button(sb, font, uin, cx + cw - 90.0f, bly - 4.0f, 90.0f, 26.0f,
                            app.bloom() ? "On" : "Off", 1.2f))
                 app.setBloom(!app.bloom());
+            // Ambient occlusion (#ao): depth-only SSAO contact shadows. On/off, default OFF (new;
+            // mutually exclusive with Bloom — AO wins when both on; needs sampleable depth).
+            const float aoy = bly + 34.0f;
+            font.draw(sb, cx, aoy, 1.1f, ui::color::kWinText, "Ambient Occlusion");
+            if (selOpen_ < 0 &&
+                ui::button(sb, font, uin, cx + cw - 90.0f, aoy - 4.0f, 90.0f, 26.0f,
+                           app.ao() ? "On" : "Off", 1.2f))
+                app.setAo(!app.ao());
             // Normals (S.): relief from luminance normal maps — Off / x1 / x1.5 / x2, player's
             // choice. Applied live (shader strength), persisted; default x1.5 on real GPUs.
-            const float nyy = bly + 34.0f;
+            const float nyy = aoy + 34.0f;
             const float nmv = app.normalsMode();
             const char* nml = nmv < 0.5f ? "Off" : nmv < 1.25f ? "x1" : nmv < 1.75f ? "x1.5" : "x2";
             font.draw(sb, cx, nyy, 1.1f, ui::color::kWinText, "Normals");

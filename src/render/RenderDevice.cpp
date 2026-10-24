@@ -151,6 +151,7 @@ void RenderDevice::shutdown() {
         destroyGodrayTarget();
         destroyReflectTarget();
         destroyBloomTargets();
+        destroyAoTargets();
         auto kill = [](bgfx::ProgramHandle& p) { if (bgfx::isValid(p)) bgfx::destroy(p); p = BGFX_INVALID_HANDLE; };
         kill(tonemapProg_);
         kill(easuProg_);
@@ -161,6 +162,7 @@ void RenderDevice::shutdown() {
         kill(bloomBrightProg_);
         kill(bloomBlurProg_);
         kill(bloomCombineProg_);
+        kill(aoProg_);
         if (bgfx::isValid(sTex_)) bgfx::destroy(sTex_);
         if (bgfx::isValid(uTonemap_)) bgfx::destroy(uTonemap_);
         if (bgfx::isValid(uFsr_)) bgfx::destroy(uFsr_);
@@ -172,10 +174,14 @@ void RenderDevice::shutdown() {
         if (bgfx::isValid(uLightCol_)) bgfx::destroy(uLightCol_);
         if (bgfx::isValid(uBloom_)) bgfx::destroy(uBloom_);
         if (bgfx::isValid(sBloom_)) bgfx::destroy(sBloom_);
+        if (bgfx::isValid(uAo_)) bgfx::destroy(uAo_);
+        if (bgfx::isValid(uAoParams_)) bgfx::destroy(uAoParams_);
+        if (bgfx::isValid(sDepth_)) bgfx::destroy(sDepth_);
         if (bgfx::isValid(fsTri_)) bgfx::destroy(fsTri_);
         sTex_ = uTonemap_ = uFsr_ = uGrade_ = BGFX_INVALID_HANDLE;
         uGodray_ = uGodray2_ = uVolParams_ = uLightScr_ = uLightCol_ = BGFX_INVALID_HANDLE;
         uBloom_ = sBloom_ = BGFX_INVALID_HANDLE;
+        uAo_ = uAoParams_ = sDepth_ = BGFX_INVALID_HANDLE;
         fsTri_ = BGFX_INVALID_HANDLE;
         postReady_ = false;
         bgfx::shutdown();
@@ -235,6 +241,8 @@ constexpr bgfx::ViewId kTonemapView = 200;
 // Bloom intermediate pass views (#bloom): above the scene (0..2) and reflect (4) so they run after the
 // scene in the default ascending order, and below the UI (250). Combine (204) is last -> it presents.
 constexpr bgfx::ViewId kBloomBright = 201, kBloomBlurH = 202, kBloomBlurV = 203, kBloomCombine = 204;
+// SSAO composite view (#ao): past the scene (0..2) and reflect (4), below the UI (250). Single blit.
+constexpr bgfx::ViewId kAoView = 210;
 struct FsVert { float x, y, z, u, v; };  // z is required: the layout declares Position = 3 floats
 bgfx::VertexLayout fsLayout() {
     bgfx::VertexLayout l;
@@ -272,6 +280,10 @@ void RenderDevice::initPostProcess(const std::string& assetDir) {
     bloomCombineProg_ = load_program(assetDir, "vs_fullscreen", "fs_bloom_combine");
     uBloom_ = bgfx::createUniform("u_bloom", bgfx::UniformType::Vec4);
     sBloom_ = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
+    aoProg_ = load_program(assetDir, "vs_fullscreen", "fs_ao");  // #ao (may be invalid -> AO off)
+    uAo_ = bgfx::createUniform("u_ao", bgfx::UniformType::Vec4);
+    uAoParams_ = bgfx::createUniform("u_aoParams", bgfx::UniformType::Vec4);
+    sDepth_ = bgfx::createUniform("s_depth", bgfx::UniformType::Sampler);
     // Oversized fullscreen triangle in clip space; v flipped on top-left-origin backends so the
     // offscreen texture blits upright regardless of backend.
     const bool flip = !bgfx::getCaps()->originBottomLeft;
@@ -556,6 +568,60 @@ void RenderDevice::destroyBloomTargets() {
     bloomW_ = bloomH_ = bloomDW_ = bloomDH_ = 0;
 }
 
+// A depth target is sampleable for the AO pass only if the backend advertises the depth format as a
+// 2D texture (D24S8 first, D32F fallback). Software/GLES backends that lack it keep AO disabled so
+// toggling it on can never black-screen them.
+static bgfx::TextureFormat aoDepthFormat() {
+    const bgfx::Caps* caps = bgfx::getCaps();
+    if (caps->formats[bgfx::TextureFormat::D24S8] & BGFX_CAPS_FORMAT_TEXTURE_2D)
+        return bgfx::TextureFormat::D24S8;
+    if (caps->formats[bgfx::TextureFormat::D32F] & BGFX_CAPS_FORMAT_TEXTURE_2D)
+        return bgfx::TextureFormat::D32F;
+    return bgfx::TextureFormat::Count;  // no sampleable depth -> AO unsupported
+}
+
+bool RenderDevice::aoSupported() const {
+    return inited_ && aoDepthFormat() != bgfx::TextureFormat::Count;
+}
+
+void RenderDevice::createAoTargets() {
+    destroyAoTargets();
+    const u64 rt = BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    aoW_ = width_;
+    aoH_ = height_;
+    // Scene colour target, plus a depth target created SAMPLEABLE (no RT_WRITE_ONLY) so the AO pass can
+    // read it. This is the one place depth is a readable texture; all other offscreens keep it write-only.
+    const bgfx::TextureFormat df = aoDepthFormat();
+    if (df == bgfx::TextureFormat::Count) { log::error("render: AO depth format unsupported"); return; }
+    bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(aoW_), static_cast<u16>(aoH_),
+                                                   false, 1, bgfx::TextureFormat::RGBA8, rt);
+    bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(aoW_), static_cast<u16>(aoH_),
+                                                   false, 1, df, rt);
+    bgfx::TextureHandle sa[2] = {sc, sd};
+    aoSceneFb_ = bgfx::createFrameBuffer(2, sa, true);
+    if (!bgfx::isValid(aoSceneFb_)) log::error("render: AO framebuffer failed");
+}
+
+void RenderDevice::destroyAoTargets() {
+    if (bgfx::isValid(aoSceneFb_)) bgfx::destroy(aoSceneFb_);
+    aoSceneFb_ = BGFX_INVALID_HANDLE;
+    aoW_ = aoH_ = 0;
+}
+
+void RenderDevice::setAo(bool on) {
+#if defined(__ANDROID__)
+    (void)on; return;  // post-processing off on Android (mobile GLES FBs are crash-prone, as HDR/bloom)
+#endif
+    if (on == aoOn_) return;
+    if (on && !postReady_) { log::warn("render: AO requested but post-process unavailable"); return; }
+    if (on && !aoSupported()) { log::warn("render: AO unsupported (no sampleable depth) -> staying off"); return; }
+    if (on && !bgfx::isValid(aoProg_)) { log::warn("render: fs_ao shader missing -> AO off"); return; }
+    aoOn_ = on;
+    if (on) createAoTargets();
+    else destroyAoTargets();
+    log::info("render: AO {}", on ? "on" : "off");
+}
+
 void RenderDevice::setBloom(bool on) {
 #if defined(__ANDROID__)
     (void)on; return;  // post-processing off on Android (mobile GLES FBs are crash-prone, as HDR)
@@ -634,6 +700,13 @@ void RenderDevice::beginFrame() {
         if (fbW_ != width_ || fbH_ != height_) createGodrayTarget();
         for (bgfx::ViewId v = 0; v <= 2; ++v) {
             bgfx::setViewFrameBuffer(v, godrayFb_);
+            bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+        }
+        bgfx::setViewOrder(0, UINT16_MAX, nullptr);
+    } else if (aoActive()) {
+        if (aoW_ != width_ || aoH_ != height_) createAoTargets();
+        for (bgfx::ViewId v = 0; v <= 2; ++v) {
+            bgfx::setViewFrameBuffer(v, aoSceneFb_);
             bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         }
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
@@ -736,6 +809,24 @@ void RenderDevice::endFrame() {
         }
         blit(kTonemapView, BGFX_INVALID_HANDLE, bgfx::getTexture(godrayFb_, 0), width_, height_,
              comp, uGrade_, grade);
+    } else if (aoActive()) {
+        // SSAO: a single fullscreen pass reads the scene colour + its (sampleable) depth and darkens
+        // contact/crevice pixels, then applies the grade, straight to the backbuffer. Two textures + two
+        // uniforms, so it is submitted directly (like the bloom combine) rather than via the blit helper.
+        const float homog = bgfx::getCaps()->homogeneousDepth ? 1.0f : 0.0f;
+        const float aoP[4] = {0.9f /*intensity*/, 0.010f /*radius UV*/, 60.0f /*range (eye-z)*/, homog};
+        const float aoParams[4] = {1.0f / width_, 1.0f / height_, aoNear_, aoFar_};
+        bgfx::setViewFrameBuffer(kAoView, BGFX_INVALID_HANDLE);
+        bgfx::setViewRect(kAoView, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+        bgfx::setViewClear(kAoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        bgfx::setTexture(0, sTex_, bgfx::getTexture(aoSceneFb_, 0));
+        bgfx::setTexture(1, sDepth_, bgfx::getTexture(aoSceneFb_, 1));
+        bgfx::setUniform(uAo_, aoP);
+        bgfx::setUniform(uAoParams_, aoParams);
+        bgfx::setUniform(uGrade_, grade);
+        bgfx::setVertexBuffer(0, fsTri_);
+        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        bgfx::submit(kAoView, aoProg_);
     } else if (bloomActive()) {
         // Bloom: bright-pass the scene into half-res, blur it H then V, then composite scene + glow and
         // grade onto the backbuffer. threshold/intensity tuned for a tasteful default-on glow.

@@ -95,6 +95,15 @@ public:
     // byte-identical. Only runs for the in-game 3D scene.
     void setBloom(bool on);
     bool bloom() const { return bloomOn_; }
+    // Ambient occlusion (#ao). Depth-only screen-space AO: the scene renders into an offscreen whose
+    // depth attachment is SAMPLEABLE, and a fullscreen pass darkens contact/crevice pixels. Its own
+    // offscreen path, mutually exclusive with HDR/FSR/God Rays/Bloom (the engine does not stack post
+    // passes); AO takes precedence over Bloom when both are on. The AO composite also applies the grade.
+    // Default OFF (new; depth-as-texture support varies by backend — opt-in until confirmed). Only the
+    // in-game 3D scene. aoSupported() is false where the backend can't sample a depth target.
+    void setAo(bool on);
+    bool ao() const { return aoOn_; }
+    bool aoSupported() const;
     // Water reflections (#water). Quality ladder: 0 = Off (classic translucent water), 1 = Light
     // (sky/ambient tint + sheen, shader-only), 2 = SSR (half-res planar reflection), 3 = Planar
     // (full-res planar reflection). Persists in game.cfg. OFF (default on mobile/console/WARP) keeps
@@ -150,6 +159,8 @@ private:
     void destroyReflectTarget();
     void createBloomTargets();  // (re)create the scene offscreen + two half-res blur targets (#bloom)
     void destroyBloomTargets();
+    void createAoTargets();     // (re)create the scene offscreen with a SAMPLEABLE depth attachment (#ao)
+    void destroyAoTargets();
     void recomputeRenderSize();  // sceneW_/sceneH_ = round(native * fsrScale_) for the 3D view
     bool upscaling() const { return fsrScale_ < 0.999f; }     // FSR1 (render below native)
     bool supersampling() const { return fsrScale_ > 1.001f; }  // SSAA (render above native)
@@ -161,16 +172,20 @@ private:
     bool gradeNonNeutral() const { return gradeB_ != 0.5f || gradeC_ != 0.5f; }
     bool gradeActive() const {
         return gradeNonNeutral() && !hdrActive() && !fsrActive() && !godrayActive() && !bloomActive() &&
-               postReady_ && bgfx::isValid(gradeProg_) && bgfx::isValid(gradeFb_);
+               !aoActive() && postReady_ && bgfx::isValid(gradeProg_) && bgfx::isValid(gradeFb_);
     }
     bool godrayActive() const {  // the shaft composite (sun always, local lights in mode 2)
         return godrayMode_ >= 1 && worldScene_ && !hdrActive() && !fsrActive() && postReady_ &&
                bgfx::isValid(godrayFb_) &&
                bgfx::isValid(godrayMode_ >= 2 ? vollightProg_ : godrayProg_);
     }
+    bool aoActive() const {  // SSAO pass; its own offscreen, above Bloom in precedence (AO wins if both on)
+        return aoOn_ && worldScene_ && !hdrActive() && !fsrActive() && !godrayActive() && postReady_ &&
+               bgfx::isValid(aoProg_) && bgfx::isValid(aoSceneFb_);
+    }
     bool bloomActive() const {  // soft glow pass; its own offscreen, after HDR/FSR/God Rays in precedence
-        return bloomOn_ && worldScene_ && !hdrActive() && !fsrActive() && !godrayActive() && postReady_ &&
-               bgfx::isValid(bloomBrightProg_) && bgfx::isValid(bloomBlurProg_) &&
+        return bloomOn_ && worldScene_ && !aoActive() && !hdrActive() && !fsrActive() && !godrayActive() &&
+               postReady_ && bgfx::isValid(bloomBrightProg_) && bgfx::isValid(bloomBlurProg_) &&
                bgfx::isValid(bloomCombineProg_) && bgfx::isValid(bloomSceneFb_);
     }
 
@@ -197,6 +212,9 @@ private:
     bgfx::FrameBufferHandle bloomDownB_ = BGFX_INVALID_HANDLE;    // half-res blur pong (#bloom)
     int bloomW_ = 0, bloomH_ = 0;    // size bloomSceneFb_ was created at (native)
     int bloomDW_ = 0, bloomDH_ = 0;  // size the half-res blur targets were created at
+    bgfx::FrameBufferHandle aoSceneFb_ = BGFX_INVALID_HANDLE;  // RGBA8 + SAMPLEABLE depth scene target (#ao)
+    int aoW_ = 0, aoH_ = 0;          // size aoSceneFb_ was created at (native)
+    float aoNear_ = 1.0f, aoFar_ = 4000.0f;  // in-game camera near/far (matches GameScene perspective)
     int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
     int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)
     bgfx::ProgramHandle tonemapProg_ = BGFX_INVALID_HANDLE;
@@ -208,6 +226,7 @@ private:
     bgfx::ProgramHandle bloomBrightProg_ = BGFX_INVALID_HANDLE;   // bright-pass extract (#bloom)
     bgfx::ProgramHandle bloomBlurProg_ = BGFX_INVALID_HANDLE;     // separable Gaussian blur (#bloom)
     bgfx::ProgramHandle bloomCombineProg_ = BGFX_INVALID_HANDLE;  // scene + glow + grade (#bloom)
+    bgfx::ProgramHandle aoProg_ = BGFX_INVALID_HANDLE;           // SSAO composite (scene * ao + grade) (#ao)
     bgfx::UniformHandle sTex_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTonemap_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uFsr_ = BGFX_INVALID_HANDLE;
@@ -215,6 +234,10 @@ private:
     bgfx::UniformHandle uBloom_ = BGFX_INVALID_HANDLE;  // x=threshold, y=intensity, zw=texel/step (#bloom)
     bgfx::UniformHandle sBloom_ = BGFX_INVALID_HANDLE;  // stage-1 sampler for the combine pass (#bloom)
     bool bloomOn_ = false;  // user toggle (#bloom)
+    bgfx::UniformHandle uAo_ = BGFX_INVALID_HANDLE;        // x=intensity, y=radius(UV), z=range, w=homogDepth (#ao)
+    bgfx::UniformHandle uAoParams_ = BGFX_INVALID_HANDLE;  // x=1/w, y=1/h, z=zNear, w=zFar (#ao)
+    bgfx::UniformHandle sDepth_ = BGFX_INVALID_HANDLE;     // depth sampler for the AO pass (#ao)
+    bool aoOn_ = false;  // user toggle (#ao), default off
     bgfx::UniformHandle uGodray_ = BGFX_INVALID_HANDLE;   // xy=sun uv, z=intensity, w=decay (#117)
     bgfx::UniformHandle uGodray2_ = BGFX_INVALID_HANDLE;  // x=density, y=weight, z=bright threshold
     bgfx::UniformHandle uVolParams_ = BGFX_INVALID_HANDLE;  // x=count, y=intensity, z=density, w=decay

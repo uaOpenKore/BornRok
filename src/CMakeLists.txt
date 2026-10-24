@@ -728,6 +728,7 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
       ${UARO_CLIENT_ROOT}/assets/shaders/fs_bloom_bright.sc
       ${UARO_CLIENT_ROOT}/assets/shaders/fs_bloom_blur.sc
       ${UARO_CLIENT_ROOT}/assets/shaders/fs_bloom_combine.sc
+      ${UARO_CLIENT_ROOT}/assets/shaders/fs_ao.sc
     VARYING ${UARO_CLIENT_ROOT}/assets/shaders/varying_fs.def.sc
   )
   # Bake EVERY shader into the exe (S.: "в ехе зашей все шейдеры") so the client renders fully from a
@@ -737,7 +738,7 @@ if(CLIENT_BUILD_SHADERS AND (NOT ANDROID OR CLIENT_HOST_SHADERC))
     vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_grass vs_romskin fs_romskin
     fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
     vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight
-    fs_bloom_bright fs_bloom_blur fs_bloom_combine)
+    fs_bloom_bright fs_bloom_blur fs_bloom_combine fs_ao)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -858,7 +859,7 @@ if(CLIENT_BUILD_AVX2 AND NOT ANDROID AND NOT APPLE AND CLIENT_TARGET_X86 AND NOT
       vs_ground fs_ground vs_model fs_model vs_sprite3d fs_sprite3d vs_grass vs_romskin fs_romskin
       fs_spritelit vs_overlay fs_overlay vs_glow fs_glow vs_water fs_water
       vs_fullscreen fs_tonemap fs_fsr_easu fs_fsr_rcas fs_grade fs_godray fs_vollight
-    fs_bloom_bright fs_bloom_blur fs_bloom_combine)
+    fs_bloom_bright fs_bloom_blur fs_bloom_combine fs_ao)
   endif()
 endif()
 

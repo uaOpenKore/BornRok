@@ -143,6 +143,10 @@ public:
     // Animated water surface ripple (Settings -> Video -> Water Ripples, #waterripples). Default on.
     bool waterRipples() const { return waterRipples_ != 0; }
     void setWaterRipples(bool on);
+    // Water wake trails (Settings -> Video -> Water Trails, #watertrail). Ripple rings under moving
+    // units on water cells. Default on; self-gating (no water cells -> nothing spawns).
+    bool fxWaterTrail() const { return fxWaterTrail_ != 0; }
+    void setFxWaterTrail(bool on);
     // xBR 4x texture upscale (Settings -> Video -> xBR Textures, #xbr). Default OFF (heavy: ~16x texture
     // memory/decode). Applies as caches refill (map / appearance re-load).
     bool xbrUpscale() const { return xbr_ != 0; }
@@ -327,6 +331,7 @@ private:
     int fxButterflies_ = 1;                      // atmospheric butterflies on/off; default on (#fxlife)
     int fxMotes_ = 1;                            // atmospheric dust motes on/off; default on (#fxlife)
     int waterRipples_ = 1;                       // animated water ripple on/off; default on (#waterripples)
+    int fxWaterTrail_ = 1;                        // water wake trails on/off; default on (#watertrail)
     int xbr_ = 0;                                // xBR 4x texture upscale: 0 off / 1 on; default OFF (#xbr)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)

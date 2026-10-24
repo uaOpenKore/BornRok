@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 21 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + xBR. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 22 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -680,8 +680,14 @@ public:
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wry2 - 4.0f, 90.0f, 26.0f,
                                            app.waterRipples() ? "On" : "Off", 1.2f))
                 app.setWaterRipples(!app.waterRipples());
+            // Water wake trails (#watertrail): ripple rings under units moving on water. Default on.
+            const float wty = wry2 + 34.0f;
+            font.draw(sb, cx, wty, 1.1f, ui::color::kWinText, "Water Trails");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wty - 4.0f, 90.0f, 26.0f,
+                                           app.fxWaterTrail() ? "On" : "Off", 1.2f))
+                app.setFxWaterTrail(!app.fxWaterTrail());
             // xBR 4x texture upscale (#xbr): sharper sprites/ground. Default OFF (heavy ~16x memory).
-            const float xby = wry2 + 34.0f;
+            const float xby = wty + 34.0f;
             font.draw(sb, cx, xby, 1.1f, ui::color::kWinText, "xBR Textures");
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, xby - 4.0f, 90.0f, 26.0f,
                                            app.xbrUpscale() ? "On" : "Off", 1.2f))

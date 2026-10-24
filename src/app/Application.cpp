@@ -169,6 +169,7 @@ int Application::run(const AppConfig& cfg) {
     g_fxButterflies = fxButterflies_ != 0;  // atmospheric life (#fxlife): default on
     g_fxMotes = fxMotes_ != 0;
     g_waterRipples = waterRipples_ != 0;  // animated water ripple (#waterripples): default on
+    g_fxWaterTrail = fxWaterTrail_ != 0;  // water wake trails (#watertrail): default on
     g_xbrUpscale = xbr_ != 0;             // xBR 4x texture upscale (#xbr): default off (heavy)
     // LOD (#lod): default Off on desktop (draw everything); a saved value wins. Apply the radius.
     if (lod_ < 0) lod_ = 0;
@@ -532,6 +533,7 @@ void Application::loadConfig() {
             else if (key == "fxbutterflies") fxButterflies_ = (v != 0.0f) ? 1 : 0;  // atmospheric life: butterflies
             else if (key == "fxmotes") fxMotes_ = (v != 0.0f) ? 1 : 0;          // atmospheric life: dust motes
             else if (key == "waterripples") waterRipples_ = (v != 0.0f) ? 1 : 0;  // animated water ripple (#waterripples)
+            else if (key == "watertrail") fxWaterTrail_ = (v != 0.0f) ? 1 : 0;    // water wake trails (#watertrail)
             else if (key == "xbrupscale") xbr_ = (v != 0.0f) ? 1 : 0;  // xBR 4x texture upscale (#xbr), default off
             else if (key == "lod") {  // object draw-radius LOD: 0 off / 25 / 40 / 60 / 80 (#lod)
                 const int lv = static_cast<int>(v + 0.5f);
@@ -701,6 +703,7 @@ void Application::saveConfig() const {
     out << "fxbutterflies " << fxButterflies_ << "\n";
     out << "fxmotes " << fxMotes_ << "\n";
     out << "waterripples " << waterRipples_ << "\n";
+    out << "watertrail " << fxWaterTrail_ << "\n";
     out << "xbrupscale " << xbr_ << "\n";
     if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
     out << "uiscale " << uiScale_ << "\n";
@@ -818,6 +821,7 @@ void Application::setFxSparkle(bool on) { fxSparkle_ = on ? 1 : 0; g_fxSparkle =
 void Application::setFxButterflies(bool on) { fxButterflies_ = on ? 1 : 0; g_fxButterflies = on; saveConfig(); }
 void Application::setFxMotes(bool on) { fxMotes_ = on ? 1 : 0; g_fxMotes = on; saveConfig(); }
 void Application::setWaterRipples(bool on) { waterRipples_ = on ? 1 : 0; g_waterRipples = on; saveConfig(); }
+void Application::setFxWaterTrail(bool on) { fxWaterTrail_ = on ? 1 : 0; g_fxWaterTrail = on; saveConfig(); }
 void Application::setXbrUpscale(bool on) {
     // xBR (#xbr): textures are cached post-upscale, so the change shows as caches refill (re-entering a
     // map re-decodes the ground; a new appearance re-uploads sprite frames). Cheap to flip the flag.

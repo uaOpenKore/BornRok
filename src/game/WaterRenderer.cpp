@@ -229,7 +229,7 @@ void WaterRenderer::render(double time, const ReflectionParams& refl) const {
         bgfx::setUniform(reflParams_, rp);
         bgfx::setUniform(sky_, sky);
         // Animated surface ripple (#waterripples): tiny time-driven UV wobble; 0 when the toggle is off.
-        const float rip[4] = {g_waterRipples ? 0.004f : 0.0f, static_cast<float>(time), 0.0f, 0.0f};
+        const float rip[4] = {g_waterRipples ? 0.013f : 0.0f, static_cast<float>(time), 0.0f, 0.0f};
         bgfx::setUniform(rippleAnim_, rip);
     } else {
         const float bias[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // sprite3d fallback: flat plane -> no depth bias

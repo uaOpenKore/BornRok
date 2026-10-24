@@ -46,6 +46,11 @@ inline bool g_fxMotes = true;      // soft floating dust/pollen motes catching t
 // water shimmers; applies in all reflection modes. Default on; off is byte-identical to the classic look.
 inline bool g_waterRipples = true;
 
+// Water wake trails (#watertrail, Settings -> Video). Flat expanding ripple rings spawned at the feet of
+// moving units that stand on a water cell (coded particles in GameScene::updateAmbientFx). Self-gating:
+// maps with no underwater cells spawn nothing. Default on.
+inline bool g_fxWaterTrail = true;
+
 // xBR 4x texture upscale (#xbr, Settings -> Video). Sharpens sprite frames and ground tiles with the xBR
 // pixel-art scaler at load. Default OFF (unlike the other effects): it multiplies texture memory and
 // decode cost ~16x, which can stutter or exhaust VRAM on weaker GPUs, so it is opt-in. Read where a

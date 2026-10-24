@@ -106,6 +106,7 @@ private:
     void computePlayerPos();
     Vec3 cellToWorld(u16 cx, u16 cy) const;            // GAT cell -> world (with ground height)
     float surfaceHeight(float wx, float wz) const;     // world XZ -> walkable GAT surface (world Y)
+    bool waterSurfaceAt(float wx, float wz, float& outY) const;  // true + surface Y if XZ is over a water cell
     bool screenToCell(int mx, int my, u16& cx, u16& cy) const;  // unproject a click to a GAT cell
     void startMove(Mover& m, const Vec3& from, u16 srcX, u16 srcY, u16 dstX, u16 dstY,
                    bool route = true, u16 speedMs = 150);
@@ -299,6 +300,9 @@ private:
     int butterflySeed_ = 0;
     float moteAcc_ = 0;
     int moteSeed_ = 0;
+    // Water wake trails (#watertrail): throttle + seed for ripple rings under moving units on water.
+    float waterTrailAcc_ = 0;
+    int waterTrailSeed_ = 0;
     // Airship sky clouds (ported from roBrowser Renderer/Effects/Sky.js): the airship maps
     // (airplane/airplane_01) and a few "sky" maps render a field of slowly drifting cloud billboards
     // around the player. Purely client-side, keyed on the map name (same list as skyColorForMap).

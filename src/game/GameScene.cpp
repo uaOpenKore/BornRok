@@ -2739,6 +2739,31 @@ float GameScene::surfaceHeight(float wx, float wz) const {
     return renderer_.heightAt(wx, wz);
 }
 
+bool GameScene::waterSurfaceAt(float wx, float wz, float& outY) const {
+    // Is this world XZ over a water cell? Mirror WaterRenderer's per-cell test (same GND cube +
+    // X-mirror convention): a cell carries water when it has a top tile AND at least one corner dips
+    // below the water plane (height > level - waveHeight). Returns the flat surface Y (= -level*0.1,
+    // the same -h*0.1 world transform the mesh uses). Self-gating: dry maps return false everywhere.
+    const MapData& md = renderer_.data();
+    const u32 W = md.gnd.width(), H = md.gnd.height();
+    if (W == 0 || H == 0) return false;
+    const auto& cubes = md.gnd.cubes();
+    if (cubes.size() < static_cast<usize>(W) * H) return false;
+    const float level = md.rsw.water().level;
+    const float threshold = level - md.rsw.water().waveHeight;
+    // Inverse of the mesh placement: the quad for cube x spans world X [W-(x+1) .. W-x], Z [y .. y+1].
+    const int gx = static_cast<int>(std::floor(static_cast<float>(W) - wx));
+    const int gy = static_cast<int>(std::floor(wz));
+    if (gx < 0 || gy < 0 || gx >= static_cast<int>(W) || gy >= static_cast<int>(H)) return false;
+    const GndCube& c = cubes[static_cast<usize>(gx) + static_cast<usize>(gy) * W];
+    if (c.tileUp < 0) return false;
+    const bool under = c.height[0] > threshold || c.height[1] > threshold ||
+                       c.height[2] > threshold || c.height[3] > threshold;
+    if (!under) return false;
+    outY = -level * 0.1f;
+    return true;
+}
+
 bool GameScene::screenToCell(int mx, int my, u16& cx, u16& cy) const {
     if (!haveLastVp_ || lastViewW_ <= 0 || lastViewH_ <= 0) return false;
     const Mat4 inv = lastVp_.inverse();
@@ -11015,6 +11040,39 @@ void GameScene::updateAmbientFx(float dt) {
                     p.life = 5.0f + h(s + 7) * 3.0f;
                     ambientFx_.emit(p);
                 }
+            }
+        }
+    }
+    // Water wake trails (#watertrail): flat expanding ripple rings at the feet of units moving across a
+    // water cell. One ring per moving unit each throttle tick; self-gating via waterSurfaceAt (a dry map
+    // spawns nothing). Rings lie flat on the surface, expand outward and fade quickly.
+    if (g_fxWaterTrail) {
+        waterTrailAcc_ += dt;
+        constexpr float kTrailPeriod = 0.28f;  // seconds between rings for one moving unit
+        if (waterTrailAcc_ >= kTrailPeriod) {
+            waterTrailAcc_ -= kTrailPeriod;
+            auto ripple = [&](float wx, float wz) {
+                float surfY;
+                if (!waterSurfaceAt(wx, wz, surfY)) return;
+                const int s = waterTrailSeed_++;
+                ambientFx_.setEmitter({wx, surfY + 0.04f, wz});  // just above the surface
+                Particle p;
+                p.groundFlat = true;                   // lay the disc flat on the water plane
+                p.r = 0.78f; p.g = 0.9f; p.b = 1.0f;   // pale blue-white, additive -> faint highlight
+                p.a = 0.5f; p.da = -0.9f;              // fade out in ~0.55s
+                p.size = 0.22f + h(s) * 0.06f;
+                p.growth = 1.7f;                       // expand outward as a spreading ring
+                p.life = 0.6f;
+                ambientFx_.emit(p);
+            };
+            if (playerMove_.active) ripple(playerPos_.x, playerPos_.z);
+            constexpr float kTrailCull = 60.0f;
+            for (const auto& kv : actors_) {
+                const MapActor& a = kv.second;
+                if (!a.move.active) continue;
+                const float dx = a.pos.x - playerPos_.x, dz = a.pos.z - playerPos_.z;
+                if (dx * dx + dz * dz > kTrailCull * kTrailCull) continue;
+                ripple(a.pos.x, a.pos.z);
             }
         }
     }

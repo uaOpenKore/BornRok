@@ -15,10 +15,19 @@ SAMPLER2D(s_refl, 1);  // planar reflection colour (modes 2/3)
 uniform vec4 u_spriteFade;  // x = surface alpha (translucency)
 uniform vec4 u_waterRefl;   // x = mode(0..3), y = reflectivity 0..1, z = flipReflY, w = ripple amount
 uniform vec4 u_waterSky;    // rgb = sky/ambient reflection colour (Light tier)
+uniform vec4 u_waterRipple; // x = surface-ripple amount (0 = off), y = time (s) (#waterripples)
 
 void main()
 {
-    vec4 t = texture2D(s_tex, v_texcoord0);
+    // Animated surface ripple (#waterripples): wobble the texture lookup with crossing sine waves so
+    // the water shimmers over time. Amount 0 -> no change (the Off/classic look stays byte-identical).
+    vec2 wuv = v_texcoord0;
+    if (u_waterRipple.x > 0.0) {
+        float tm = u_waterRipple.y;
+        wuv += u_waterRipple.x * vec2(sin(tm * 1.1 + v_texcoord0.y * 38.0),
+                                      cos(tm * 1.3 + v_texcoord0.x * 38.0));
+    }
+    vec4 t = texture2D(s_tex, wuv);
     vec3 base = t.rgb * v_color0.rgb;
     float alpha = u_spriteFade.x * v_color0.a;
 

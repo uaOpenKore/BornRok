@@ -53,6 +53,7 @@ private:
     bgfx::UniformHandle bias_ = BGFX_INVALID_HANDLE;      // u_spriteBias (sprite3d fallback only, kept 0)
     bgfx::UniformHandle reflParams_ = BGFX_INVALID_HANDLE;  // u_waterRefl (mode, reflectivity, flipY, ripple)
     bgfx::UniformHandle sky_ = BGFX_INVALID_HANDLE;        // u_waterSky (rgb sky/ambient reflection colour)
+    bgfx::UniformHandle rippleAnim_ = BGFX_INVALID_HANDLE; // u_waterRipple (x amount, y time) (#waterripples)
     bgfx::VertexBufferHandle vbh_ = BGFX_INVALID_HANDLE;
     bgfx::IndexBufferHandle ibh_ = BGFX_INVALID_HANDLE;
     std::vector<bgfx::TextureHandle> frames_;  // 32 animated water textures

@@ -40,6 +40,10 @@ inline bool g_fxFireflies = true;  // wandering warm fireflies (map emitter id 4
 inline bool g_fxSmoke = true;      // chimney smoke puffs (map emitter id 44)
 inline bool g_fxSparkle = true;    // white sparkle glints (map emitter id 165)
 
+// Animated water surface ripple (#waterripples, Settings -> Video). A tiny time-driven UV wobble so the
+// water shimmers; applies in all reflection modes. Default on; off is byte-identical to the classic look.
+inline bool g_waterRipples = true;
+
 // LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
 // world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear
 // 180° (behind the player relative to the camera's view direction) are also skipped. Read by

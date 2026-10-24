@@ -130,6 +130,9 @@ public:
     void setFxSmoke(bool on);
     bool fxSparkle() const { return fxSparkle_ != 0; }
     void setFxSparkle(bool on);
+    // Animated water surface ripple (Settings -> Video -> Water Ripples, #waterripples). Default on.
+    bool waterRipples() const { return waterRipples_ != 0; }
+    void setWaterRipples(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
     // Off on desktop). For Switch/Android perf.
@@ -306,6 +309,7 @@ private:
     int fxFireflies_ = 1;                        // ambient fireflies on/off; default on
     int fxSmoke_ = 1;                            // ambient chimney smoke on/off; default on
     int fxSparkle_ = 1;                          // ambient sparkle on/off; default on
+    int waterRipples_ = 1;                       // animated water ripple on/off; default on (#waterripples)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)

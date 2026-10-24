@@ -6,6 +6,7 @@
 
 #include "app/Application.hpp"
 #include "core/Log.hpp"
+#include "render/SamplerFilter.hpp"  // g_waterRipples
 #include "render/Shader.hpp"
 #include "world/MapData.hpp"
 
@@ -149,6 +150,7 @@ bool WaterRenderer::load(Application& app, const MapData& map) {
     bias_ = bgfx::createUniform("u_spriteBias", bgfx::UniformType::Vec4);  // sprite3d fallback depth nudge (kept 0)
     reflParams_ = bgfx::createUniform("u_waterRefl", bgfx::UniformType::Vec4);  // mode, reflectivity, flipY, ripple
     sky_ = bgfx::createUniform("u_waterSky", bgfx::UniformType::Vec4);          // sky/ambient reflection colour
+    rippleAnim_ = bgfx::createUniform("u_waterRipple", bgfx::UniformType::Vec4);  // surface ripple (#waterripples)
 
     // Upload the per-cell water mesh built above (only the underwater cells).
     bgfx::VertexLayout layout;
@@ -181,6 +183,7 @@ void WaterRenderer::destroy() {
     if (bgfx::isValid(bias_)) bgfx::destroy(bias_);
     if (bgfx::isValid(reflParams_)) bgfx::destroy(reflParams_);
     if (bgfx::isValid(sky_)) bgfx::destroy(sky_);
+    if (bgfx::isValid(rippleAnim_)) bgfx::destroy(rippleAnim_);
     if (bgfx::isValid(program_)) bgfx::destroy(program_);
     vbh_ = BGFX_INVALID_HANDLE;
     ibh_ = BGFX_INVALID_HANDLE;
@@ -190,6 +193,7 @@ void WaterRenderer::destroy() {
     bias_ = BGFX_INVALID_HANDLE;
     reflParams_ = BGFX_INVALID_HANDLE;
     sky_ = BGFX_INVALID_HANDLE;
+    rippleAnim_ = BGFX_INVALID_HANDLE;
     program_ = BGFX_INVALID_HANDLE;
     newShader_ = false;
     ready_ = false;
@@ -224,6 +228,9 @@ void WaterRenderer::render(double time, const ReflectionParams& refl) const {
         const float sky[4] = {refl.sky[0], refl.sky[1], refl.sky[2], refl.alpha};  // .w = surface opacity
         bgfx::setUniform(reflParams_, rp);
         bgfx::setUniform(sky_, sky);
+        // Animated surface ripple (#waterripples): tiny time-driven UV wobble; 0 when the toggle is off.
+        const float rip[4] = {g_waterRipples ? 0.004f : 0.0f, static_cast<float>(time), 0.0f, 0.0f};
+        bgfx::setUniform(rippleAnim_, rip);
     } else {
         const float bias[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // sprite3d fallback: flat plane -> no depth bias
         bgfx::setUniform(bias_, bias);

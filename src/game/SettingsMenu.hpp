@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 15 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 16 * 34.0f + 44.0f  // + Bloom + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -528,9 +528,17 @@ public:
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, gry - 4.0f, 90.0f, 26.0f, gml, 1.2f))
                 app.setGodrayMode((gm + 1) % 3);
+            // Bloom (#bloom): soft glow out of bright areas. On/off, default on. Best with HDR/Render
+            // Scale/Volum. Light off (bloom owns the offscreen only when those don't).
+            const float bly = gry + 34.0f;
+            font.draw(sb, cx, bly, 1.1f, ui::color::kWinText, "Bloom");
+            if (selOpen_ < 0 &&
+                ui::button(sb, font, uin, cx + cw - 90.0f, bly - 4.0f, 90.0f, 26.0f,
+                           app.bloom() ? "On" : "Off", 1.2f))
+                app.setBloom(!app.bloom());
             // Normals (S.): relief from luminance normal maps — Off / x1 / x1.5 / x2, player's
             // choice. Applied live (shader strength), persisted; default x1.5 on real GPUs.
-            const float nyy = gry + 34.0f;
+            const float nyy = bly + 34.0f;
             const float nmv = app.normalsMode();
             const char* nml = nmv < 0.5f ? "Off" : nmv < 1.25f ? "x1" : nmv < 1.75f ? "x1.5" : "x2";
             font.draw(sb, cx, nyy, 1.1f, ui::color::kWinText, "Normals");

@@ -88,6 +88,13 @@ public:
     // while HDR/render-scale own the offscreen — in that case Glow's world halos still show, just no
     // shafts. Persists. OFF (default) = byte-identical.
     void setGodrayMode(int mode);
+    // Bloom (#bloom). Soft glow bleeding out of the scene's bright areas: a bright-pass extract, a
+    // separable Gaussian blur at half res, added back over the scene. Its own offscreen path (like
+    // grade), mutually exclusive with HDR/FSR/God Rays (those own the offscreen in their frame); the
+    // bloom composite also applies the brightness/contrast grade so the two coexist. Default on. OFF =
+    // byte-identical. Only runs for the in-game 3D scene.
+    void setBloom(bool on);
+    bool bloom() const { return bloomOn_; }
     // Water reflections (#water). Quality ladder: 0 = Off (classic translucent water), 1 = Light
     // (sky/ambient tint + sheen, shader-only), 2 = SSR (half-res planar reflection), 3 = Planar
     // (full-res planar reflection). Persists in game.cfg. OFF (default on mobile/console/WARP) keeps
@@ -141,6 +148,8 @@ private:
     void destroyGodrayTarget();
     void createReflectTarget(); // (re)create the RGBA8+depth planar-reflection offscreen (#water)
     void destroyReflectTarget();
+    void createBloomTargets();  // (re)create the scene offscreen + two half-res blur targets (#bloom)
+    void destroyBloomTargets();
     void recomputeRenderSize();  // sceneW_/sceneH_ = round(native * fsrScale_) for the 3D view
     bool upscaling() const { return fsrScale_ < 0.999f; }     // FSR1 (render below native)
     bool supersampling() const { return fsrScale_ > 1.001f; }  // SSAA (render above native)
@@ -151,13 +160,18 @@ private:
     }
     bool gradeNonNeutral() const { return gradeB_ != 0.5f || gradeC_ != 0.5f; }
     bool gradeActive() const {
-        return gradeNonNeutral() && !hdrActive() && !fsrActive() && !godrayActive() && postReady_ &&
-               bgfx::isValid(gradeProg_) && bgfx::isValid(gradeFb_);
+        return gradeNonNeutral() && !hdrActive() && !fsrActive() && !godrayActive() && !bloomActive() &&
+               postReady_ && bgfx::isValid(gradeProg_) && bgfx::isValid(gradeFb_);
     }
     bool godrayActive() const {  // the shaft composite (sun always, local lights in mode 2)
         return godrayMode_ >= 1 && worldScene_ && !hdrActive() && !fsrActive() && postReady_ &&
                bgfx::isValid(godrayFb_) &&
                bgfx::isValid(godrayMode_ >= 2 ? vollightProg_ : godrayProg_);
+    }
+    bool bloomActive() const {  // soft glow pass; its own offscreen, after HDR/FSR/God Rays in precedence
+        return bloomOn_ && worldScene_ && !hdrActive() && !fsrActive() && !godrayActive() && postReady_ &&
+               bgfx::isValid(bloomBrightProg_) && bgfx::isValid(bloomBlurProg_) &&
+               bgfx::isValid(bloomCombineProg_) && bgfx::isValid(bloomSceneFb_);
     }
 
     int width_ = 0;   // native window / backbuffer size (what everything renders + hit-tests at)
@@ -178,6 +192,11 @@ private:
     bgfx::FrameBufferHandle gradeFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (grade only)
     bgfx::FrameBufferHandle godrayFb_ = BGFX_INVALID_HANDLE;  // RGBA8 native scene target (god rays, #117)
     bgfx::FrameBufferHandle reflectFb_ = BGFX_INVALID_HANDLE;  // RGBA8+depth planar-reflection target (#water)
+    bgfx::FrameBufferHandle bloomSceneFb_ = BGFX_INVALID_HANDLE;  // RGBA8+depth native scene target (#bloom)
+    bgfx::FrameBufferHandle bloomDownA_ = BGFX_INVALID_HANDLE;    // half-res bright/blur ping (#bloom)
+    bgfx::FrameBufferHandle bloomDownB_ = BGFX_INVALID_HANDLE;    // half-res blur pong (#bloom)
+    int bloomW_ = 0, bloomH_ = 0;    // size bloomSceneFb_ was created at (native)
+    int bloomDW_ = 0, bloomDH_ = 0;  // size the half-res blur targets were created at
     int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
     int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)
     bgfx::ProgramHandle tonemapProg_ = BGFX_INVALID_HANDLE;
@@ -186,10 +205,16 @@ private:
     bgfx::ProgramHandle gradeProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle godrayProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle vollightProg_ = BGFX_INVALID_HANDLE;  // Rays mode: sun + per-light shafts (#117 B v2)
+    bgfx::ProgramHandle bloomBrightProg_ = BGFX_INVALID_HANDLE;   // bright-pass extract (#bloom)
+    bgfx::ProgramHandle bloomBlurProg_ = BGFX_INVALID_HANDLE;     // separable Gaussian blur (#bloom)
+    bgfx::ProgramHandle bloomCombineProg_ = BGFX_INVALID_HANDLE;  // scene + glow + grade (#bloom)
     bgfx::UniformHandle sTex_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTonemap_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uFsr_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uGrade_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uBloom_ = BGFX_INVALID_HANDLE;  // x=threshold, y=intensity, zw=texel/step (#bloom)
+    bgfx::UniformHandle sBloom_ = BGFX_INVALID_HANDLE;  // stage-1 sampler for the combine pass (#bloom)
+    bool bloomOn_ = false;  // user toggle (#bloom)
     bgfx::UniformHandle uGodray_ = BGFX_INVALID_HANDLE;   // xy=sun uv, z=intensity, w=decay (#117)
     bgfx::UniformHandle uGodray2_ = BGFX_INVALID_HANDLE;  // x=density, y=weight, z=bright threshold
     bgfx::UniformHandle uVolParams_ = BGFX_INVALID_HANDLE;  // x=count, y=intensity, z=density, w=decay

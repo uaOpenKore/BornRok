@@ -127,6 +127,7 @@ int Application::run(const AppConfig& cfg) {
     hdr_ = false;
     fsr_ = 1.0f;
     godrayMode_ = 0;
+    bloom_ = 0;  // bloom off on Android (post-process disabled there)
     if (waterReflect_ < 0) waterReflect_ = 0;  // mobile/Switch default: reflections off (S.)
     if (grassEnabled_ < 0) grassEnabled_ = 0;  // mobile/Switch default: grass off (S.)
     if (lod_ < 0) lod_ = 25;  // mobile/Switch default: LOD radius 25 (S.: 25 not 60)
@@ -138,6 +139,8 @@ int Application::run(const AppConfig& cfg) {
     render_.setGrade(brightness_, contrast_);  // apply the saved brightness/contrast grade (#111)
     render_.setGodrayMode(godrayMode_);   // apply the saved volumetric-light mode (#117)
     godrayMode_ = render_.godrayMode();   // reconcile: dropped if the shader is missing
+    render_.setBloom(bloom_ != 0);        // apply the saved bloom toggle (#bloom)
+    bloom_ = render_.bloom() ? 1 : 0;     // reconcile: dropped if the post-process is unavailable
 #endif
     // Normals toggle (S.): resolve the auto default once — x1.5 on a real GPU, Off on a
     // software rasterizer (WARP) where the extra shading would crawl. A saved value wins.
@@ -506,6 +509,7 @@ void Application::loadConfig() {
             else if (key == "godray")  // volumetric light mode 0/1/2 (back-compat: old bool 1 -> glow) (#117)
                 godrayMode_ = v < 0.5f ? 0 : (v > 2.5f ? 2 : static_cast<int>(v + 0.5f));
             else if (key == "fsr") { fsr_ = std::clamp(v, 0.5f, 2.0f); fsrInCfg = true; }  // <1 upscale, >1 SSAA (#111)
+            else if (key == "bloom") bloom_ = (v != 0.0f) ? 1 : 0;  // soft glow (#bloom)
             else if (key == "normals")  // Normals toggle: 0 off, 1/1.5/2 relief scale (#107+)
                 normalsMode_ = v < 0.5f ? 0.0f : (v < 1.25f ? 1.0f : (v < 1.75f ? 1.5f : 2.0f));
             else if (key == "waterreflect")  // water reflections: 0 off / 1 light / 2 ssr / 3 planar (#water)
@@ -669,6 +673,7 @@ void Application::saveConfig() const {
         << "contrast " << contrast_ << "\n"
         << "hdr " << (hdr_ ? 1 : 0) << "\n"
         << "godray " << godrayMode_ << "\n"
+        << "bloom " << bloom_ << "\n"
         << "fsr " << fsr_ << "\n"
         << "language " << language_ << "\n";
     if (normalsMode_ >= 0.0f) out << "normals " << normalsMode_ << "\n";  // -1 = auto (unsaved)
@@ -750,6 +755,12 @@ void Application::setFsr(float scale) {
 void Application::setGodrayMode(int mode) {
     render_.setGodrayMode(mode);
     godrayMode_ = render_.godrayMode();  // may stay off if the shader is missing
+    saveConfig();
+}
+
+void Application::setBloom(bool on) {
+    render_.setBloom(on);
+    bloom_ = render_.bloom() ? 1 : 0;  // may stay off if the post-process is unavailable
     saveConfig();
 }
 

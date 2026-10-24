@@ -150,6 +150,7 @@ void RenderDevice::shutdown() {
         destroyGradeTarget();
         destroyGodrayTarget();
         destroyReflectTarget();
+        destroyBloomTargets();
         auto kill = [](bgfx::ProgramHandle& p) { if (bgfx::isValid(p)) bgfx::destroy(p); p = BGFX_INVALID_HANDLE; };
         kill(tonemapProg_);
         kill(easuProg_);
@@ -157,6 +158,9 @@ void RenderDevice::shutdown() {
         kill(gradeProg_);
         kill(godrayProg_);
         kill(vollightProg_);
+        kill(bloomBrightProg_);
+        kill(bloomBlurProg_);
+        kill(bloomCombineProg_);
         if (bgfx::isValid(sTex_)) bgfx::destroy(sTex_);
         if (bgfx::isValid(uTonemap_)) bgfx::destroy(uTonemap_);
         if (bgfx::isValid(uFsr_)) bgfx::destroy(uFsr_);
@@ -166,9 +170,12 @@ void RenderDevice::shutdown() {
         if (bgfx::isValid(uVolParams_)) bgfx::destroy(uVolParams_);
         if (bgfx::isValid(uLightScr_)) bgfx::destroy(uLightScr_);
         if (bgfx::isValid(uLightCol_)) bgfx::destroy(uLightCol_);
+        if (bgfx::isValid(uBloom_)) bgfx::destroy(uBloom_);
+        if (bgfx::isValid(sBloom_)) bgfx::destroy(sBloom_);
         if (bgfx::isValid(fsTri_)) bgfx::destroy(fsTri_);
         sTex_ = uTonemap_ = uFsr_ = uGrade_ = BGFX_INVALID_HANDLE;
         uGodray_ = uGodray2_ = uVolParams_ = uLightScr_ = uLightCol_ = BGFX_INVALID_HANDLE;
+        uBloom_ = sBloom_ = BGFX_INVALID_HANDLE;
         fsTri_ = BGFX_INVALID_HANDLE;
         postReady_ = false;
         bgfx::shutdown();
@@ -215,6 +222,7 @@ void RenderDevice::resize(int width, int height) {
     if (fsrActive()) createFsrTargets();
     if (bgfx::isValid(gradeFb_)) createGradeTarget();
     if (bgfx::isValid(reflectFb_)) createReflectTarget();  // mirror the water-reflection target too (#water)
+    if (bloomOn_ && bgfx::isValid(bloomSceneFb_)) createBloomTargets();  // resize bloom targets too (#bloom)
 }
 
 // ---- HDR post-processing (#111) ------------------------------------------------------------
@@ -224,6 +232,9 @@ namespace {
 // (no reordering needed). The FSR/SSAA path is different: it keeps the UI native and must reorder, so
 // it uses low contiguous ids 2/3 for its resolve passes instead (see beginFrame).
 constexpr bgfx::ViewId kTonemapView = 200;
+// Bloom intermediate pass views (#bloom): above the scene (0..2) and reflect (4) so they run after the
+// scene in the default ascending order, and below the UI (250). Combine (204) is last -> it presents.
+constexpr bgfx::ViewId kBloomBright = 201, kBloomBlurH = 202, kBloomBlurV = 203, kBloomCombine = 204;
 struct FsVert { float x, y, z, u, v; };  // z is required: the layout declares Position = 3 floats
 bgfx::VertexLayout fsLayout() {
     bgfx::VertexLayout l;
@@ -256,6 +267,11 @@ void RenderDevice::initPostProcess(const std::string& assetDir) {
     gradeProg_ = load_program(assetDir, "vs_fullscreen", "fs_grade");    // may be invalid -> grade off
     godrayProg_ = load_program(assetDir, "vs_fullscreen", "fs_godray");  // Glow: sun shafts
     vollightProg_ = load_program(assetDir, "vs_fullscreen", "fs_vollight");  // Rays: sun + local shafts
+    bloomBrightProg_ = load_program(assetDir, "vs_fullscreen", "fs_bloom_bright");   // #bloom (may be invalid)
+    bloomBlurProg_ = load_program(assetDir, "vs_fullscreen", "fs_bloom_blur");
+    bloomCombineProg_ = load_program(assetDir, "vs_fullscreen", "fs_bloom_combine");
+    uBloom_ = bgfx::createUniform("u_bloom", bgfx::UniformType::Vec4);
+    sBloom_ = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
     // Oversized fullscreen triangle in clip space; v flipped on top-left-origin backends so the
     // offscreen texture blits upright regardless of backend.
     const bool flip = !bgfx::getCaps()->originBottomLeft;
@@ -508,6 +524,50 @@ bool RenderDevice::isSoftwareRenderer() const {
     return caps && caps->vendorId == BGFX_PCI_ID_MICROSOFT;  // WARP / software rasterizer
 }
 
+void RenderDevice::createBloomTargets() {
+    destroyBloomTargets();
+    const u64 rt = BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    bloomW_ = width_;
+    bloomH_ = height_;
+    // Native scene target (RGBA8 + depth): the 3D scene renders here, then the post passes read it.
+    bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
+                                                   false, 1, bgfx::TextureFormat::RGBA8, rt);
+    bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
+                                                   false, 1, bgfx::TextureFormat::D24S8,
+                                                   BGFX_TEXTURE_RT_WRITE_ONLY);
+    bgfx::TextureHandle sa[2] = {sc, sd};
+    bloomSceneFb_ = bgfx::createFrameBuffer(2, sa, true);
+    // Half-res ping/pong for the bright-pass + separable blur (bilinear sampling, clamped).
+    bloomDW_ = std::max(1, bloomW_ / 2);
+    bloomDH_ = std::max(1, bloomH_ / 2);
+    bloomDownA_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
+                                          bgfx::TextureFormat::RGBA8, rt);
+    bloomDownB_ = bgfx::createFrameBuffer(static_cast<u16>(bloomDW_), static_cast<u16>(bloomDH_),
+                                          bgfx::TextureFormat::RGBA8, rt);
+    if (!bgfx::isValid(bloomSceneFb_) || !bgfx::isValid(bloomDownA_) || !bgfx::isValid(bloomDownB_))
+        log::error("render: bloom framebuffers failed");
+}
+
+void RenderDevice::destroyBloomTargets() {
+    if (bgfx::isValid(bloomSceneFb_)) bgfx::destroy(bloomSceneFb_);
+    if (bgfx::isValid(bloomDownA_)) bgfx::destroy(bloomDownA_);
+    if (bgfx::isValid(bloomDownB_)) bgfx::destroy(bloomDownB_);
+    bloomSceneFb_ = bloomDownA_ = bloomDownB_ = BGFX_INVALID_HANDLE;
+    bloomW_ = bloomH_ = bloomDW_ = bloomDH_ = 0;
+}
+
+void RenderDevice::setBloom(bool on) {
+#if defined(__ANDROID__)
+    (void)on; return;  // post-processing off on Android (mobile GLES FBs are crash-prone, as HDR)
+#endif
+    if (on == bloomOn_) return;
+    if (on && !postReady_) { log::warn("render: bloom requested but post-process unavailable"); return; }
+    bloomOn_ = on;
+    if (on) createBloomTargets();
+    else destroyBloomTargets();
+    log::info("render: bloom {}", on ? "on" : "off");
+}
+
 void RenderDevice::setGodrayMode(int mode) {
 #if defined(__ANDROID__)
     (void)mode; return;  // god-ray/volumetric-light offscreen RT off on Android
@@ -574,6 +634,13 @@ void RenderDevice::beginFrame() {
         if (fbW_ != width_ || fbH_ != height_) createGodrayTarget();
         for (bgfx::ViewId v = 0; v <= 2; ++v) {
             bgfx::setViewFrameBuffer(v, godrayFb_);
+            bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+        }
+        bgfx::setViewOrder(0, UINT16_MAX, nullptr);
+    } else if (bloomActive()) {
+        if (bloomW_ != width_ || bloomH_ != height_) createBloomTargets();
+        for (bgfx::ViewId v = 0; v <= 2; ++v) {
+            bgfx::setViewFrameBuffer(v, bloomSceneFb_);
             bgfx::setViewRect(v, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         }
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
@@ -669,6 +736,32 @@ void RenderDevice::endFrame() {
         }
         blit(kTonemapView, BGFX_INVALID_HANDLE, bgfx::getTexture(godrayFb_, 0), width_, height_,
              comp, uGrade_, grade);
+    } else if (bloomActive()) {
+        // Bloom: bright-pass the scene into half-res, blur it H then V, then composite scene + glow and
+        // grade onto the backbuffer. threshold/intensity tuned for a tasteful default-on glow.
+        const float threshold = 0.70f, intensity = 0.5f;
+        const float bright[4] = {threshold, intensity, 1.0f / bloomW_, 1.0f / bloomH_};
+        blit(kBloomBright, bloomDownA_, bgfx::getTexture(bloomSceneFb_, 0), bloomDW_, bloomDH_,
+             bloomBrightProg_, uBloom_, bright);
+        const float blurH[4] = {threshold, intensity, 1.0f / bloomDW_, 0.0f};
+        blit(kBloomBlurH, bloomDownB_, bgfx::getTexture(bloomDownA_, 0), bloomDW_, bloomDH_,
+             bloomBlurProg_, uBloom_, blurH);
+        const float blurV[4] = {threshold, intensity, 0.0f, 1.0f / bloomDH_};
+        blit(kBloomBlurV, bloomDownA_, bgfx::getTexture(bloomDownB_, 0), bloomDW_, bloomDH_,
+             bloomBlurProg_, uBloom_, blurV);
+        // Combine needs two textures (scene + glow) and two uniforms (bloom intensity + grade), so it is
+        // submitted directly rather than through the single-texture blit helper.
+        const float comb[4] = {threshold, intensity, 0.0f, 0.0f};
+        bgfx::setViewFrameBuffer(kBloomCombine, BGFX_INVALID_HANDLE);
+        bgfx::setViewRect(kBloomCombine, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+        bgfx::setViewClear(kBloomCombine, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        bgfx::setTexture(0, sTex_, bgfx::getTexture(bloomSceneFb_, 0));
+        bgfx::setTexture(1, sBloom_, bgfx::getTexture(bloomDownA_, 0));
+        bgfx::setUniform(uBloom_, comb);
+        bgfx::setUniform(uGrade_, grade);
+        bgfx::setVertexBuffer(0, fsTri_);
+        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        bgfx::submit(kBloomCombine, bloomCombineProg_);
     } else if (gradeActive()) {
         // Neither HDR nor render-scale: still route through the grade offscreen so contrast can be
         // raised (the old fullscreen overlay could only lower it).

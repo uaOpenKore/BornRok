@@ -103,6 +103,9 @@ public:
     // the sun and each local light). Persisted in game.cfg (key `godray`, back-compat with the old bool).
     int godrayMode() const { return godrayMode_; }
     void setGodrayMode(int mode);
+    // Bloom (Settings -> Video -> Bloom, #bloom): soft glow. Default on (off on Android/unavailable GPU).
+    bool bloom() const { return bloom_ != 0; }
+    void setBloom(bool on);
     // Water reflections (Settings -> Video, #water): 0 = off, 1 = light, 2 = ssr, 3 = planar.
     // -1 = auto (resolve Planar on desktop GPU / Off on WARP+mobile at first run). Persisted.
     int waterReflect() const { return waterReflect_; }
@@ -292,6 +295,7 @@ private:
     float brightness_ = 0.5f, contrast_ = 0.5f;  // video grade, 0.5 = neutral (S.)
     bool hdr_ = false;                           // HDR offscreen + ACES tonemap (#111)
     int godrayMode_ = 0;                         // volumetric light: 0 off, 1 glow, 2 rays (#117)
+    int bloom_ = 1;                              // bloom soft glow: 0 off / 1 on; default on (#bloom)
     float fsr_ = 1.0f;                           // FSR1 upscale factor, 1 = off (#111)
     float normalsMode_ = -1.0f;                  // Normals toggle; -1 = auto default
     int waterReflect_ = -1;                      // water reflections: 0 off/1 light/2 ssr/3 planar; -1 = auto (#water)

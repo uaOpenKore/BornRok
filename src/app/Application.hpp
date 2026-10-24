@@ -118,6 +118,15 @@ public:
     // through the grass. Default on.
     bool grassFlowers() const { return grassFlowers_ != 0; }
     void setGrassFlowers(bool on);
+    // Ambient / weather particle families (Settings -> Video): each on/off, default on.
+    bool fxWeather() const { return fxWeather_ != 0; }
+    void setFxWeather(bool on);
+    bool fxFireflies() const { return fxFireflies_ != 0; }
+    void setFxFireflies(bool on);
+    bool fxSmoke() const { return fxSmoke_ != 0; }
+    void setFxSmoke(bool on);
+    bool fxSparkle() const { return fxSparkle_ != 0; }
+    void setFxSparkle(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
     // Off on desktop). For Switch/Android perf.
@@ -289,6 +298,10 @@ private:
     int grassEnabled_ = -1;                      // ground grass: 0 off / 1 on; -1 = auto (#grass)
     int grassWind_ = 1;                          // grass wind sway: 0 off / 1 on; default on (#grasswind)
     int grassFlowers_ = 1;                       // grass flowers: 0 off / 1 on; default on (#grassflowers)
+    int fxWeather_ = 1;                          // ambient weather fall on/off; default on
+    int fxFireflies_ = 1;                        // ambient fireflies on/off; default on
+    int fxSmoke_ = 1;                            // ambient chimney smoke on/off; default on
+    int fxSparkle_ = 1;                          // ambient sparkle on/off; default on
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)

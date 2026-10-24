@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 11 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 15 * 34.0f + 44.0f  // + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -591,6 +591,27 @@ public:
                 const int nl = lv == 0 ? 25 : lv == 25 ? 40 : lv == 40 ? 60 : lv == 60 ? 80 : 0;
                 app.setLod(nl);
             }
+            // Ambient / weather particle families (each on/off, default on).
+            const float fxWy = ly + 34.0f;
+            font.draw(sb, cx, fxWy, 1.1f, ui::color::kWinText, "Weather FX");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxWy - 4.0f, 90.0f, 26.0f,
+                                           app.fxWeather() ? "On" : "Off", 1.2f))
+                app.setFxWeather(!app.fxWeather());
+            const float fxFy = fxWy + 34.0f;
+            font.draw(sb, cx, fxFy, 1.1f, ui::color::kWinText, "Fireflies");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxFy - 4.0f, 90.0f, 26.0f,
+                                           app.fxFireflies() ? "On" : "Off", 1.2f))
+                app.setFxFireflies(!app.fxFireflies());
+            const float fxSy = fxFy + 34.0f;
+            font.draw(sb, cx, fxSy, 1.1f, ui::color::kWinText, "Smoke");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxSy - 4.0f, 90.0f, 26.0f,
+                                           app.fxSmoke() ? "On" : "Off", 1.2f))
+                app.setFxSmoke(!app.fxSmoke());
+            const float fxKy = fxSy + 34.0f;
+            font.draw(sb, cx, fxKy, 1.1f, ui::color::kWinText, "Sparkle");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxKy - 4.0f, 90.0f, 26.0f,
+                                           app.fxSparkle() ? "On" : "Off", 1.2f))
+                app.setFxSparkle(!app.fxSparkle());
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

@@ -32,6 +32,14 @@ inline bool g_grassWind = true;
 // subset of tufts get a coloured tip). Default on; a change triggers a cheap grass-mesh rebuild.
 inline bool g_grassFlowers = true;
 
+// Ambient / weather particle toggles (Settings -> Video). Each gates one family of coded ambient
+// particles in GameScene::updateAmbientFx; all default on. Off simply stops that family emitting (the
+// already-live particles finish their life), so toggling is instant and costs nothing when off.
+inline bool g_fxWeather = true;    // server weather fall: rain / snow / sakura / leaves
+inline bool g_fxFireflies = true;  // wandering warm fireflies (map emitter id 45)
+inline bool g_fxSmoke = true;      // chimney smoke puffs (map emitter id 44)
+inline bool g_fxSparkle = true;    // white sparkle glints (map emitter id 165)
+
 // LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
 // world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear
 // 180° (behind the player relative to the camera's view direction) are also skipped. Read by

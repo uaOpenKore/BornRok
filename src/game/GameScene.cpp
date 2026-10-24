@@ -10919,7 +10919,7 @@ void GameScene::updateAmbientFx(float dt) {
     };
     // Weather fall (#32): spawn each active weather's particles in a disc around the player, high
     // up, falling; life is tuned so they die out around ground level instead of sinking through.
-    for (int w : weather_) {
+    if (g_fxWeather) for (int w : weather_) {
         const float rate = w == 161 ? 90.0f : w == 162 ? 40.0f : 22.0f;  // particles per second
         weatherAcc_ += rate * dt;
         while (weatherAcc_ >= 1.0f) {
@@ -10961,6 +10961,10 @@ void GameScene::updateAmbientFx(float dt) {
     for (AmbientEmitter& em : ambientEmitters_) {
         const float dx = em.pos.x - playerPos_.x, dz = em.pos.z - playerPos_.z;
         if (dx * dx + dz * dz > kCullDist * kCullDist) continue;
+        // Per-family toggle (Settings -> Video): skip (and don't accumulate, so it won't burst when
+        // re-enabled) while this ambient family is off.
+        const bool famOn = em.id == 44 ? g_fxSmoke : em.id == 45 ? g_fxFireflies : g_fxSparkle;
+        if (!famOn) continue;
         em.acc += dt;
         while (em.acc >= em.period) {
             em.acc -= em.period;

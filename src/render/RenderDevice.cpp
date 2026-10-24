@@ -571,7 +571,7 @@ void RenderDevice::destroyBloomTargets() {
 // A depth target is sampleable for the AO pass only if the backend advertises the depth format as a
 // 2D texture (D24S8 first, D32F fallback). Software/GLES backends that lack it keep AO disabled so
 // toggling it on can never black-screen them.
-static bgfx::TextureFormat aoDepthFormat() {
+static bgfx::TextureFormat::Enum aoDepthFormat() {
     const bgfx::Caps* caps = bgfx::getCaps();
     if (caps->formats[bgfx::TextureFormat::D24S8] & BGFX_CAPS_FORMAT_TEXTURE_2D)
         return bgfx::TextureFormat::D24S8;
@@ -591,7 +591,7 @@ void RenderDevice::createAoTargets() {
     aoH_ = height_;
     // Scene colour target, plus a depth target created SAMPLEABLE (no RT_WRITE_ONLY) so the AO pass can
     // read it. This is the one place depth is a readable texture; all other offscreens keep it write-only.
-    const bgfx::TextureFormat df = aoDepthFormat();
+    const bgfx::TextureFormat::Enum df = aoDepthFormat();
     if (df == bgfx::TextureFormat::Count) { log::error("render: AO depth format unsupported"); return; }
     bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(aoW_), static_cast<u16>(aoH_),
                                                    false, 1, bgfx::TextureFormat::RGBA8, rt);

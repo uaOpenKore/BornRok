@@ -514,7 +514,7 @@ SkillFxDef skillFxDef(u16 id) {
         case 74:  return {"magnificat", false};       // PR_MAGNIFICAT: overhead magnificat.str (halved) + coded double green flower — BOTH
         case 75:  return {"gloria", false};           // PR_GLORIA
         case 76:  return {"lexdivina", false};        // PR_LEXDIVINA
-        case 77:  return {"holyhit", false};          // PR_TURNUNDEAD
+        case 77:  return {nullptr, false};            // PR_TURNUNDEAD: dedicated coded TU burst (halo+rays+ring), no .str
         case 78:  return {"lexaeterna", false};       // PR_LEXAETERNA
         case 79:  return {"magnus", true};            // PR_MAGNUS (ground)
         // Merchant / Blacksmith
@@ -2156,6 +2156,7 @@ void GameScene::onExit(Application& app) {
     skillFxCache_.clear();  // StrEffect dtors release their .str textures (bgfx still up here)
     skillFx_.clear();
     windFx_.clear();
+    turnUndeadFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -4630,6 +4631,16 @@ void GameScene::pumpStream(Application& app) {
                             lastFxSkill_ = sd.skillId;
                         }
                     }
+                    // PR_TURNUNDEAD (77): dedicated coded burst at the target (nostalre port) -- halo
+                    // disc + 5 shrinking flash rays + expanding ground ring. One 0x1de per victim, so
+                    // debounce a single spawn per cast.
+                    if (!romFx && haveDst && sd.skillId == 77 &&
+                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
+                        ensureTurnUndeadFx(app);
+                        if (tuTexReady_)
+                            turnUndeadFx_.push_back({TurnUndeadEffect(dstPos, time_), sd.dst, dstPos});
+                        lastFxSkill_ = sd.skillId; lastBurstAt_ = time_;
+                    }
                     if (!romFx && haveDst) {
                         const SkillFxDef fx = skillFxDef(sd.skillId);
                         if (fx.str && !fx.ground)
@@ -4646,6 +4657,7 @@ void GameScene::pumpStream(Application& app) {
                                  sd.skillId != 212 && sd.skillId != 219 && sd.skillId != 120 &&  // Back Stab / Intimidate / Flasher: dedicated doc16 branches below
                                  sd.skillId != 467 && sd.skillId != 468 && sd.skillId != 469 &&  // Soul Linker Estin/Estun/Esma soul bolts: dedicated branch below
                                  sd.skillId != 17 &&  // Fire Ball: dedicated fireball.spr explosion below (NO element kanji — S.: "рисует китайский иероглиф")
+                                 sd.skillId != 77 &&  // Turn Undead: dedicated coded TU burst above (halo+rays+ring)
                                  (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                             // "делай всех" — fallback burst for any offensive skill with no dedicated effect:
                             // elemental -> the real i_p_<ELEMENT>.tga kanji + tinted glow; neutral -> a white
@@ -9476,6 +9488,18 @@ void GameScene::ensureCloud11(Application& app) {
         log::warn("game: EF_WIND disabled -- cloud11.tga missing from the content pack");
 }
 
+void GameScene::ensureTurnUndeadFx(Application& app) {
+    if (tuTexTried_) return;
+    tuTexTried_ = true;
+    const bool a = loadEffectTexture(app.vfs(), "alpha_down.tga", tuHaloTex_);
+    const bool b = loadEffectTexture(app.vfs(), "alpha_center.tga", tuSpikeTex_);
+    const bool c = loadEffectTexture(app.vfs(), "ring_liner.tga", tuRingTex_);
+    tuTexReady_ = a && b && c;
+    if (!tuTexReady_)
+        log::warn("game: Turn Undead FX disabled -- missing effect texture(s) "
+                  "(alpha_down={}, alpha_center={}, ring_liner={})", a, b, c);
+}
+
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
     auto it = skillFxCache_.find(name);
     if (it != skillFxCache_.end()) return it->second.ready() ? &it->second : nullptr;  // cached (incl. miss)
@@ -14142,6 +14166,20 @@ void GameScene::render(Application& app) {
                         if (w.gid == app.session().accountId) p = playerPos_;
                         else if (auto it = actors_.find(w.gid); it != actors_.end()) p = it->second.pos;
                         w.eff.render(pass, cloud11Tex_, p);
+                    }
+            }
+            // Turn Undead holy burst (halo + flash rays + ground ring) at the struck target.
+            if (!turnUndeadFx_.empty()) {
+                for (TurnUndeadFx& t : turnUndeadFx_) t.eff.advance(time_);
+                turnUndeadFx_.erase(std::remove_if(turnUndeadFx_.begin(), turnUndeadFx_.end(),
+                                                   [&](const TurnUndeadFx& t) { return t.eff.finished(time_); }),
+                                    turnUndeadFx_.end());
+                if (tuTexReady_)
+                    for (const TurnUndeadFx& t : turnUndeadFx_) {
+                        Vec3 p = t.pos;
+                        if (t.gid == app.session().accountId) p = playerPos_;
+                        else if (auto it = actors_.find(t.gid); it != actors_.end()) p = it->second.pos;
+                        t.eff.render(pass, tuHaloTex_, tuSpikeTex_, tuRingTex_, p);
                     }
             }
             // Assumptio is a ONE-SHOT cast effect (roBrowser SkillEffect[HP_ASSUMPTIO]={effectId:440};

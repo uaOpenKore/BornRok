@@ -214,6 +214,16 @@ private:
     bool cloud11Loaded_ = false;    // texture ready
     bool cloud11Tried_ = false;     // attempted load (success or miss) -- don't retry every spawn
     void ensureCloud11(Application& app);  // load cloud11.tga once (sets the flags above)
+    // EF_TURNUNDEAD (PR_TURNUNDEAD): halo + flash rays + ground ring at the target.
+    struct TurnUndeadFx {
+        TurnUndeadEffect eff;
+        u32 gid;   // the struck target to follow (0 = anchored at pos)
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<TurnUndeadFx> turnUndeadFx_;
+    Texture tuHaloTex_, tuSpikeTex_, tuRingTex_;  // alpha_down / alpha_center / ring_liner
+    bool tuTexReady_ = false, tuTexTried_ = false;
+    void ensureTurnUndeadFx(Application& app);  // load the three textures once
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

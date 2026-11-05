@@ -463,6 +463,7 @@ add_library(client_app STATIC
   game/RomActor.cpp
   game/Gr2Models.cpp
   game/StrEffect.cpp
+  game/PrimitiveEffect.cpp
   game/ActorSprites.cpp
   game/AccessorySprites.cpp
   game/LoginScene.cpp

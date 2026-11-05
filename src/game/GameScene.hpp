@@ -11,6 +11,7 @@
 #include "game/CharacterActor.hpp"
 #include "game/MapRenderer.hpp"
 #include "game/StrEffect.hpp"
+#include "game/PrimitiveEffect.hpp"
 #include "game/HomunAi.hpp"
 #include "game/Particles.hpp"
 #include "game/RomActor.hpp"
@@ -202,6 +203,17 @@ private:
         u32 gid = 0;         // follow this unit (caster/target) if non-zero; 0 = ground-anchored (S. 2026-07-16)
     };
     std::vector<SkillFx> skillFx_;
+    // Coded PRIMITIVE effects (geometry, no .str) ported from nostalre. Pilot: EF_WIND (224).
+    struct WindFx {
+        WindEffect eff;
+        u32 gid;   // caster to follow (0 = anchored at `pos`)
+        Vec3 pos;  // fallback anchor if the caster despawns
+    };
+    std::vector<WindFx> windFx_;
+    Texture cloud11Tex_;            // cloud11.tga for WindEffect, loaded once
+    bool cloud11Loaded_ = false;    // texture ready
+    bool cloud11Tried_ = false;     // attempted load (success or miss) -- don't retry every spawn
+    void ensureCloud11(Application& app);  // load cloud11.tga once (sets the flags above)
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

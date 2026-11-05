@@ -2155,6 +2155,7 @@ void GameScene::onExit(Application& app) {
     devotion_.clear();
     skillFxCache_.clear();  // StrEffect dtors release their .str textures (bgfx still up here)
     skillFx_.clear();
+    windFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -7436,6 +7437,23 @@ void GameScene::pumpStream(Application& app) {
                         }
                         break;
                     }
+                    // EF_WIND (224): coded PRIMITIVE effect (cloud ribbons, no .str) ported from
+                    // nostalre -- pilot of the geometric-effect layer for classic effects the exe draws
+                    // with CEffect primitives. Spawn a WindEffect that follows the caster.
+                    if (effectId == 224) {
+                        Vec3 at;
+                        bool have = false;
+                        if (gid == app.session().accountId) { at = playerPos_; have = true; }
+                        else if (auto it = actors_.find(gid); it != actors_.end()) { at = it->second.pos; have = true; }
+                        if (have) {
+                            ensureCloud11(app);
+                            if (cloud11Loaded_) {
+                                windFx_.push_back({WindEffect(at, time_), gid, at});
+                                playWorldSfx(app, "wind.wav", at);
+                            }
+                        }
+                        break;
+                    }
                     // Multi-file "%d" effects (Meteor, Firewall, ...): the exe plays the numbered .str
                     // files back-to-back, so spawn one SkillFx per frame with a cumulative born time
                     // (the render loop skips a frame until its born, i.e. the previous frame finished).
@@ -9448,6 +9466,14 @@ void GameScene::ensureCodedFx(Application& app) {
     // (effect\alpha_center.tga) — the petrify pop. Same coded template.
     skillFxCache_["coded_stonecurse"].loadFromStr(
         app.vfs(), buildCodedFx(30, 9, {{"alpha_center.tga", 12.0f, 42.0f}}));
+}
+
+void GameScene::ensureCloud11(Application& app) {
+    if (cloud11Tried_) return;
+    cloud11Tried_ = true;
+    cloud11Loaded_ = loadEffectTexture(app.vfs(), "cloud11.tga", cloud11Tex_);
+    if (!cloud11Loaded_)
+        log::warn("game: EF_WIND disabled -- cloud11.tga missing from the content pack");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14101,6 +14127,21 @@ void GameScene::render(Application& app) {
                             e->render(pass, fpos, el, effectRenderScale(fx.effect), /*flat=*/false,
                                       effectRenderIntensity(fx.effect), /*upright=*/false);
                         }
+                    }
+            }
+            // Coded PRIMITIVE effects (geometry, no .str): EF_WIND funnel. Advance to now, drop finished
+            // ones, draw each at the caster's live position so the tornado follows them.
+            if (!windFx_.empty()) {
+                for (WindFx& w : windFx_) w.eff.advance(time_);
+                windFx_.erase(std::remove_if(windFx_.begin(), windFx_.end(),
+                                             [&](const WindFx& w) { return w.eff.finished(time_); }),
+                              windFx_.end());
+                if (cloud11Loaded_)
+                    for (const WindFx& w : windFx_) {
+                        Vec3 p = w.pos;
+                        if (w.gid == app.session().accountId) p = playerPos_;
+                        else if (auto it = actors_.find(w.gid); it != actors_.end()) p = it->second.pos;
+                        w.eff.render(pass, cloud11Tex_, p);
                     }
             }
             // Assumptio is a ONE-SHOT cast effect (roBrowser SkillEffect[HP_ASSUMPTIO]={effectId:440};

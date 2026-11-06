@@ -2159,6 +2159,7 @@ void GameScene::onExit(Application& app) {
     turnUndeadFx_.clear();
     blessingFx_.clear();
     agiFx_.clear();
+    healFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -5418,13 +5419,10 @@ void GameScene::pumpStream(Application& app) {
                             case 135: case 130:  // Cloaking white fade / Detecting ground ripple (doc16)
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
-                                    if (sn.skillId == 28) {  // AL_HEAL: rune circle under the CASTER (S.: "круг
-                                        // под ногами кастующего"), green orb wall on the TARGET, no duplicate.
-                                        Vec3 casterP = playerPos_;
-                                        if (sn.src != app.session().accountId)
-                                            if (auto si = actors_.find(sn.src); si != actors_.end()) casterP = si->second.pos;
-                                        emitSkillBurst(app, 28, casterP, 1);  // spinning circle on the caster
-                                        emitSkillBurst(app, 28, tp, 2);        // orb wall on the target
+                                    if (sn.skillId == 28) {  // AL_HEAL: nostalre-style green radial rings +
+                                        // rising motes on the TARGET (replaces our caster-circle + orb-wall).
+                                        ensureHealFx(app);
+                                        healFx_.push_back({HealEffect(tp, time_), sn.dst, tp});
                                     } else if (sn.skillId == 29) {
                                         // AL_INCAGI: nostalre rising streak fountain on the buffed unit
                                         // (follows it via agiFx_ gid), plus the "AGI UP!" overhead banner
@@ -9533,6 +9531,16 @@ void GameScene::ensureAgiFx(Application& app) {
     agiTexLoaded_ = loadEffectTexture(app.vfs(), "ac_center2.tga", agiTex_);
     if (!agiTexLoaded_)
         log::warn("game: Increase AGI fountain disabled -- ac_center2.tga missing from the content pack");
+}
+
+void GameScene::ensureHealFx(Application& app) {
+    if (healTexTried_) return;
+    healTexTried_ = true;
+    const bool a = loadEffectTexture(app.vfs(), "alpha_down.tga", healRingTex_);
+    const bool b = loadEffectTexture(app.vfs(), "pok1.tga", healMoteTex_);
+    healTexReady_ = a && b;
+    if (!healTexReady_)
+        log::warn("game: Heal FX disabled -- missing effect texture(s) (alpha_down={}, pok1={})", a, b);
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14267,6 +14275,22 @@ void GameScene::render(Application& app) {
                             if (auto it = actors_.find(a.gid); it != actors_.end()) p = it->second.pos;
                         }
                         a.eff.render(pass, agiTex_, p);
+                    }
+            }
+            // Heal: green radial rings + rising motes, following the healed unit.
+            if (!healFx_.empty()) {
+                for (HealFx& hf : healFx_) hf.eff.advance(time_);
+                healFx_.erase(std::remove_if(healFx_.begin(), healFx_.end(),
+                                             [&](const HealFx& hf) { return hf.eff.finished(time_); }),
+                              healFx_.end());
+                if (healTexReady_)
+                    for (const HealFx& hf : healFx_) {
+                        Vec3 p = hf.pos;
+                        if (hf.gid == app.session().accountId) p = playerPos_;
+                        else if (hf.gid) {
+                            if (auto it = actors_.find(hf.gid); it != actors_.end()) p = it->second.pos;
+                        }
+                        hf.eff.render(pass, healRingTex_, healMoteTex_, p);
                     }
             }
             // Assumptio is a ONE-SHOT cast effect (roBrowser SkillEffect[HP_ASSUMPTIO]={effectId:440};

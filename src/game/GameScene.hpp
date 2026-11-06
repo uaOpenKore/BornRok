@@ -248,6 +248,17 @@ private:
     Texture agiTex_;  // ac_center2.tga
     bool agiTexLoaded_ = false, agiTexTried_ = false;
     void ensureAgiFx(Application& app);
+    // EF_HEAL (AL_HEAL 28): nostalre green radial rings + rising motes on the target. Replaces the coded
+    // caster-circle + target orb-wall Heal.
+    struct HealFx {
+        HealEffect eff;
+        u32 gid;   // the healed unit to follow
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<HealFx> healFx_;
+    Texture healRingTex_, healMoteTex_;  // alpha_down.tga + pok1.tga
+    bool healTexReady_ = false, healTexTried_ = false;
+    void ensureHealFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

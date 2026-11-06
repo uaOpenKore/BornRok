@@ -233,6 +233,32 @@ constexpr float kAgiScale = 0.35f;
 constexpr float kAgiBlue[3] = {0.55f, 0.70f, 1.00f};
 constexpr float kAgiYellow[3] = {1.00f, 0.95f, 0.55f};
 
+// --- EF_HEAL (nostalre heal.rs HEAL + particle_up HEAL_MOTE) -----------------------------------
+constexpr float kHealDuration = 102.0f;       // frames
+constexpr float kHealHeightScale = 0.45f;     // HealParams.height_scale
+constexpr float kHealAlphaMax = 200.0f / 255.0f;
+constexpr float kHealFadeInStep = 5.0f / 255.0f;
+constexpr float kHealFadeOutStep = 2.0f / 255.0f;
+constexpr unsigned kHealFadeInFrames = 16;
+constexpr unsigned kHealGrowInFrames = 90;
+constexpr float kHealTintR = 76.0f / 255.0f, kHealTintG = 230.0f / 255.0f, kHealTintB = 90.0f / 255.0f;
+constexpr unsigned kHealMoteSpawnEnd = 50;
+constexpr unsigned kHealMoteSpawnPeriod = 4;
+constexpr int kHealMotePerBurst = 4;          // prims_per_spawn(1) * 4
+constexpr float kHealMoteSpread = 6.0f;
+constexpr float kHealMoteBaseDist = 2.83f, kHealMoteDistRand = 1.41f;  // -> disc SIZE
+constexpr float kHealMoteRiseBase = 0.3f, kHealMoteRiseRand = 0.4f;
+constexpr float kHealMoteAlphaCap = 150.0f / 255.0f;
+constexpr float kHealMoteFadeIn = 15.0f / 255.0f, kHealMoteFadeOut = 3.0f / 255.0f;
+// World-scale knobs (ours is much smaller than the RO-native world); tunable.
+constexpr float kHealRingScale = 0.35f;       // ring radius + ribbon height
+constexpr float kHealMoteSpreadScale = 0.30f;
+constexpr float kHealMoteSizeScale = 0.30f;
+constexpr float kHealMoteRiseScale = 0.12f;
+
+float ecSpeed(int ec) { return ec == 0 ? 4.0f : ec == 1 ? 3.0f : 2.0f; }
+float sinDeg(float d) { return std::sin(radf(d)); }
+
 float agiHash01(u32 i, u32 salt) {
     u32 x = i * 2654435761u + salt * 40503u + 0x9E3779B9u;
     x ^= (x >> 15);
@@ -575,6 +601,121 @@ void AgiUpEffect::render(const WorldSpritePass& pass, const Texture& tex, const 
                              abgr(tint[0], tint[1], tint[2], alpha), /*additive=*/true);
         }
     }
+}
+
+// ------------------------------- HealEffect ----------------------------------------------------
+HealEffect::HealEffect(const Vec3& worldPos, double bornTime) : born_(bornTime) {
+    rings_[0].ec = 0; rings_[0].distance = 4.6f; rings_[0].maxHeight = 40.0f;
+    rings_[0].rotStartDeg = 0.0f; rings_[0].alphaT = 60.0f;
+    rings_[1].ec = 1; rings_[1].distance = 4.8f; rings_[1].maxHeight = 40.0f;
+    rings_[1].rotStartDeg = 180.0f; rings_[1].alphaT = 60.0f;
+    const auto bits = [](float f) { u32 u; std::memcpy(&u, &f, sizeof(u)); return u; };
+    rng_ = (bits(worldPos.x) ^ bits(worldPos.z) ^ 0x9A1C0FF1u) | 1u;
+}
+
+unsigned HealEffect::moteRng() { rng_ = rng_ * 1664525u + 1013904223u; return rng_; }
+float HealEffect::moteRand(float lo, float hi) {
+    return lo + (hi - lo) * (static_cast<float>(moteRng()) / static_cast<float>(0xFFFFFFFFu));
+}
+
+void HealEffect::integrateTo(int targetFrame) {
+    for (int f = lastFrame_; f < targetFrame; ++f) {
+        // --- the two radial rings (flag1==0 RiseLaw::Heal path) ---
+        for (Ring& r : rings_) {
+            r.process += 1;
+            const float pf = static_cast<float>(r.process);
+            if (pf >= r.alphaT)
+                r.alpha = std::max(r.alpha - kHealFadeOutStep, 0.0f);
+            else if (r.process < kHealFadeInFrames)
+                r.alpha = std::min(r.alpha + kHealFadeInStep, kHealAlphaMax);
+            for (int i = 0; i < kDivision; ++i) {
+                float h = r.maxHeight * 0.75f +
+                          r.maxHeight * 0.25f * sinDeg(static_cast<float>(i) * 34.0f + pf * ecSpeed(r.ec));
+                if (r.process <= kHealGrowInFrames) h *= sinDeg(pf);
+                r.heights[i] = std::max(h, 0.0f);
+            }
+        }
+        // --- rising motes (particle_up HEAL_MOTE, no body flash) ---
+        const unsigned uf = static_cast<unsigned>(f);
+        if (uf <= kHealMoteSpawnEnd && uf % kHealMoteSpawnPeriod == 0) {
+            for (int k = 0; k < kHealMotePerBurst; ++k) {
+                Mote m;
+                m.x0 = moteRand(-kHealMoteSpread, kHealMoteSpread) * kHealMoteSpreadScale;
+                m.z0 = moteRand(-kHealMoteSpread, kHealMoteSpread) * kHealMoteSpreadScale;
+                m.size = (kHealMoteBaseDist + moteRand(0.0f, kHealMoteDistRand)) * kHealMoteSizeScale;
+                m.rise = (kHealMoteRiseBase + moteRand(0.0f, kHealMoteRiseRand)) * kHealMoteRiseScale;
+                m.process = 0;
+                m.alpha = 0.0f;
+                motes_.push_back(m);
+            }
+        }
+        for (Mote& m : motes_) {
+            m.process += 1;
+            if (m.process > 0) {
+                if (m.process <= 10) m.alpha = std::min(m.alpha + kHealMoteFadeIn, kHealMoteAlphaCap);
+                else m.alpha -= kHealMoteFadeOut;
+            }
+        }
+        motes_.erase(std::remove_if(motes_.begin(), motes_.end(),
+                                    [](const Mote& m) { return m.process > 10 && m.alpha <= 0.0f; }),
+                     motes_.end());
+    }
+    lastFrame_ = targetFrame;
+}
+
+void HealEffect::advance(double now) {
+    ageFrames_ = static_cast<float>((now - born_) * kFps);
+    const int target = static_cast<int>(ageFrames_);
+    if (target > lastFrame_) integrateTo(target);
+}
+
+bool HealEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kFps) >= kHealDuration;
+}
+
+void HealEffect::render(const WorldSpritePass& pass, const Texture& ringTex, const Texture& moteTex,
+                        const Vec3& base) const {
+    // Two green radial ribbon rings rising straight up from the ground (rise_angle 90).
+    if (ringTex.valid() && bgfx::isValid(pass.program) && pass.layout) {
+        constexpr int segments = kDivision - 1;  // 20
+        for (const Ring& r : rings_) {
+            if (r.alpha <= 0.0f) continue;
+            const float rot = radf(r.rotStartDeg);
+            const float rad = r.distance * kHealRingScale;
+            Vec3 bottom[kDivision], top[kDivision];
+            for (int i = 0; i <= segments; ++i) {
+                const float theta = rot + static_cast<float>(i) / segments * (2.0f * kPi);
+                const float ct = std::cos(theta), st = std::sin(theta);
+                const float h = r.heights[i % kDivision] * kHealHeightScale * kHealRingScale;
+                bottom[i] = Vec3{base.x + rad * ct, base.y, base.z + rad * st};
+                top[i] = Vec3{bottom[i].x, bottom[i].y + h, bottom[i].z};
+            }
+            const u32 col = abgr(kHealTintR, kHealTintG, kHealTintB, r.alpha);
+            std::vector<V> vd(segments * 4);
+            std::vector<u16> id(segments * 6);
+            int vn = 0, in = 0;
+            for (int seg = 0; seg < segments; ++seg) {
+                const float u0 = static_cast<float>(seg) / segments, u1 = static_cast<float>(seg + 1) / segments;
+                const u16 b = static_cast<u16>(vn);
+                vd[vn++] = {bottom[seg].x, bottom[seg].y, bottom[seg].z, u0, 1.0f, col};
+                vd[vn++] = {bottom[seg + 1].x, bottom[seg + 1].y, bottom[seg + 1].z, u1, 1.0f, col};
+                vd[vn++] = {top[seg + 1].x, top[seg + 1].y, top[seg + 1].z, u1, 0.0f, col};
+                vd[vn++] = {top[seg].x, top[seg].y, top[seg].z, u0, 0.0f, col};
+                id[in++] = b; id[in++] = b + 1; id[in++] = b + 2;
+                id[in++] = b; id[in++] = b + 2; id[in++] = b + 3;
+            }
+            submitPrim(pass, ringTex, vd.data(), vn, id.data(), in, /*additive=*/true, /*depthTest=*/true);
+        }
+    }
+    // Rising green motes.
+    if (moteTex.valid())
+        for (const Mote& m : motes_) {
+            if (m.alpha <= 0.0f) continue;
+            const float y = m.process > 0 ? m.rise * static_cast<float>(m.process) : 0.0f;
+            const Vec3 c{base.x + m.x0, base.y + y, base.z + m.z0};
+            drawBillboardDisc(pass, moteTex, c, m.size, 20,
+                              abgr(kHealTintR, kHealTintG, kHealTintB, m.alpha), /*additive=*/true);
+        }
 }
 
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {

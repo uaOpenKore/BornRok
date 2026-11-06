@@ -142,6 +142,46 @@ private:
     float ageFrames_ = 0.0f;
 };
 
+// EF_HEAL (AL_HEAL, skill 28) — Priest Heal: two green radial ribbon rings (alpha_down.tga, additive)
+// rising from the ground around the target, plus rising green motes (pok1.tga). Faithful port of
+// nostalre heal.rs (HEAL params) + particle_up.rs (HEAL_MOTE). Pure geometry (no .spr). Only the
+// flag1==0 RiseLaw::Heal ring path and the no-body-flash mote path are ported — all that AL_HEAL uses.
+class HealEffect {
+public:
+    static constexpr int kDivision = 21;  // RADIAL_EMITTER_DIVISION
+    static constexpr int kSlots = 2;
+
+    HealEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    void render(const WorldSpritePass& pass, const Texture& ringTex, const Texture& moteTex,
+                const Vec3& base) const;
+
+private:
+    struct Ring {
+        int ec = 0;
+        float distance = 0.0f, maxHeight = 0.0f, rotStartDeg = 0.0f;
+        float alpha = 0.0f, alphaT = 0.0f;
+        unsigned process = 0;
+        float heights[kDivision] = {0.0f};
+    };
+    struct Mote {
+        float x0 = 0.0f, z0 = 0.0f;  // spawn xz offset from base (world units)
+        float size = 0.0f, rise = 0.0f, alpha = 0.0f;
+        int process = 0;
+    };
+    void integrateTo(int targetFrame);
+    unsigned moteRng();
+    float moteRand(float lo, float hi);
+
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+    int lastFrame_ = 0;
+    unsigned rng_ = 0;
+    Ring rings_[kSlots];
+    std::vector<Mote> motes_;
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

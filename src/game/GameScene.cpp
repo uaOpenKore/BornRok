@@ -2158,6 +2158,7 @@ void GameScene::onExit(Application& app) {
     windFx_.clear();
     turnUndeadFx_.clear();
     blessingFx_.clear();
+    agiFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -5424,12 +5425,18 @@ void GameScene::pumpStream(Application& app) {
                                             if (auto si = actors_.find(sn.src); si != actors_.end()) casterP = si->second.pos;
                                         emitSkillBurst(app, 28, casterP, 1);  // spinning circle on the caster
                                         emitSkillBurst(app, 28, tp, 2);        // orb wall on the target
-                                    } else if (sn.skillId == 29 || sn.skillId == 30) {
-                                        // AGI Up/Down: the flower must FOLLOW the buffed unit (S.: "почему не
-                                        // следует за целью?"). Emit once now (with the AGI UP! banner), then
-                                        // re-emit the flower at the unit's live pos via ruwachFx_ for ~1s.
-                                        emitSkillBurst(app, sn.skillId, tp);
-                                        ruwachFx_.push_back({tp, time_, sn.skillId, sn.dst, time_});
+                                    } else if (sn.skillId == 29) {
+                                        // AL_INCAGI: nostalre rising streak fountain on the buffed unit
+                                        // (follows it via agiFx_ gid), plus the "AGI UP!" overhead banner
+                                        // (emitSkillBurst now emits only the banner for 29, not the flower).
+                                        ensureAgiFx(app);
+                                        agiFx_.push_back({AgiUpEffect(tp, time_), sn.dst, tp});
+                                        emitSkillBurst(app, 29, tp);
+                                    } else if (sn.skillId == 30) {
+                                        // AL_DECAGI: keep the coded grey flower (no nostalre source for the
+                                        // debuff). Follows the unit via ruwachFx_ re-emit for ~1s.
+                                        emitSkillBurst(app, 30, tp);
+                                        ruwachFx_.push_back({tp, time_, 30, sn.dst, time_});
                                     } else {
                                         emitSkillBurst(app, sn.skillId, tp);
                                     }
@@ -8700,25 +8707,26 @@ void GameScene::emitSkillBurst(Application& app, u16 skillId, const Vec3& at, in
             p.da = -0.7f; p.size = 0.2f; p.growth = 0.0f; p.stretch = 3.0f; p.life = 1.0f;
             skillParticles_.emit(p);
         }
-    } else if (skillId == 29 || skillId == 30) {  // AL_INCAGI / AL_DECAGI: our yellow flower-ray aura
-        // (S.: "для аги ап и снижения аги вернуть нашу анимацию жёлтого цветка"). Beams grow up from the
-        // ground around the char then splay outward like a flower (~60°). Inc AGI = yellow, Dec AGI = dull
-        // grey (debuff). Restored from 92339500 (had been swapped to the agi_up.bmp banner in e8052bf3).
-        constexpr int kN = 8;
-        for (int i = 0; i < kN; ++i) {
-            const float a = static_cast<float>(i) / kN * 6.2831853f + h(i) * 0.3f;
-            skillParticles_.setEmitter(Vec3{at.x, at.y + 0.05f, at.z});
-            Particle p;
-            const float out = 1.7f;  // outward splay -> ~60° lean vs the 3.2 up
-            p.vel = Vec3{std::cos(a) * out, 3.2f, std::sin(a) * out};
-            p.accel = Vec3{0.0f, -2.0f, 0.0f};  // slight arc = flower petal curl
-            if (skillId == 29) { p.r = 1.0f; p.g = 0.92f; p.b = 0.35f; }   // Inc AGI: yellow
-            else               { p.r = 0.62f; p.g = 0.62f; p.b = 0.68f; }  // Dec AGI: dull grey
-            p.a = 0.9f; p.da = -0.85f;
-            p.size = 0.13f; p.growth = 0.0f;
-            p.stretch = 3.5f;  // beam along velocity
-            p.life = 0.9f;
-            skillParticles_.emit(p);
+    } else if (skillId == 29 || skillId == 30) {  // AL_INCAGI / AL_DECAGI
+        // Dec AGI (30) keeps our coded grey flower-ray aura (S.: "вернуть нашу анимацию жёлтого цветка";
+        // no nostalre source for the debuff). Inc AGI (29) now uses the nostalre rising streak fountain
+        // (spawned as agiFx_ at 0x11a) INSTEAD of the flower, so skip the flower loop for 29.
+        if (skillId == 30) {
+            constexpr int kN = 8;
+            for (int i = 0; i < kN; ++i) {
+                const float a = static_cast<float>(i) / kN * 6.2831853f + h(i) * 0.3f;
+                skillParticles_.setEmitter(Vec3{at.x, at.y + 0.05f, at.z});
+                Particle p;
+                const float out = 1.7f;  // outward splay -> ~60° lean vs the 3.2 up
+                p.vel = Vec3{std::cos(a) * out, 3.2f, std::sin(a) * out};
+                p.accel = Vec3{0.0f, -2.0f, 0.0f};  // slight arc = flower petal curl
+                p.r = 0.62f; p.g = 0.62f; p.b = 0.68f;  // Dec AGI: dull grey
+                p.a = 0.9f; p.da = -0.85f;
+                p.size = 0.13f; p.growth = 0.0f;
+                p.stretch = 3.5f;  // beam along velocity
+                p.life = 0.9f;
+                skillParticles_.emit(p);
+            }
         }
         if (skillId == 29 && part != 4) {  // Inc AGI ALSO keeps the "AGI UP!" banner (S.: "верни банер, только
             // меньше"). part 4 = a follow-up re-emit (ruwachFx_ tracking): flower only, no repeated banner.
@@ -9517,6 +9525,14 @@ void GameScene::ensureBlessingFx(Application& app) {
         if (!blessAngelSpr_.ready())
             log::warn("game: Blessing angel sprite (축복) not found -- disc + twinkles only");
     }
+}
+
+void GameScene::ensureAgiFx(Application& app) {
+    if (agiTexTried_) return;
+    agiTexTried_ = true;
+    agiTexLoaded_ = loadEffectTexture(app.vfs(), "ac_center2.tga", agiTex_);
+    if (!agiTexLoaded_)
+        log::warn("game: Increase AGI fountain disabled -- ac_center2.tga missing from the content pack");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14236,6 +14252,22 @@ void GameScene::render(Application& app) {
                     }
                     ++it;
                 }
+            }
+            // Increase AGI rising streak fountain (nostalre), following the buffed unit.
+            if (!agiFx_.empty()) {
+                for (AgiFx& a : agiFx_) a.eff.advance(time_);
+                agiFx_.erase(std::remove_if(agiFx_.begin(), agiFx_.end(),
+                                            [&](const AgiFx& a) { return a.eff.finished(time_); }),
+                             agiFx_.end());
+                if (agiTexLoaded_)
+                    for (const AgiFx& a : agiFx_) {
+                        Vec3 p = a.pos;
+                        if (a.gid == app.session().accountId) p = playerPos_;
+                        else if (a.gid) {
+                            if (auto it = actors_.find(a.gid); it != actors_.end()) p = it->second.pos;
+                        }
+                        a.eff.render(pass, agiTex_, p);
+                    }
             }
             // Assumptio is a ONE-SHOT cast effect (roBrowser SkillEffect[HP_ASSUMPTIO]={effectId:440};
             // StatusInfo has no icon/aura) -- the white burst plays once on cast via skillFxDef(361)

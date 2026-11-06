@@ -237,6 +237,17 @@ private:
     CharacterActor blessAngelSpr_, blessTwinkleSpr_;  // 축복 + particle6 effect .spr, loaded once
     bool blessSprTried_ = false;
     void ensureBlessingFx(Application& app);
+    // EF_AGIUP (AL_INCAGI 29): nostalre rising streak fountain (ac_center2.tga). Replaces the coded
+    // yellow flower for Increase AGI only; the "AGI UP!" banner stays. Dec AGI (30) keeps its flower.
+    struct AgiFx {
+        AgiUpEffect eff;
+        u32 gid;   // the buffed unit to follow
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<AgiFx> agiFx_;
+    Texture agiTex_;  // ac_center2.tga
+    bool agiTexLoaded_ = false, agiTexTried_ = false;
+    void ensureAgiFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

@@ -126,6 +126,22 @@ private:
     std::vector<Twinkle> twinkles_;
 };
 
+// EF_AGIUP (AL_INCAGI, skill 29) — Increase Agility cast fountain: paired perpendicular vertical streaks
+// (ac_center2.tga) rising around the unit, additive, blue/yellow alternating. Faithful port of nostalre
+// agiup.rs — pure geometry (no .spr). A streak spawns every 2 frames, each lives 50 frames, total 100
+// frames (~1.7 s). Particles are derived deterministically from their index (hash), so nothing is stored.
+class AgiUpEffect {
+public:
+    AgiUpEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    void render(const WorldSpritePass& pass, const Texture& tex, const Vec3& base) const;
+
+private:
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

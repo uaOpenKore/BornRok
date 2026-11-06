@@ -221,6 +221,39 @@ float blDiscAlpha(float frame) {
     return kBlDiscMaxAlpha * rise * fall;
 }
 
+// --- EF_AGIUP (nostalre agiup.rs) --------------------------------------------------------------
+constexpr float kAgiTotalFrames = 100.0f;
+constexpr float kAgiSpawnPeriod = 2.0f;
+constexpr float kAgiLife = 50.0f;
+constexpr float kAgiFadeInFrac = 0.2f;
+constexpr float kAgiPeakAlpha = 0.85f;
+// nostalre's spatial seeds (offset dist 1-4, streak half-height 1-3.5, rise 0.15-0.4/frame) are in the
+// original small world; convert to ours so the fountain hugs a character. Tunable.
+constexpr float kAgiScale = 0.35f;
+constexpr float kAgiBlue[3] = {0.55f, 0.70f, 1.00f};
+constexpr float kAgiYellow[3] = {1.00f, 0.95f, 0.55f};
+
+float agiHash01(u32 i, u32 salt) {
+    u32 x = i * 2654435761u + salt * 40503u + 0x9E3779B9u;
+    x ^= (x >> 15);
+    return static_cast<float>(x % 100000u) / 100000.0f;
+}
+
+// A world-space vertical quad standing on world +Y, its width swept along yaw about Y. center is the
+// quad centre; halfW across, halfH up/down. Additive streak for the AGI fountain.
+void drawVerticalQuad(const WorldSpritePass& pass, const Texture& tex, const Vec3& center, float halfW,
+                      float halfH, float yaw, u32 col, bool additive) {
+    const float rx = std::cos(yaw) * halfW, rz = std::sin(yaw) * halfW;
+    V vd[4] = {
+        {center.x - rx, center.y - halfH, center.z - rz, 0, 0, col},
+        {center.x + rx, center.y - halfH, center.z + rz, 1, 0, col},
+        {center.x + rx, center.y + halfH, center.z + rz, 1, 1, col},
+        {center.x - rx, center.y + halfH, center.z - rz, 0, 1, col},
+    };
+    const u16 id[6] = {0, 1, 2, 0, 2, 3};
+    submitPrim(pass, tex, vd, 4, id, 6, additive, /*depthTest=*/true);
+}
+
 float blTwinkleAlpha(float ageFrames) {
     const float rise = std::clamp(ageFrames / 10.0f, 0.0f, 1.0f);
     const float fall =
@@ -504,6 +537,44 @@ void BlessingEffect::renderDisc(const WorldSpritePass& pass, const Texture& disc
     // Sit a hair above the ground so the terrain it rests on never z-fights the disc.
     const Vec3 c{base.x, base.y + 0.05f, base.z};
     drawFlatQuad(pass, discTex, c, kBlDiscRadius, abgr(kBlDiscTintR, kBlDiscTintG, kBlDiscTintB, a));
+}
+
+// ------------------------------- AgiUpEffect ---------------------------------------------------
+AgiUpEffect::AgiUpEffect(const Vec3& /*worldPos*/, double bornTime) : born_(bornTime) {}
+
+void AgiUpEffect::advance(double now) { ageFrames_ = static_cast<float>((now - born_) * kFps); }
+
+bool AgiUpEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kFps) >= kAgiTotalFrames;
+}
+
+void AgiUpEffect::render(const WorldSpritePass& pass, const Texture& tex, const Vec3& base) const {
+    const unsigned count = static_cast<unsigned>(ageFrames_ / kAgiSpawnPeriod) + 1u;
+    for (unsigned i = 0; i < count; ++i) {
+        const float spawnFrame = static_cast<float>(i) * kAgiSpawnPeriod;
+        const float localAge = ageFrames_ - spawnFrame;
+        if (localAge < 0.0f || localAge >= kAgiLife) continue;
+        const float t = localAge / kAgiLife;
+        const float alpha = t < kAgiFadeInFrac
+                                ? kAgiPeakAlpha * (t / kAgiFadeInFrac)
+                                : kAgiPeakAlpha * (1.0f - (t - kAgiFadeInFrac) / (1.0f - kAgiFadeInFrac));
+        if (alpha <= 0.0f) continue;
+        const float yaw = agiHash01(i, 1) * 2.0f * kPi;
+        const float offAngle = agiHash01(i, 2) * 2.0f * kPi;
+        const float offDist = (1.0f + agiHash01(i, 3) * 3.0f) * kAgiScale;
+        const float rise = (0.15f + agiHash01(i, 4) * 0.25f) * kAgiScale;
+        const float halfW = (0.25f + agiHash01(i, 5) * 0.2f) * kAgiScale;
+        const float halfH = (1.0f + agiHash01(i, 6) * 2.5f) * kAgiScale;
+        const float* tint = (i % 2u == 0u) ? kAgiBlue : kAgiYellow;
+        const Vec3 center{base.x + std::cos(offAngle) * offDist,
+                          base.y + localAge * rise,  // nostalre -Y up -> our +Y up
+                          base.z + std::sin(offAngle) * offDist};
+        for (int leg = 0; leg < 2; ++leg) {  // two perpendicular vertical legs = a cross streak
+            const float ly = yaw + static_cast<float>(leg) * (kPi / 2.0f);
+            drawVerticalQuad(pass, tex, center, halfW, halfH, ly,
+                             abgr(tint[0], tint[1], tint[2], alpha), /*additive=*/true);
+        }
+    }
 }
 
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {

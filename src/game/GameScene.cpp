@@ -2157,6 +2157,7 @@ void GameScene::onExit(Application& app) {
     skillFx_.clear();
     windFx_.clear();
     turnUndeadFx_.clear();
+    blessingFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -5477,10 +5478,12 @@ void GameScene::pumpStream(Application& app) {
                                     ruwachFx_.push_back({tp, time_, 10, sn.src});
                                 }
                                 break;
-                            case 34:  // AL_BLESSING: cherubs circling the head (persistent, see updatePlay).
+                            case 34:  // AL_BLESSING: nostalre-style cyan holy disc + rising 축복 angels +
+                                // particle6 twinkles on the buffed unit (replaces the old cherub orbit).
                                 if (sn.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3) {
                                     lastFxSkill_ = sn.skillId; lastBurstAt_ = time_;
-                                    ruwachFx_.push_back({tp, time_, 34, sn.dst});
+                                    ensureBlessingFx(app);
+                                    blessingFx_.push_back({BlessingEffect(tp, time_), sn.dst, tp});
                                 }
                                 break;
                             default: break;
@@ -9498,6 +9501,22 @@ void GameScene::ensureTurnUndeadFx(Application& app) {
     if (!tuTexReady_)
         log::warn("game: Turn Undead FX disabled -- missing effect texture(s) "
                   "(alpha_down={}, alpha_center={}, ring_liner={})", a, b, c);
+}
+
+void GameScene::ensureBlessingFx(Application& app) {
+    if (!blessDiscTried_) {
+        blessDiscTried_ = true;
+        blessDiscLoaded_ = loadEffectTexture(app.vfs(), "alpha_down.tga", blessDiscTex_);
+    }
+    if (!blessSprTried_) {
+        blessSprTried_ = true;
+        // data/sprite/이펙트/축복.spr (blessing angel) + particle6.spr (twinkle). If either is missing
+        // the effect still draws the cyan disc (safe) -- ready() gates the sprite passes below.
+        blessAngelSpr_.loadActor(app.vfs(), "\xc3\xe0\xba\xb9");  // 축복
+        blessTwinkleSpr_.loadActor(app.vfs(), "particle6");
+        if (!blessAngelSpr_.ready())
+            log::warn("game: Blessing angel sprite (축복) not found -- disc + twinkles only");
+    }
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14181,6 +14200,42 @@ void GameScene::render(Application& app) {
                         else if (auto it = actors_.find(t.gid); it != actors_.end()) p = it->second.pos;
                         t.eff.render(pass, tuHaloTex_, tuSpikeTex_, tuRingTex_, p);
                     }
+            }
+            // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
+            // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.
+            if (!blessingFx_.empty()) {
+                const bool blInterp = app.fxInterp();
+                for (auto it = blessingFx_.begin(); it != blessingFx_.end();) {
+                    BlessingFx& b = *it;
+                    Vec3 base = b.pos;
+                    if (b.gid == app.session().accountId) base = playerPos_;
+                    else if (b.gid) {
+                        if (auto ai = actors_.find(b.gid); ai != actors_.end()) base = ai->second.pos;
+                    }
+                    b.eff.advance(time_);
+                    if (b.eff.finished(time_)) { it = blessingFx_.erase(it); continue; }
+                    if (blessDiscLoaded_) b.eff.renderDisc(pass, blessDiscTex_, base);
+                    if (blessAngelSpr_.ready()) {
+                        blessAngelSpr_.setFrameInterp(blInterp);
+                        const Vec3 anchor{base.x, base.y + b.eff.angelHeight(), base.z};
+                        for (const auto& a : b.eff.angels()) {
+                            if (a.alpha <= 0.0f) continue;
+                            blessAngelSpr_.renderWorld(pass, anchor, 0, Anim::Effect, time_, a.born, 0.0f,
+                                                       a.alpha, 1.0f, /*originAnchor=*/true);
+                        }
+                    }
+                    if (blessTwinkleSpr_.ready()) {
+                        blessTwinkleSpr_.setFrameInterp(blInterp);
+                        for (const auto& t : b.eff.twinkles()) {
+                            if (t.alpha <= 0.0f) continue;
+                            const Vec3 p{base.x + t.offset.x, base.y + t.offset.y, base.z + t.offset.z};
+                            blessTwinkleSpr_.renderWorld(pass, p, 0, Anim::Effect, time_, t.born, 0.0f,
+                                                         t.alpha, 0.6f, /*originAnchor=*/true,
+                                                         /*additive=*/true);
+                        }
+                    }
+                    ++it;
+                }
             }
             // Assumptio is a ONE-SHOT cast effect (roBrowser SkillEffect[HP_ASSUMPTIO]={effectId:440};
             // StatusInfo has no icon/aura) -- the white burst plays once on cast via skillFxDef(361)

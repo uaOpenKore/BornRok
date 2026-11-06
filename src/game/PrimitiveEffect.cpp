@@ -191,6 +191,47 @@ float tuRingHalfExtent(float frame) {
     return raw * kTuRingScale;
 }
 
+// --- EF_BLESSING (nostalre blessing.rs) --------------------------------------------------------
+// Timing/cadence/fade are faithful to nostalre; spatial magnitudes are in WORLD units (see the header).
+constexpr float kBlParentFrames = 120.0f;                        // disc + angel lifetime (2 s)
+constexpr float kBlDiscMaxAlpha = 100.0f / 255.0f;
+constexpr float kBlDiscFadeIn = 30.0f;
+constexpr float kBlDiscFadeOutAt = kBlParentFrames - 30.0f;      // 90
+constexpr float kBlDiscTintR = 0x20 / 255.0f;                    // cyan holy tint (0x20,0xb0,0xe8)
+constexpr float kBlDiscTintG = 0xb0 / 255.0f;
+constexpr float kBlDiscTintB = 0xe8 / 255.0f;
+constexpr float kBlDiscRadius = 2.2f;                            // world units (tunable) — ~one char cell
+constexpr int kBlAngelPeriod = 3;                                // spawn an angel every 3 frames...
+constexpr int kBlAngelEndFrame = 9;                              // ...up to frame 9 (so 4 angels)
+constexpr float kBlAngelHeight = 1.9f;                           // world units above feet (tunable)
+constexpr int kBlTwinklePeriod = 4;                              // spawn a twinkle every 4 frames
+constexpr float kBlTwinkleDur = 80.0f;
+constexpr float kBlTwinkleFadeOutAt = kBlTwinkleDur - kBlTwinkleDur / 5.0f;  // 64
+constexpr float kBlTwRadMin = 0.5f, kBlTwRadMax = 1.9f;          // ring radius, world units (tunable)
+constexpr float kBlTwRiseMin = 0.020f, kBlTwRiseMax = 0.045f;    // UP, world units per frame (tunable)
+
+float blDiscAlpha(float frame) {
+    const float rise = std::clamp(frame / kBlDiscFadeIn, 0.0f, 1.0f);
+    const float fall =
+        frame < kBlDiscFadeOutAt
+            ? 1.0f
+            : std::clamp(1.0f - (frame - kBlDiscFadeOutAt) /
+                                    std::max(kBlParentFrames - kBlDiscFadeOutAt, 1e-3f),
+                         0.0f, 1.0f);
+    return kBlDiscMaxAlpha * rise * fall;
+}
+
+float blTwinkleAlpha(float ageFrames) {
+    const float rise = std::clamp(ageFrames / 10.0f, 0.0f, 1.0f);
+    const float fall =
+        ageFrames < kBlTwinkleFadeOutAt
+            ? 1.0f
+            : std::clamp(1.0f - (ageFrames - kBlTwinkleFadeOutAt) /
+                                    std::max(kBlTwinkleDur - kBlTwinkleFadeOutAt, 1e-3f),
+                         0.0f, 1.0f);
+    return rise * fall;
+}
+
 }  // namespace
 
 WindEffect::WindEffect(const Vec3& worldPos, double bornTime) : born_(bornTime) {
@@ -377,6 +418,92 @@ void TurnUndeadEffect::render(const WorldSpritePass& pass, const Texture& halo, 
             drawFlatQuad(pass, ring, c, half * kUnit, abgr(1.0f, 1.0f, 1.0f, a));
         }
     }
+}
+
+// ------------------------------- BlessingEffect ------------------------------------------------
+BlessingEffect::BlessingEffect(const Vec3& worldPos, double bornTime) : born_(bornTime) {
+    // Deterministic per-cast RNG seeded from the world position (nostalre uses the same bit trick), so
+    // the twinkle ring is stable for a given cast rather than reshuffling each frame.
+    const auto bits = [](float f) { u32 u; std::memcpy(&u, &f, sizeof(u)); return u; };
+    const auto rotl = [](u32 v, u32 n) { return (v << n) | (v >> (32 - n)); };
+    rng_ = 0x9E3779B9u ^ bits(worldPos.x) ^ rotl(bits(worldPos.z), 13);
+}
+
+unsigned BlessingEffect::lcg() {
+    rng_ = rng_ * 1664525u + 1013904223u;
+    return rng_;
+}
+float BlessingEffect::lcgFloat() { return static_cast<float>(lcg() >> 8) / static_cast<float>(1u << 24); }
+
+float BlessingEffect::angelHeight() const { return kBlAngelHeight; }
+
+void BlessingEffect::spawnTwinkle(float bornFrame, double now) {
+    const float lonDeg = lcgFloat() * 360.0f;
+    const float radius = kBlTwRadMin + lcgFloat() * (kBlTwRadMax - kBlTwRadMin);
+    const float rise = kBlTwRiseMin + lcgFloat() * (kBlTwRiseMax - kBlTwRiseMin);  // UP (our +Y)
+    const float lonr = radf(lonDeg);
+    Twinkle t;
+    t.x = radius * std::sin(lonr);
+    t.z = radius * std::cos(lonr);
+    t.y0 = kBlAngelHeight * 0.3f;  // start a little above the ground, below the angels
+    t.rise = rise;
+    t.bornFrame = bornFrame;
+    t.born = now;
+    t.offset = Vec3{t.x, t.y0, t.z};
+    t.alpha = 0.0f;
+    twinkles_.push_back(t);
+}
+
+void BlessingEffect::advance(double now) {
+    ageFrames_ = static_cast<float>((now - born_) * kFps);
+    const int cur = static_cast<int>(std::floor(ageFrames_));
+    for (int f = lastSpawnFrame_ + 1; f <= cur; ++f) {
+        if (f < 0) continue;
+        if (f <= kBlAngelEndFrame && f % kBlAngelPeriod == 0) {
+            Angel a;
+            a.spawnFrame = static_cast<float>(f);
+            a.born = born_ + static_cast<double>(f) / kFps;
+            angels_.push_back(a);
+        }
+        if (static_cast<float>(f) <= kBlParentFrames && f % kBlTwinklePeriod == 0)
+            spawnTwinkle(static_cast<float>(f), born_ + static_cast<double>(f) / kFps);
+    }
+    lastSpawnFrame_ = cur;
+
+    // Angel alpha: spawn alpha (200 - f*6)/255 held, then a 20-frame fade over the parent tail.
+    for (auto it = angels_.begin(); it != angels_.end();) {
+        const float age = ageFrames_ - it->spawnFrame;
+        if (age >= kBlParentFrames) { it = angels_.erase(it); continue; }
+        const float spawnA = std::clamp((200.0f - it->spawnFrame * 6.0f) / 255.0f, 0.0f, 1.0f);
+        const float fade = age < kBlParentFrames - 20.0f
+                               ? 1.0f
+                               : std::clamp((kBlParentFrames - age) / 20.0f, 0.0f, 1.0f);
+        it->alpha = spawnA * fade;
+        ++it;
+    }
+    // Twinkle rise + alpha; drop once past their 80-frame life.
+    for (auto it = twinkles_.begin(); it != twinkles_.end();) {
+        const float age = ageFrames_ - it->bornFrame;
+        if (age >= kBlTwinkleDur) { it = twinkles_.erase(it); continue; }
+        it->offset = Vec3{it->x, it->y0 + it->rise * age, it->z};
+        it->alpha = blTwinkleAlpha(age);
+        ++it;
+    }
+}
+
+bool BlessingEffect::finished(double now) const {
+    const float age = static_cast<float>((now - born_) * kFps);
+    return age >= kBlParentFrames + kBlTwinkleDur && twinkles_.empty();
+}
+
+void BlessingEffect::renderDisc(const WorldSpritePass& pass, const Texture& discTex,
+                                const Vec3& base) const {
+    if (ageFrames_ > kBlParentFrames) return;
+    const float a = blDiscAlpha(ageFrames_);
+    if (a <= 0.0f) return;
+    // Sit a hair above the ground so the terrain it rests on never z-fights the disc.
+    const Vec3 c{base.x, base.y + 0.05f, base.z};
+    drawFlatQuad(pass, discTex, c, kBlDiscRadius, abgr(kBlDiscTintR, kBlDiscTintG, kBlDiscTintB, a));
 }
 
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {

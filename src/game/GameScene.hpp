@@ -224,6 +224,19 @@ private:
     Texture tuHaloTex_, tuSpikeTex_, tuRingTex_;  // alpha_down / alpha_center / ring_liner
     bool tuTexReady_ = false, tuTexTried_ = false;
     void ensureTurnUndeadFx(Application& app);  // load the three textures once
+    // EF_BLESSING (AL_BLESSING): nostalre-style cyan ground disc + rising 축복 angel sprites + particle6
+    // twinkles. Replaces the older coded cherub-orbit Blessing (now unused for skill 34).
+    struct BlessingFx {
+        BlessingEffect eff;
+        u32 gid;   // the buffed unit to follow (0 = anchored at pos)
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<BlessingFx> blessingFx_;
+    Texture blessDiscTex_;                        // alpha_down.tga for the cyan ground disc
+    bool blessDiscLoaded_ = false, blessDiscTried_ = false;
+    CharacterActor blessAngelSpr_, blessTwinkleSpr_;  // 축복 + particle6 effect .spr, loaded once
+    bool blessSprTried_ = false;
+    void ensureBlessingFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

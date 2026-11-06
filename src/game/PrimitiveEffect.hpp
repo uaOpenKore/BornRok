@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+
 #include "core/math/Math.hpp"
 #include "render/Texture.hpp"
 
@@ -79,6 +81,49 @@ private:
     double born_ = 0.0;
     float ageFrames_ = 0.0f;
     Spike spikes_[kSpikes];
+};
+
+// EF_BLESSING (AL_BLESSING, skill 34) — Priest Blessing: a cyan holy ground disc under the target plus
+// rising 축복 (blessing) angel sprites and particle6 twinkles floating up around them. Faithful port of
+// nostalre blessing.rs for the SIMULATION (spawn cadence, counts, fade curves), but the spatial
+// magnitudes are expressed directly in WORLD units (not kUnit*RO) so an over-head buff sits at a sane
+// height for our scale. This layer only owns the simulation + the ground disc (it has WorldSpritePass +
+// Texture); the angel/twinkle .spr sprites are drawn by the owner (GameScene, via CharacterActor), which
+// reads angels()/twinkles() each frame. Replaces the older coded cherub-orbit Blessing.
+class BlessingEffect {
+public:
+    BlessingEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    // Draw the cyan ground disc (alpha_down.tga) at `base` (the buffed unit's live feet position).
+    void renderDisc(const WorldSpritePass& pass, const Texture& discTex, const Vec3& base) const;
+
+    struct Angel {
+        double born = 0.0;    // absolute spawn time -> sprite animStart, so each angel plays from birth
+        float alpha = 0.0f;   // current alpha (0 = skip)
+        float spawnFrame = 0.0f;
+    };
+    struct Twinkle {
+        Vec3 offset{};        // current position relative to `base`, WORLD units
+        float alpha = 0.0f;
+        double born = 0.0;
+        float x = 0.0f, z = 0.0f, y0 = 0.0f, rise = 0.0f, bornFrame = 0.0f;  // sim state
+    };
+    const std::vector<Angel>& angels() const { return angels_; }
+    const std::vector<Twinkle>& twinkles() const { return twinkles_; }
+    float angelHeight() const;   // world-units Y of the angel anchor above `base`
+
+private:
+    unsigned lcg();
+    float lcgFloat();
+    void spawnTwinkle(float bornFrame, double now);
+
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+    int lastSpawnFrame_ = -1;
+    unsigned rng_ = 0;
+    std::vector<Angel> angels_;
+    std::vector<Twinkle> twinkles_;
 };
 
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect

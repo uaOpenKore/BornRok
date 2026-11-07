@@ -17,7 +17,8 @@ namespace {
 
 constexpr float kFps = 60.0f;
 constexpr unsigned kTotalFrames = 300;  // 5 s at 60 fps, matching the original
-constexpr float kPi = 3.14159265358979323846f;
+// NB: don't define a local kPi — uaro::kPi (core/math/Math.hpp) is in scope and a local one
+// makes every unqualified `kPi` ambiguous (C2872 on MSVC). Use uaro::kPi via the enclosing ns.
 
 // RO-native effect units -> our world units. nostalre's seed numbers (distance ~3, max_height 8,
 // ribbon heights 1.5-3) are in the original game's small world; our world (cellToWorld: 1 GND cell =

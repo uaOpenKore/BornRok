@@ -42,6 +42,7 @@
 #include "render/Shader.hpp"
 #include "resource/Grf.hpp"  // zlibInflate() for deflated guild emblems
 #include "ui/Widgets.hpp"
+#include "ui/UiStyle.hpp"
 #include "world/Pathfind.hpp"
 
 namespace uaro {
@@ -16716,161 +16717,132 @@ void GameScene::render(Application& app) {
 
         // Status window: the six base stats with their next-point cost, derived combat
         // stats, level/zeny/weight — from ZC_STATUS (0x00bd) + the ZC_PAR_CHANGE updates.
+        // Status window — uaRO-HD "style A": a procedural dark translucent rounded panel with a soft
+        // drop shadow + thin gold edge ring (ui::style), drawn by us (no statwin_bg bitmap). Shows the
+        // six base stats with +point buttons and the derived combat stats. Ported from the uaRO Graphics
+        // driver's stat_window (github.com/kwebmn/ragnarok-graphics); pilot of the interface-design port.
         if (statusOpen_) {
-            const ui::UiImage* statBg = app.uiSkin().get("statwin_bg.bmp");
-            if (statBg && statBg->valid()) {
-                // Skinned with the STANDARD statwin_bg (280x103). Its baked labels are
-                // Str/Agi/Vit/Int/Dex/Luk (left) - Atk/Matk/Hit/Critical/Status Point/Guild
-                // (middle) - Def/Mdef/Flee/Aspd (right), exactly like the original client and
-                // roBrowser. We draw only the values, positioned by roBrowser's WinStats.css:
-                // base stat value left-aligned at x37, its raise-cost right-aligned at x102,
-                // the up-arrow at x80; the Atk.. column right-aligned at x193; the Def..
-                // column + Status Point + Guild right-aligned at x275. Rows step 16px (stats
-                // top:6, the two derived columns top:5). The +bonus column (x58) is omitted
-                // since ZC_STATUS doesn't carry the per-stat gear bonus.
-                // Default position: below the expanded BasicInfo/main-menu panel (top-left, py=12),
-                // not overlapping it (S.: "окно статуса должно появляться ниже развёрнутого майн меню").
-                const ui::UiImage* biBg = app.uiSkin().get("basewin_bg.bmp");
-                const float biBottom = 12.0f + (biBg && biBg->valid() ? static_cast<float>(biBg->h) : 120.0f);
-                winPlace(WIN_STATUS, 12.0f, biBottom + 4.0f);
-                const float bx = winPos_[WIN_STATUS].x, wy = winPos_[WIN_STATUS].y;
+            namespace st = ui::style;
 #if defined(__ANDROID__)
-                const float S = 2.0f;  // status window x2 on Android -- everything below scales by S (S.)
+            const float S = 2.0f;   // bigger on phones for readability (S.)
 #else
-                const float S = 1.5f;  // desktop status window x1.5 (S.: "окно характеристик увеличь в 1,5 раза")
+            const float S = 1.5f;
 #endif
-                const float sw = 280.0f * S, shh = static_cast<float>(statBg->h) * S;
-                winRect_[WIN_STATUS][0] = bx; winRect_[WIN_STATUS][1] = wy; winRect_[WIN_STATUS][2] = sw;
-                winRect_[WIN_STATUS][3] = kSkinTitleH + shh; winShown_[WIN_STATUS] = true;
-                ScopedDeaf deafStatus(uin, clickWin_, WIN_STATUS);
-                if (winTitlebar(WIN_STATUS, sw, tr("win.stats"))) statusOpen_ = false;
-                const float by = wy + kSkinTitleH;  // content sits below the skin title bar
-                ui::imageScaled(sb, *statBg, bx, by, sw, shh);
-                winBlock(bx, wy, sw, kSkinTitleH + shh);
-                const float vs = 0.8f * S;  // value font -20% (S.); scales with the window's S
-                const u32 vc = ui::color::kSkinText;
-                // Drop the values onto the baked label baselines (scaled by S for the Android x2 window).
-                constexpr float kYAdj = 3.0f;
-                auto valL = [&](float lx, float ty, const std::string& s) {
-                    font.draw(sb, bx + lx * S, by + (ty + kYAdj) * S, vs, vc, s);
-                };
-                auto valR = [&](float rx, float ty, const std::string& s) {
-                    font.draw(sb, bx + rx * S - font.width(s, vs), by + (ty + kYAdj) * S, vs, vc, s);
-                };
-                const int base[6] = {cstat_.str, cstat_.agi, cstat_.vit,
-                                     cstat_.int_, cstat_.dex, cstat_.luk};
-                const int bonus[6] = {cstat_.bonusStr, cstat_.bonusAgi, cstat_.bonusVit,
-                                      cstat_.bonusInt, cstat_.bonusDex, cstat_.bonusLuk};
-                const int need[6] = {cstat_.needStr, cstat_.needAgi, cstat_.needVit,
-                                     cstat_.needInt, cstat_.needDex, cstat_.needLuk};
-                const ui::UiImage* arw = app.uiSkin().get("arw_right.bmp");
-                const ui::UiImage* arwOn = app.uiSkin().get("arw_right_on.bmp");
-                for (int i = 0; i < 6; ++i) {
-                    const float ty = 6.0f + static_cast<float>(i) * 16.0f;
-                    // Show the BASE and the +bonus SEPARATELY, not summed (S.: "статы разделять --
-                    // базовые и +бонусные, а не складывать всё вместе"). Base in white at x37; the
-                    // buff/equip delta as a coloured +N / -N at x58 (green = buff like Gloria, red =
-                    // debuff). The raise arrow below still works off the base (cstat_.* / need[]).
-                    valL(37.0f, ty, std::to_string(base[i]));
-                    if (bonus[i] != 0) {
-                        const u32 bc = bonus[i] > 0 ? ui::rgba(90, 205, 90, 255)    // buff
-                                                    : ui::rgba(228, 90, 90, 255);   // debuff
-                        const std::string bs = bonus[i] > 0 ? "+" + std::to_string(bonus[i])
-                                                            : std::to_string(bonus[i]);  // -N keeps its sign
-                        font.draw(sb, bx + 58.0f * S, by + (ty + kYAdj) * S, vs, bc, bs);
-                    }
-                    valR(102.0f, ty, std::to_string(need[i]));
-                    // Show the up-arrow only when the player can actually afford THIS stat's next
-                    // point (need[i] = SP_USTR.. cost). S.: "убирать стрелочку (+), если статус
-                    // поинтов не хватает на поднятие характеристики". A maxed stat's cost exceeds
-                    // the pool, so its arrow disappears too.
-                    if (arw && arw->valid() && need[i] > 0 && cstat_.statusPoint >= need[i]) {
-                        const float axp = bx + 80.0f * S, ayp = by + (7.0f + static_cast<float>(i) * 16.0f) * S;
-                        // Scaled clickable arrow (imageButton has no size param, so hit-test + draw by hand
-                        // at S). Click raises this base stat by 1; Shift raises 10 (ten CZ_STATUS_CHANGE
-                        // packets; the server clamps to the available points). statId SP_STR..SP_LUK = 13+i.
-                        const float aw = static_cast<float>(arw->w) * S, ah = static_cast<float>(arw->h) * S;
-                        const bool hov = app.input().hit(axp, ayp, aw, ah);
-                        ui::imageScaled(sb, (hov && arwOn && arwOn->valid()) ? *arwOn : *arw, axp, ayp, aw, ah);
-                        if (hov && app.input().mousePressed) {
-                            ui::markButtonClicked();
-                            const int reps = app.input().shift ? 10 : 1;
-                            for (int r = 0; r < reps; ++r)
-                                conn_.send(net::buildStatChange(static_cast<u16>(net::SP_STR + i)));
-                        }
+            const float W = 320.0f * S;
+            const float P = 12.0f * S;
+            const float titleH = 24.0f * S;
+            const float rowH = 17.0f * S;
+            const float nameH = 20.0f * S;
+            const float H = titleH + 4.0f * S + nameH + 6.0f * rowH + 12.0f * S;
+            // Default position: below the expanded BasicInfo/main-menu panel (top-left), as before.
+            const ui::UiImage* biBg = app.uiSkin().get("basewin_bg.bmp");
+            const float biBottom = 12.0f + (biBg && biBg->valid() ? static_cast<float>(biBg->h) : 120.0f);
+            winPlace(WIN_STATUS, 12.0f, biBottom + 4.0f);
+            WinPos& wp = winPos_[WIN_STATUS];
+            wp.x = std::clamp(wp.x, 0.0f, std::max(0.0f, static_cast<float>(uiW) - W));
+            wp.y = std::clamp(wp.y, 0.0f, std::max(0.0f, static_cast<float>(uiH) - titleH));
+            const float bx = wp.x, wy = wp.y;
+            winRect_[WIN_STATUS][0] = bx; winRect_[WIN_STATUS][1] = wy;
+            winRect_[WIN_STATUS][2] = W;  winRect_[WIN_STATUS][3] = H;
+            winShown_[WIN_STATUS] = true;
+            ScopedDeaf deafStatus(uin, clickWin_, WIN_STATUS);
+
+            // Panel chrome (shadow + ground + gold ring).
+            st::windowFrame(sb, bx, wy, W, H, st::kWindowRadius, S);
+            // Title + close.
+            font.draw(sb, bx + P, wy + 6.0f * S, 0.95f * S, st::kGold2, tr("win.stats"));
+            const float clSz = 16.0f * S;
+            const float clX = bx + W - clSz - 8.0f * S, clY = wy + 5.0f * S;
+            const bool clHov = uin.hit(clX, clY, clSz, clSz);
+            st::roundedFill(sb, clX, clY, clSz, clSz, 4.0f * S,
+                            clHov ? st::withOpacity(st::kDanger, 0.90f)
+                                  : st::withOpacity(st::kTile, 0.90f));
+            font.draw(sb, clX + 4.5f * S, clY + 2.0f * S, 0.70f * S, st::kText, "x");
+            bool closeIt = false;
+            if (clHov && uin.mousePressed) { ui::markButtonClicked(); closeIt = true; }
+            // Drag by the title band (minus the close button).
+            if (draggingWin_ < 0 && uin.mousePressed && !closeIt &&
+                uin.hit(bx, wy, W - clSz - 12.0f * S, titleH)) {
+                draggingWin_ = WIN_STATUS;
+                dragGrabX_ = static_cast<float>(uin.mouseX) - wp.x;
+                dragGrabY_ = static_cast<float>(uin.mouseY) - wp.y;
+            }
+            winBlock(bx, wy, W, H);
+
+            // Character name under the title.
+            font.draw(sb, bx + P, wy + titleH + 2.0f * S, 0.80f * S, st::kText, app.session().charName);
+
+            const float tl = 0.72f * S;  // label font
+            const float tv = 0.78f * S;  // value font
+            auto L = [&](float x, float y, u32 c, float sc, const std::string& s) {
+                font.draw(sb, x, y, sc, c, s);
+            };
+            auto R = [&](float xr, float y, u32 c, float sc, const std::string& s) {
+                font.draw(sb, xr - font.width(s, sc), y, sc, c, s);
+            };
+            const float statsTop = wy + titleH + 2.0f * S + nameH;
+
+            // Left column: the six base stats (label, base, +bonus, cost, +point button).
+            const char* sn[6] = {"STR", "AGI", "VIT", "INT", "DEX", "LUK"};
+            const int base[6] = {cstat_.str, cstat_.agi, cstat_.vit,
+                                 cstat_.int_, cstat_.dex, cstat_.luk};
+            const int bonus[6] = {cstat_.bonusStr, cstat_.bonusAgi, cstat_.bonusVit,
+                                  cstat_.bonusInt, cstat_.bonusDex, cstat_.bonusLuk};
+            const int need[6] = {cstat_.needStr, cstat_.needAgi, cstat_.needVit,
+                                 cstat_.needInt, cstat_.needDex, cstat_.needLuk};
+            for (int i = 0; i < 6; ++i) {
+                const float y = statsTop + static_cast<float>(i) * rowH;
+                L(bx + P, y, st::kMuted, tl, sn[i]);
+                L(bx + 48.0f * S, y, st::kText, tv, std::to_string(base[i]));
+                if (bonus[i] != 0)
+                    L(bx + 74.0f * S, y, bonus[i] > 0 ? st::kHp : st::kDanger, tl,
+                      (bonus[i] > 0 ? "+" : "") + std::to_string(bonus[i]));
+                if (need[i] > 0) R(bx + 132.0f * S, y, st::kFaint, tl, std::to_string(need[i]));
+                // +point button only when the player can afford THIS stat's next point.
+                if (need[i] > 0 && cstat_.statusPoint >= need[i]) {
+                    const float pbs = 13.0f * S, pbx = bx + 100.0f * S, pby = y - 1.0f * S;
+                    const bool phov = uin.hit(pbx, pby, pbs, pbs);
+                    st::roundedFill(sb, pbx, pby, pbs, pbs, 3.0f * S,
+                                    phov ? st::withOpacity(st::kGold2, 1.0f)
+                                         : st::withOpacity(st::kGold, 0.95f));
+                    font.draw(sb, pbx + 3.5f * S, pby + 1.5f * S, 0.70f * S, st::kOnGold, "+");
+                    if (phov && uin.mousePressed) {
+                        ui::markButtonClicked();
+                        const int reps = uin.shift ? 10 : 1;  // Shift = +10 (server clamps to pool)
+                        for (int r = 0; r < reps; ++r)
+                            conn_.send(net::buildStatChange(static_cast<u16>(net::SP_STR + i)));
                     }
                 }
-                // Atk/Matk/Hit/Critical, right-aligned at x193 (roBrowser column1).
-                valR(193.0f, 5.0f,
-                     std::to_string(cstat_.atk) + " + " + std::to_string(cstat_.atk2));
-                valR(193.0f, 21.0f,
-                     std::to_string(cstat_.matkMin) + " ~ " + std::to_string(cstat_.matkMax));
-                valR(193.0f, 37.0f, std::to_string(cstat_.hit));
-                valR(193.0f, 53.0f, std::to_string(cstat_.crit));
-                // Def/Mdef/Flee/Aspd + Status Point + Guild, right-aligned at x275 (column2).
-                valR(275.0f, 5.0f,
-                     std::to_string(cstat_.def) + " + " + std::to_string(cstat_.def2));
-                valR(275.0f, 21.0f,
-                     std::to_string(cstat_.mdef) + " + " + std::to_string(cstat_.mdef2));
-                valR(275.0f, 37.0f,
-                     std::to_string(cstat_.flee) + " + " + std::to_string(cstat_.flee2));
-                valR(275.0f, 53.0f, std::to_string(cstat_.aspd));
-                valR(275.0f, 69.0f, std::to_string(cstat_.statusPoint));
-                if (auto g = guildNames_.find(app.session().accountId); g != guildNames_.end())
-                    valR(275.0f, 85.0f, g->second);
-                // No close button on the bitmap — the Stat launcher button and ESC toggle the
-                // window, matching the original (Alt+A).
-            } else {
-                const float bw = 268.0f, bh = 400.0f;
-                float bx = 12.0f, by = 56.0f;
-                const float cy = popupWindow(POPUP_STATUS_ALT, bx, by, bw, bh, tr("win.stats"));
-                const float lx = bx + 14.0f, rxe = bx + bw - 14.0f;
-                float y = cy + 4.0f;
-                font.draw(sb, lx, y, 1.5f, ui::color::kWinText, app.session().charName);
-                y += 22.0f;
-                auto line = [&](const std::string& l, const std::string& r, u32 col) {
-                    font.draw(sb, lx, y, 1.3f, ui::color::kWinTextDim, l);
-                    font.draw(sb, rxe - font.width(r, 1.3f), y, 1.3f, col, r);
-                    y += 16.0f;
-                };
-                line("Base Lv.", std::to_string(baseLevel_), ui::color::kWinText);
-                line("Job Lv.", std::to_string(jobLevel_), ui::color::kWinText);
-                y += 4.0f;
-                auto stat = [&](const char* nm, int val, int bonus, int need) {
-                    font.draw(sb, lx, y, 1.3f, ui::color::kWinTextDim, nm);
-                    font.draw(sb, lx + 56.0f, y, 1.3f, ui::color::kWinText, std::to_string(val + bonus));
-                    font.draw(sb, lx + 92.0f, y, 1.1f, ui::color::kWinTextDim,
-                              "+" + std::to_string(need));
-                    y += 16.0f;
-                };
-                stat("STR", cstat_.str, cstat_.bonusStr, cstat_.needStr);
-                stat("AGI", cstat_.agi, cstat_.bonusAgi, cstat_.needAgi);
-                stat("VIT", cstat_.vit, cstat_.bonusVit, cstat_.needVit);
-                stat("INT", cstat_.int_, cstat_.bonusInt, cstat_.needInt);
-                stat("DEX", cstat_.dex, cstat_.bonusDex, cstat_.needDex);
-                stat("LUK", cstat_.luk, cstat_.bonusLuk, cstat_.needLuk);
-                y += 4.0f;
-                line("Status Pt.", std::to_string(cstat_.statusPoint), ui::color::kOk);
-                line("ATK", std::to_string(cstat_.atk) + "+" + std::to_string(cstat_.atk2),
-                     ui::color::kWinText);
-                line("MATK", std::to_string(cstat_.matkMin) + "~" + std::to_string(cstat_.matkMax),
-                     ui::color::kWinText);
-                line("DEF", std::to_string(cstat_.def) + "+" + std::to_string(cstat_.def2),
-                     ui::color::kWinText);
-                line("MDEF", std::to_string(cstat_.mdef) + "+" + std::to_string(cstat_.mdef2),
-                     ui::color::kWinText);
-                line("HIT", std::to_string(cstat_.hit), ui::color::kWinText);
-                line("FLEE", std::to_string(cstat_.flee) + "+" + std::to_string(cstat_.flee2),
-                     ui::color::kWinText);
-                line("CRI", std::to_string(cstat_.crit), ui::color::kWinText);
-                line("Zeny", std::to_string(zeny_) + "z", ui::color::kZeny);
-                if (maxWeight_ > 0)
-                    line("Weight", std::to_string(weight_) + "/" + std::to_string(maxWeight_),
-                         ui::color::kWinText);
-                if (ui::button(sb, font, app.input(), bx + bw - 90.0f, by + bh - 34.0f, 78.0f,
-                               26.0f, tr("win.close"), 1.5f))
-                    statusOpen_ = false;
             }
+
+            // Middle column: ATK / MATK / HIT / CRI.
+            const char* bn[4] = {"ATK", "MATK", "HIT", "CRI"};
+            const std::string bv[4] = {
+                std::to_string(cstat_.atk) + " + " + std::to_string(cstat_.atk2),
+                std::to_string(cstat_.matkMin) + " ~ " + std::to_string(cstat_.matkMax),
+                std::to_string(cstat_.hit),
+                std::to_string(cstat_.crit)};
+            for (int j = 0; j < 4; ++j) {
+                const float y = statsTop + static_cast<float>(j) * rowH;
+                L(bx + 150.0f * S, y, st::kMuted, tl, bn[j]);
+                R(bx + 214.0f * S, y, st::kText, tv, bv[j]);
+            }
+
+            // Right column: DEF / MDEF / FLEE / ASPD / free Points.
+            const char* cn[5] = {"DEF", "MDEF", "FLEE", "ASPD", "Points"};
+            const std::string cv[5] = {
+                std::to_string(cstat_.def) + " + " + std::to_string(cstat_.def2),
+                std::to_string(cstat_.mdef) + " + " + std::to_string(cstat_.mdef2),
+                std::to_string(cstat_.flee) + " + " + std::to_string(cstat_.flee2),
+                std::to_string(cstat_.aspd),
+                std::to_string(cstat_.statusPoint)};
+            for (int k = 0; k < 5; ++k) {
+                const float y = statsTop + static_cast<float>(k) * rowH;
+                L(bx + 224.0f * S, y, st::kMuted, tl, cn[k]);
+                R(bx + 308.0f * S, y, k == 4 ? st::kGold2 : st::kText, tv, cv[k]);
+            }
+
+            if (closeIt) statusOpen_ = false;
         }
 
         // Equipment window: the worn items by slot (EQP_* worn position from the equip

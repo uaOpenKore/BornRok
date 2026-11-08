@@ -413,6 +413,7 @@ add_library(client_ui STATIC
   ui/EmbeddedFonts.cpp
   ui/Widgets.cpp
   ui/UiSkin.cpp
+  ui/UiStyle.cpp
 )
 target_include_directories(client_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(client_ui PUBLIC uaro::core uaro::render uaro::resource uaro::formats)

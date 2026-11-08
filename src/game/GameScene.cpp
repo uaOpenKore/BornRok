@@ -16865,13 +16865,36 @@ void GameScene::render(Application& app) {
                 const float EW = 280.0f * S;
                 const float EBH = static_cast<float>(eqBg->h) * S;
                 winPlace(WIN_EQUIP, (fW - EW) * 0.5f, 72.0f);
+                winPos_[WIN_EQUIP].x = std::clamp(winPos_[WIN_EQUIP].x, 0.0f,
+                                                  std::max(0.0f, static_cast<float>(uiW) - EW));
+                winPos_[WIN_EQUIP].y = std::clamp(winPos_[WIN_EQUIP].y, 0.0f,
+                                                  std::max(0.0f, static_cast<float>(uiH) - kSkinTitleH));
                 const float bx = winPos_[WIN_EQUIP].x, wy = winPos_[WIN_EQUIP].y;
                 winRect_[WIN_EQUIP][0] = bx; winRect_[WIN_EQUIP][1] = wy; winRect_[WIN_EQUIP][2] = EW;
                 winRect_[WIN_EQUIP][3] = kSkinTitleH + EBH; winShown_[WIN_EQUIP] = true;
                 ScopedDeaf deafEquip(uin, clickWin_, WIN_EQUIP);
-                if (winTitlebar(WIN_EQUIP, EW, tr("win.equip"))) equipOpen_ = false;
-                const float by = wy + kSkinTitleH;  // content sits below the skin title bar
-                ui::imageScaled(sb, *eqBg, bx, by, EW, EBH);
+                // uaRO-HD "style A" chrome instead of the equipwin_bg bitmap + skin titlebar: a dark
+                // translucent rounded panel with shadow + gold ring, our own gold title + close, and a
+                // rounded slot plate behind each slot. All slot geometry + drag/drop below is unchanged.
+                namespace stq = ui::style;
+                const float by = wy + kSkinTitleH;  // content sits below the title band
+                stq::windowFrame(sb, bx, wy, EW, kSkinTitleH + EBH, stq::kWindowRadius, S);
+                font.draw(sb, bx + 12.0f * S, wy + 6.0f * S, 0.95f * S, stq::kGold2, tr("win.equip"));
+                {
+                    const float clSz = 16.0f * S, clX = bx + EW - clSz - 8.0f * S, clY = wy + 5.0f * S;
+                    const bool clHov = uin.hit(clX, clY, clSz, clSz);
+                    stq::roundedFill(sb, clX, clY, clSz, clSz, 4.0f * S,
+                                     clHov ? stq::withOpacity(stq::kDanger, 0.90f)
+                                           : stq::withOpacity(stq::kTile, 0.90f));
+                    font.draw(sb, clX + 4.5f * S, clY + 2.0f * S, 0.70f * S, stq::kText, "x");
+                    if (clHov && uin.mousePressed) { ui::markButtonClicked(); equipOpen_ = false; }
+                    else if (draggingWin_ < 0 && uin.mousePressed &&
+                             uin.hit(bx, wy, EW - clSz - 12.0f * S, kSkinTitleH)) {
+                        draggingWin_ = WIN_EQUIP;
+                        dragGrabX_ = static_cast<float>(uin.mouseX) - winPos_[WIN_EQUIP].x;
+                        dragGrabY_ = static_cast<float>(uin.mouseY) - winPos_[WIN_EQUIP].y;
+                    }
+                }
                 winBlock(bx, wy, EW, kSkinTitleH + EBH);
                 equipRect_[0] = bx; equipRect_[1] = wy; equipRect_[2] = EW;
                 equipRect_[3] = kSkinTitleH + EBH;  // for drop targeting
@@ -16894,6 +16917,19 @@ void GameScene::render(Application& app) {
                 // в окне эквипа"), drawn under the slot labels. render() feet-anchors the body and
                 // faces south (toward the camera) so it shows the worn gear from the front.
                 if (player_.ready()) player_.render(sb, bx + 140.0f * S, by + 120.0f * S, 74.0f * S, 0, time_);
+                // Per-SLOT vertical nudge (real px, NEGATIVE = UP), indexed to kSlots order. Kept from the
+                // bitmap layout so icons + plates sit exactly where they did. L{head_top,head_low,weapon,
+                // garment,acc} R{head_mid,armor,shield,shoes,acc}.
+                static const float slotUp[10] = {-10.0f, -12.0f, -12.0f, -12.0f, -24.0f,
+                                                 -10.0f, -12.0f, -12.0f, -26.0f, -24.0f};
+                // Style-A slot plates: a dark rounded inset tile behind every slot (worn or empty), so the
+                // slots read on the translucent panel without the old bitmap's ovals.
+                for (const auto& s : kSlots) {
+                    const float pr = by + rowY[s.row] * S + slotUp[&s - &kSlots[0]];
+                    const float ps = 34.0f;
+                    stq::roundedFill(sb, bx + s.cx * S - ps * 0.5f, pr - ps * 0.5f, ps, ps, 7.0f,
+                                     stq::withOpacity(stq::kTile, 0.85f));
+                }
                 // Truncate a label so a long name can't spill into the centre preview.
                 // Label font is 1.5x SMALLER than the window scale (S.: "шрифт меньше в 1.5 раза, чтобы
                 // больше текста влезало") -> stays at the original 1.0 size on the 1.5x window, so long
@@ -16917,10 +16953,8 @@ void GameScene::render(Application& app) {
                     // Per-SLOT vertical nudge (real px, NEGATIVE = UP). Left and right columns hold
                     // different slot TYPES in the same row, so the tweak is per slot, not per row. From S.:
                     // head +1/4 slot up (-10); weapon/garment/accessory/shield/head_low +1/2 icon (-12);
-                    // right armor("body") +1/2 icon (-12); right SHOES a whole slot higher (-26). Indexed to
-                    // kSlots order: L{head_top,head_low,weapon,garment,acc} R{head_mid,armor,shield,shoes,acc}.
-                    static const float slotUp[10] = {-10.0f, -12.0f, -12.0f, -12.0f, -24.0f,
-                                                     -10.0f, -12.0f, -12.0f, -26.0f, -24.0f};
+                    // right armor("body") +1/2 icon (-12); right SHOES a whole slot higher (-26). slotUp is
+                    // hoisted above (shared with the slot-plate pass).
                     const float ry = by + rowY[s.row] * S + slotUp[&s - &kSlots[0]];
                     const float ix = bx + s.cx * S - isz * 0.5f, iy = ry - isz * 0.5f;
                     if (const ui::UiImage* ic = itemIcon(app, worn->nameid))
@@ -16933,10 +16967,10 @@ void GameScene::render(Application& app) {
                     const std::string lbl = fitLabel(full, 64.0f * S);
                     const float ly = ry - 5.0f * S;  // label rides with the icon (rowExtra applied via ry)
                     if (s.cx < 140.0f)
-                        font.draw(sb, bx + 38.0f * S, ly, lblScale, ui::color::kWinText, lbl);
+                        font.draw(sb, bx + 38.0f * S, ly, lblScale, stq::kText, lbl);
                     else
                         font.draw(sb, bx + 242.0f * S - font.width(lbl, lblScale), ly, lblScale,
-                                  ui::color::kWinText, lbl);
+                                  stq::kText, lbl);
                     if (app.input().hit(ix, iy, isz, isz)) {
                         hov = full;  // full (untruncated) name + refine on hover, shown below
                         if (app.input().rightDown) {  // RMB -> item info window + inserted cards (S.)
@@ -16989,14 +17023,13 @@ void GameScene::render(Application& app) {
                 if (equippedAmmoIndex_ != 0) {
                     if (auto ai = inventory_.find(equippedAmmoIndex_); ai != inventory_.end()) {
                         const net::InvItem& arw = ai->second;
-                        // The ammo row sits below the skin bitmap, on bare screen -> give it the window's
-                        // own body panel + frame so it doesn't float without a background (S.).
-                        ui::panel(sb, bx, extraY - 2.0f * S, EW, 28.0f * S, ui::color::kWinBody);
-                        ui::border(sb, bx, extraY - 2.0f * S, EW, 28.0f * S, ui::color::kWinBorder);
+                        // The ammo row sits below the panel, on bare screen -> give it its own style-A
+                        // ground so it doesn't float without a background (S.).
+                        stq::hudPanel(sb, bx, extraY - 2.0f * S, EW, 28.0f * S, stq::kCardRadius, S);
                         winBlock(bx, extraY - 2.0f * S, EW, 28.0f * S);
                         if (const ui::UiImage* ic = itemIcon(app, arw.nameid))
                             ui::imageScaled(sb, *ic, bx + 8.0f * S, extraY, 22.0f * S, 22.0f * S);
-                        font.draw(sb, bx + 34.0f * S, extraY + 4.0f * S, lblScale, ui::color::kWinText,
+                        font.draw(sb, bx + 34.0f * S, extraY + 4.0f * S, lblScale, stq::kText,
                                   fitLabel(app.itemDb().name(arw.nameid) + " x" +
                                                std::to_string(arw.amount), 120.0f * S));
                         if (ui::button(sb, font, app.input(), bx + 174.0f * S, extraY, 96.0f * S, 22.0f * S,

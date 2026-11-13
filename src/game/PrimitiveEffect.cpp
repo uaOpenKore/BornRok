@@ -1043,6 +1043,58 @@ void FrostDiverEffect::render(const WorldSpritePass& pass, const Texture& iceTex
     }
 }
 
+// ------------------------------- JupitelEffect (WZ_JUPITEL 84) ------------------------------------
+namespace {
+constexpr float kJupFps = 60.0f;
+constexpr float kJupDurFrames = 20.0f;
+constexpr float kJupScale = 0.12f;          // world units per RO-native unit (tuning knob)
+constexpr float kJupCenterHalf = 7.0f * 0.5f;   // CENTER_SIZE 7 (full) -> half extent
+constexpr float kJupBallHalf = 9.0f * 0.5f;     // BALL_SIZE 9 (full) -> half extent
+constexpr float kJupCenterAlpha = 170.0f / 255.0f;
+constexpr float kJupYOffset = -5.0f;        // native +Y down -> lifts the ball up to body height
+}  // namespace
+
+JupitelEffect::JupitelEffect(const Vec3& from, const Vec3& to, double bornTime)
+    : from_(from), to_(to), born_(bornTime) {
+    const float dx = to.x - from.x, dz = to.z - from.z;
+    const float dist = std::sqrt(dx * dx + dz * dz);
+    if (dist > 0.001f) {
+        const float spf = dist / kJupDurFrames;  // world units per frame
+        vel_ = Vec3{dx / dist * spf, 0.0f, dz / dist * spf};
+    } else {
+        vel_ = Vec3{0.0f, 0.0f, 0.0f};
+    }
+}
+
+Vec3 JupitelEffect::current() const {
+    return Vec3{from_.x + vel_.x * ageFrames_, from_.y + (-kJupYOffset) * kJupScale,
+                from_.z + vel_.z * ageFrames_};
+}
+
+void JupitelEffect::advance(double now) { ageFrames_ = static_cast<float>((now - born_) * kJupFps); }
+
+bool JupitelEffect::finished(double now) const {
+    const float age = static_cast<float>((now - born_) * kJupFps);
+    if (age >= kJupDurFrames) return true;
+    // reached the target cell
+    const Vec3 p{from_.x + vel_.x * age, 0.0f, from_.z + vel_.z * age};
+    const float dx = p.x - to_.x, dz = p.z - to_.z;
+    return std::sqrt(dx * dx + dz * dz) <= 0.4f;  // ~TARGET_KILL_DISTANCE in world units
+}
+
+void JupitelEffect::render(const WorldSpritePass& pass, const Texture* const tex[kTexCount]) const {
+    const Vec3 p = current();
+    // Centre glow (static, alpha 170/255).
+    if (tex[0] && tex[0]->valid())
+        drawBillboardQuad(pass, *tex[0], p, kJupCenterHalf * kJupScale, kJupCenterHalf * kJupScale, 0.0f,
+                          abgr(1.0f, 1.0f, 1.0f, kJupCenterAlpha), /*additive=*/true);
+    // Animated ball (cycles a..f at 1 frame/tick).
+    const int bi = 1 + (static_cast<int>(ageFrames_) % kBallFrames);
+    if (tex[bi] && tex[bi]->valid())
+        drawBillboardQuad(pass, *tex[bi], p, kJupBallHalf * kJupScale, kJupBallHalf * kJupScale, 0.0f,
+                          abgr(1.0f, 1.0f, 1.0f, 1.0f), /*additive=*/true);
+}
+
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {
     const std::string path = std::string("data/texture/effect/") + nameTga;
     auto bytes = vfs.readPreferPng(path);

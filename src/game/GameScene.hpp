@@ -303,6 +303,15 @@ private:
     Texture frostDiverIceTex_;  // ice.tga
     bool frostDiverTexReady_ = false, frostDiverTexTried_ = false;
     void ensureFrostDiverFx(Application& app);
+    // EF_YUFITEL (WZ_JUPITEL 84): nostalre plasma ball flying from caster to target. 0x1de channel; a
+    // fixed world trajectory (no follow).
+    struct JupitelFx {
+        JupitelEffect eff;
+    };
+    std::vector<JupitelFx> jupitelFx_;
+    Texture jupitelTex_[JupitelEffect::kTexCount];  // thunder_center + thunder_ball_a..f
+    bool jupitelTexReady_ = false, jupitelTexTried_ = false;
+    void ensureJupitelFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

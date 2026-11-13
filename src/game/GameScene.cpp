@@ -2165,6 +2165,7 @@ void GameScene::onExit(Application& app) {
     earthSpikeFx_.clear();
     heavensDriveFx_.clear();
     frostDiverFx_.clear();
+    jupitelFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -4941,47 +4942,17 @@ void GameScene::pumpStream(Application& app) {
                     // caster to the target + a ground plasma burst on impact (thunder_pang +
                     // thunder_plazma_blast_a/b). Coded as a bright cyan plasma stream caster->target and a
                     // radial plasma burst at the target. Wind element (knockback).
+                    // Jupitel Thunder (84, WZ_JUPITEL): nostalre plasma ball — a centre glow
+                    // (thunder_center.bmp) + an animated 6-frame thunder ball (thunder_ball_a-f.bmp)
+                    // flying from the caster to the target over 20 frames. Replaces the coded thunder-mote
+                    // cluster + impact burst. Safe no-op if the thunder textures are absent.
                     if (!romFx && haveDst && sd.skillId == 84 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        const int glow = codedFxTexId(app, "thunder_center.bmp");  // exe: WZ_JUPITEL thunder art
-                        const Vec3 tgt{dstPos.x, dstPos.y + 0.9f, dstPos.z};
+                        ensureJupitelFx(app);
                         Vec3 cp;
-                        if (posOf(sd.src, cp)) {  // a compact CLUSTER of lightning FLIES from caster to target
-                            // (S.: "должен вылетать сгустком молний", not a static beam-line).
-                            const Vec3 a{cp.x, cp.y + 0.9f, cp.z};
-                            const Vec3 d{tgt.x - a.x, tgt.y - a.y, tgt.z - a.z};
-                            const float dist = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
-                            const float spd = std::max(6.0f, dist / 0.22f);  // reach the target in ~0.22s
-                            const Vec3 vel{d.x / dist * spd, d.y / dist * spd, d.z / dist * spd};
-                            const float life = dist / spd;
-                            for (int i = 0; i < 14; ++i) {  // a tight ball of thunder motes travelling together
-                                skillParticles_.setEmitter(Vec3{a.x + (hh(i) - 0.5f) * 0.25f, a.y + (hh(i + 5) - 0.5f) * 0.25f, a.z + (hh(i + 9) - 0.5f) * 0.25f});
-                                Particle p;
-                                p.vel = vel;
-                                p.r = 0.5f; p.g = 0.7f; p.b = 1.0f; p.a = 1.0f; p.da = -0.5f;  // electric blue
-                                p.size = 0.22f; p.growth = 0.05f; p.life = life; p.fxTex = glow;
-                                skillParticles_.emit(p);
-                            }
-                        }
-                        {  // impact plasma burst at the target
-                            skillParticles_.setEmitter(tgt);
-                            Particle ball;
-                            ball.r = 0.5f; ball.g = 0.75f; ball.b = 1.0f; ball.a = 1.0f; ball.da = -2.8f;
-                            ball.size = 0.6f; ball.growth = 1.0f; ball.life = 0.35f; ball.fxTex = glow;
-                            skillParticles_.emit(ball);
-                        }
-                        for (int i = 0; i < 16; ++i) {  // plasma burst on impact
-                            const float ang = static_cast<float>(i) / 16 * 6.2831853f;
-                            const float r = 1.0f + hh(i) * 0.8f;
-                            skillParticles_.setEmitter(tgt);
-                            Particle p;
-                            p.vel = Vec3{std::cos(ang) * r, 0.3f + hh(i + 30) * 0.7f, std::sin(ang) * r};
-                            p.r = 0.7f; p.g = 0.9f; p.b = 1.0f; p.a = 0.9f; p.da = -2.2f;
-                            p.size = 0.1f; p.growth = -0.01f; p.life = 0.4f; p.fxTex = glow;
-                            skillParticles_.emit(p);
-                        }
+                        if (jupitelTexReady_ && posOf(sd.src, cp))
+                            jupitelFx_.push_back({JupitelEffect(Vec3{cp.x, cp.y + 0.9f, cp.z}, dstPos, time_)});
                     }
                     // Water Ball (86, WZ_WATERBALL): doc16 -> a water bolt flies caster->target + a splash
                     // ring on the target (water_out_a/b/c). Coded as a blue water stream caster->target and
@@ -9523,6 +9494,20 @@ void GameScene::ensureFrostDiverFx(Application& app) {
     frostDiverTexReady_ = loadEffectTexture(app.vfs(), "ice.tga", frostDiverIceTex_);
     if (!frostDiverTexReady_)
         log::warn("game: Frost Diver FX disabled -- ice.tga not found");
+}
+
+void GameScene::ensureJupitelFx(Application& app) {
+    if (jupitelTexTried_) return;
+    jupitelTexTried_ = true;
+    jupitelTexReady_ = loadEffectTexture(app.vfs(), "thunder_center.bmp", jupitelTex_[0]);
+    const char* balls[JupitelEffect::kBallFrames] = {
+        "thunder_ball_a.bmp", "thunder_ball_b.bmp", "thunder_ball_c.bmp",
+        "thunder_ball_d.bmp", "thunder_ball_e.bmp", "thunder_ball_f.bmp"};
+    for (int i = 0; i < JupitelEffect::kBallFrames; ++i)
+        if (!loadEffectTexture(app.vfs(), balls[i], jupitelTex_[1 + i])) jupitelTexReady_ = false;
+    if (!jupitelTexReady_)
+        log::warn("game: Jupitel Thunder FX disabled -- missing thunder texture(s) "
+                  "(thunder_center.bmp / thunder_ball_a-f.bmp)");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14257,6 +14242,18 @@ void GameScene::render(Application& app) {
                         else if (auto it = actors_.find(fd.gid); it != actors_.end()) p = it->second.pos;
                         fd.eff.render(pass, frostDiverIceTex_, p);
                     }
+            }
+            // Jupitel Thunder: plasma ball flying caster -> target (fixed trajectory).
+            if (!jupitelFx_.empty()) {
+                for (JupitelFx& jf : jupitelFx_) jf.eff.advance(time_);
+                jupitelFx_.erase(std::remove_if(jupitelFx_.begin(), jupitelFx_.end(),
+                                                [&](const JupitelFx& jf) { return jf.eff.finished(time_); }),
+                                 jupitelFx_.end());
+                if (jupitelTexReady_) {
+                    const Texture* jt[JupitelEffect::kTexCount];
+                    for (int i = 0; i < JupitelEffect::kTexCount; ++i) jt[i] = &jupitelTex_[i];
+                    for (const JupitelFx& jf : jupitelFx_) jf.eff.render(pass, jt);
+                }
             }
             // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
             // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.

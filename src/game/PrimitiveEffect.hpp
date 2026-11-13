@@ -292,6 +292,28 @@ private:
     Ice spikes_[kMaxSpikes];
 };
 
+// EF_YUFITEL (WZ_JUPITEL, skill 84) — Jupitel Thunder's plasma ball: two co-travelling additive
+// billboards (a static centre glow thunder_center.bmp + an animated 6-frame ball thunder_ball_a-f.bmp)
+// flying from the caster to the target over 20 frames. Faithful port of nostalre yupitel.rs. Replaces
+// skill 84's coded plasma stream.
+class JupitelEffect {
+public:
+    static constexpr int kBallFrames = 6;
+    static constexpr int kTexCount = 1 + kBallFrames;  // [0]=centre, [1..6]=ball a..f
+
+    JupitelEffect(const Vec3& from, const Vec3& to, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    // `tex[0]` = thunder_center, `tex[1..6]` = thunder_ball_a..f (null slot -> skipped).
+    void render(const WorldSpritePass& pass, const Texture* const tex[kTexCount]) const;
+
+private:
+    Vec3 current() const;
+    Vec3 from_{}, to_{}, vel_{};  // vel = world units per frame toward the target
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

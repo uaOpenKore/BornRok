@@ -14086,6 +14086,11 @@ void GameScene::render(Application& app) {
                     if (fireballSprite_ != fb.sprite) {  // (re)load the effect sprite for this bolt element
                         fireball_.loadActor(app.vfs(), fb.sprite);  // data/sprite/이펙트/<sprite>.spr (exe)
                         fireballSprite_ = fb.sprite;
+                        // DIAG (S. 2026-11-13: Fire Ball/Bolt/Soul Strike/Cold Bolt invisible on a stable
+                        // connection): log whether the effect sprite actually loaded, so the next log
+                        // splits load-failure (ready=0 -> content/path) from a render issue (ready=1).
+                        log::info("fireballs: sprite '{}' load -> ready={} scale={}", fb.sprite,
+                                  fireball_.ready() ? 1 : 0, fb.scale);
                     }
                     if (!fireball_.ready()) continue;
                     const float ft = std::clamp(static_cast<float>((time_ - fb.born) / fb.dur), 0.0f, 1.0f);

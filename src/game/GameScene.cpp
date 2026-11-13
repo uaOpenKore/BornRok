@@ -8275,7 +8275,14 @@ int GameScene::codedFxTexId(Application& app, const char* effName, bool flipV, b
     if (auto bytes = app.vfs().readPreferPng(std::string("data/texture/effect/") + effName))
         if (auto dec = decodeImage(*bytes); dec && dec->valid()) {
             applyMagentaKey(*dec);  // RO effect .bmp (cross_old etc.) use a magenta transparent key (no-op on webp-with-alpha)
-            if (cornerKey) applyCornerKey(*dec);  // flattened HD re-exports (no-op on webp-with-alpha)
+            // ALWAYS corner-key, not just when the caller asked (S. 2026-11-13: ice/stone/폭발 etc. drew
+            // as big opaque SQUARES). applyCornerKey self-guards on hasTransparentPixels, so it acts ONLY
+            // on fully-opaque flattened re-exports (the webp effect pack baked the colour-key into an
+            // opaque background with a full alpha channel -> applyMagentaKey's magenta no-op left it a
+            // solid box). Real-alpha webp (any transparent pixel) is untouched. cornerKey is kept only to
+            // let a caller FORCE a tighter tolerance later; the default path now keys every opaque bg.
+            applyCornerKey(*dec);
+            (void)cornerKey;
             if (isAlphaCenter && !hasTransparentPixels(*dec)) {  // broken flattened glow -> built-in soft glow
                 codedFxTex_[effName] = -1;
                 return -1;

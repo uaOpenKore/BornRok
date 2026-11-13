@@ -4921,16 +4921,26 @@ void GameScene::pumpStream(Application& app) {
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
                     // ice SHATTER on the frozen target (radial cosθ/-sinθ velocity, strong upward, big
                     // ice-blue crystals, spin). Coded as 8 ice-blue shards bursting up + outward.
-                    // Frost Diver (15, MG_FROSTDIVER): nostalre burst of 3-5 additive ice blades erupting
-                    // around the frozen target, staggered over the first 14 frames, each rising then
-                    // fading over a 40-frame life. Follows the target. Replaces the coded 8-crystal
-                    // shatter. Safe no-op if ice.tga is absent (frostDiverTexReady_).
+                    // Frost Diver (15, MG_FROSTDIVER): coded 8-crystal ice shatter on the frozen target
+                    // (ice.tga). [nostalre QuadHorn ice-blade port reverted 2026-11-13 — it rendered as
+                    // thin strips: QuadHorn needs a spike-shaped texture, our ice.tga is a solid tile.]
                     if (!romFx && haveDst && sd.skillId == 15 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        ensureFrostDiverFx(app);
-                        if (frostDiverTexReady_)
-                            frostDiverFx_.push_back({FrostDiverEffect(dstPos, time_), sd.dst, dstPos});
+                        const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
+                        const int iceTex = codedFxTexId(app, "ice.tga");  // the REAL ice crystal art (doc16: ice.tga)
+                        constexpr int kCrystals = 8;  // doc16: 8-crystal shatter
+                        for (int i = 0; i < kCrystals; ++i) {
+                            const float a = static_cast<float>(i) / kCrystals * 6.2831853f;
+                            const float f = 1.1f;
+                            skillParticles_.setEmitter(c);
+                            Particle p;
+                            p.vel = Vec3{std::cos(a) * f, 2.6f, std::sin(a) * f};  // burst out + strong up
+                            p.accel = Vec3{0.0f, -3.0f, 0.0f};
+                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // real sprite art
+                            p.size = 0.4f; p.growth = 0.0f; p.life = 0.6f; p.fxTex = iceTex; p.alphaBlend = true;
+                            skillParticles_.emit(p);
+                        }
                     }
                     // Heaven's Drive (91, WZ_HEAVENDRIVE): doc16 -> a 5x5 grid of stone spikes erupting
                     // from the ground over the AoE (stone.bmp x25, shake). Coded as 25 brown earth spikes
@@ -5438,23 +5448,27 @@ void GameScene::pumpStream(Application& app) {
                             skillFx_.push_back({cell, time_, fx.str});
                         if (gs.skillId == 137)  // AS_GRIMTOOTH: coded earth-spike burst at the cell
                             emitSkillBurst(app, 137, cell);
-                        // Earth Spike (90): nostalre stone-blade eruption at the cell — a central blade
-                        // that springs up (damped overshoot) + a ring of 6 outward-leaning blades rising
-                        // out of the ground. Ground-targeted, arrives here even on empty ground, so this
-                        // is the authoritative spawn (the per-victim 0x1de scatter was removed). Safe
-                        // no-op if stone.tga/.bmp is absent (earthSpikeTexReady_).
-                        if (gs.skillId == 90) {
-                            ensureEarthSpikeFx(app);
-                            if (earthSpikeTexReady_)
-                                earthSpikeFx_.push_back({EarthSpikeEffect(cell, time_), 0u, cell});
-                        }
-                        // Heaven's Drive (91): nostalre 5x5 grid of stone blades rising out of the ground
-                        // across the splash, holding, then sinking back. Ground-targeted -> spawn once at
-                        // the cell. Safe no-op if stone.tga/.bmp is absent (heavensDriveTexReady_).
-                        if (gs.skillId == 91) {
-                            ensureHeavensDriveFx(app);
-                            if (heavensDriveTexReady_)
-                                heavensDriveFx_.push_back({HeavensDriveEffect(cell, time_), 0u, cell});
+                        // Earth Spike (90) / Heaven's Drive (91): ground-targeted AoE, no .str. Coded
+                        // rising stone spikes at the cell (stone.tga). [nostalre QuadHorn blade port
+                        // reverted 2026-11-13 — blades rendered as solid rectangles ("брёвна"): QuadHorn
+                        // needs a spike-shaped texture, our stone tile is solid.]
+                        if (gs.skillId == 90 || gs.skillId == 91) {
+                            const int rows = gs.skillId == 91 ? 5 : 3;  // Heaven's Drive 5x5, Earth Spike a smaller cross
+                            const float step = 0.87f;
+                            for (int gz = -(rows / 2); gz <= rows / 2; ++gz) {
+                                for (int gx = -(rows / 2); gx <= rows / 2; ++gx) {
+                                    if (gs.skillId == 90 && gx != 0 && gz != 0) continue;  // Earth Spike = a cross line
+                                    for (int k = 0; k < 3; ++k) {
+                                        skillParticles_.setEmitter(Vec3{cell.x + gx * step, cell.y + 0.05f, cell.z + gz * step});
+                                        Particle p;
+                                        p.vel = Vec3{0.0f, 2.4f + 0.6f * k, 0.0f};
+                                        p.accel = Vec3{0.0f, -4.5f, 0.0f};
+                                        p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.8f;  // real stone art
+                                        p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
+                                        skillParticles_.emit(p);
+                                    }
+                                }
+                            }
                         }
                     }
                     // Arrow Shower (47, AC_SHOWER) is a GROUND-placed skill: its damage comes from the

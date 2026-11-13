@@ -778,7 +778,7 @@ constexpr float kNapYOffset = -2.0f;       // RO-native (+Y down) -> lifts the c
 constexpr float kNapAnimSpeed = 2.0f;      // texture frames advanced per sim frame (ANIM_SPEED)
 // World units per RO-native effect unit (our world: 1 GND cell = 1u, char ~2u tall). Tuning knob — the
 // RO-native magnitudes above (offsets 1-5, sizes 2-5) are in the exe's effect space; scale to ours.
-constexpr float kNapScale = 0.28f;
+constexpr float kNapScale = 0.14f;  // was 0.28 — S.: "большие шары", halved so puffs read as a cluster
 
 unsigned napLcg(unsigned& s) {
     s = s * 1664525u + 1013904223u;

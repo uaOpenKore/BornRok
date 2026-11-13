@@ -170,6 +170,24 @@ void drawGroundDisc(const WorldSpritePass& pass, const Texture& tex, const Vec3&
     submitPrim(pass, tex, vd.data(), n, id.data(), segments * 3, additive, /*depthTest=*/false);
 }
 
+// A "QuadHorn" blade: a base-anchored billboard quad standing from `base` up along the WORLD apex
+// direction `apex` (unit) for `height`, `halfW` wide across the screen (pass.right). The texture is
+// upright — v=1 at the base, v=0 at the tip. Used by the earth/ice spike effects (a stone/ice blade
+// erupting from the ground). depthTest so nearer geometry occludes it.
+void drawQuadHorn(const WorldSpritePass& pass, const Texture& tex, const Vec3& base, const Vec3& apex,
+                  float height, float halfW, u32 col, bool additive) {
+    const Vec3 r = pass.right;
+    const Vec3 tip{base.x + apex.x * height, base.y + apex.y * height, base.z + apex.z * height};
+    V vd[4] = {
+        {base.x - r.x * halfW, base.y - r.y * halfW, base.z - r.z * halfW, 0, 1, col},
+        {base.x + r.x * halfW, base.y + r.y * halfW, base.z + r.z * halfW, 1, 1, col},
+        {tip.x + r.x * halfW, tip.y + r.y * halfW, tip.z + r.z * halfW, 1, 0, col},
+        {tip.x - r.x * halfW, tip.y - r.y * halfW, tip.z - r.z * halfW, 0, 0, col},
+    };
+    const u16 id[6] = {0, 1, 2, 0, 2, 3};
+    submitPrim(pass, tex, vd, 4, id, 6, additive, /*depthTest=*/true);
+}
+
 // Linear fade-in to `peak` over `fadeIn` frames, hold, linear fade-out from `fadeOutStart` to `total`.
 float fadeInOut(float frame, float peak, float fadeIn, float fadeOutStart, float total) {
     const float rise = std::clamp(frame / std::max(fadeIn, 1e-3f), 0.0f, 1.0f);
@@ -819,6 +837,82 @@ void NapalmBeatEffect::render(const WorldSpritePass& pass, const Texture* const 
         const float half = p.size * kNapScale;
         drawBillboardQuad(pass, *tex[ti], c, half, half, 0.0f, abgr(1.0f, 1.0f, 1.0f, alpha),
                           /*additive=*/true);
+    }
+}
+
+// ------------------------------- Spike effects (QuadHorn: EarthSpike / HeavensDrive / FrostDiver) --
+namespace {
+constexpr float kSpkFps = 60.0f;
+// World units per RO-native effect unit for the spike family (tuning knob). Native blade heights are
+// ~4-15; at 0.16 a central Earth Spike blade (~12 native) stands ~1.9u ≈ a character's height.
+constexpr float kSpikeUnit = 0.16f;
+
+// Unit apex direction in OUR world (Y up). nostalre apex_velocity gives dir=[cos_t*sin_y, -sin_t,
+// cos_t*cos_y] in native space (+Y = down); flip Y so tilt=90° points straight UP (+Y) in our world.
+Vec3 spkApex(float tiltDeg, float headingDeg) {
+    const float yaw = headingDeg * (kPi / 180.0f), tilt = tiltDeg * (kPi / 180.0f);
+    const float st = std::sin(tilt), ct = std::cos(tilt), sy = std::sin(yaw), cy = std::cos(yaw);
+    return Vec3{ct * sy, st, ct * cy};
+}
+// Damped-spring height envelope: 0 at t=0 (erupts from the ground), overshoots > 1, rings down to 1.
+float spkSpring(float ageS, float omega, float decay) {
+    return 1.0f - std::exp(-decay * ageS) * std::cos(omega * ageS);
+}
+// Hold full alpha until `fadeOutFrames` before the end of `durationS`, then ramp linearly to 0.
+float spkFadeTail(float ageS, float durationS, float fadeOutFrames) {
+    const float fadeStartS = std::max(durationS * kSpkFps - fadeOutFrames, 0.0f) / kSpkFps;
+    if (ageS <= fadeStartS) return 1.0f;
+    return std::clamp(1.0f - (ageS - fadeStartS) / (durationS - fadeStartS), 0.0f, 1.0f);
+}
+
+// Earth Spike native params (nostalre earthspike.rs)
+constexpr float kEsRingRadius = 3.0f;
+constexpr float kEsCenterTilt = 90.0f, kEsCenterSize = 2.4f, kEsCenterHeight = 12.0f;
+constexpr float kEsRingTilt = 100.0f, kEsRingSize = 1.2f, kEsRingHeight = 4.0f;
+constexpr float kEsSpeedPerS = 0.12f * kSpkFps;     // 7.2 native/s along the apex
+constexpr float kEsRiseFrames = 12.0f;              // SPEED_LIMIT (0.2s) rise window
+constexpr float kEsSpringOmega = 26.0f, kEsSpringDecay = 13.0f;
+constexpr float kEsDurationFrames = 120.0f, kEsFadeOutFrames = 20.0f;
+}  // namespace
+
+EarthSpikeEffect::EarthSpikeEffect(const Vec3& /*worldPos*/, double bornTime) : born_(bornTime) {
+    // Centre blade: planted on the cell, straight up, erupts with the spring overshoot.
+    spikes_[0] = {Vec3{0, 0, 0}, Vec3{0, 0, 0}, spkApex(kEsCenterTilt, 0.0f),
+                  kEsCenterSize * kSpikeUnit * 0.5f, kEsCenterHeight * kSpikeUnit, true};
+    // Ring of 6 blades: placed on a circle, leaning outward (heading = angle), rising along their apex.
+    for (int i = 0; i < kRing; ++i) {
+        const float heading = static_cast<float>(i) * (360.0f / static_cast<float>(kRing));
+        const float rad = heading * (kPi / 180.0f);
+        const Vec3 base0{kEsRingRadius * std::cos(rad) * kSpikeUnit, 0.0f,
+                         kEsRingRadius * std::sin(rad) * kSpikeUnit};
+        const Vec3 apex = spkApex(kEsRingTilt, heading);
+        const float vps = kEsSpeedPerS * kSpikeUnit / kSpkFps;  // world units per FRAME along apex
+        spikes_[i + 1] = {base0, Vec3{apex.x * vps, apex.y * vps, apex.z * vps}, apex,
+                          kEsRingSize * kSpikeUnit * 0.5f, kEsRingHeight * kSpikeUnit, false};
+    }
+}
+
+void EarthSpikeEffect::advance(double now) { ageFrames_ = static_cast<float>((now - born_) * kSpkFps); }
+
+bool EarthSpikeEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kSpkFps) >= kEsDurationFrames;
+}
+
+void EarthSpikeEffect::render(const WorldSpritePass& pass, const Texture& stoneTex,
+                              const Vec3& base) const {
+    if (!stoneTex.valid()) return;
+    const float ageS = ageFrames_ / kSpkFps;
+    const float a = spkFadeTail(ageS, kEsDurationFrames / kSpkFps, kEsFadeOutFrames);
+    if (a <= 0.0f) return;
+    const float riseF = std::min(ageFrames_, kEsRiseFrames);
+    const u32 col = abgr(1.0f, 1.0f, 1.0f, a);
+    for (const Spike& s : spikes_) {
+        const Vec3 b{base.x + s.base0.x + s.vel.x * riseF, base.y + s.base0.y + s.vel.y * riseF,
+                     base.z + s.base0.z + s.vel.z * riseF};
+        float h = s.restHeight;
+        if (s.vibrate) h = s.restHeight * spkSpring(ageS, kEsSpringOmega, kEsSpringDecay);
+        if (h <= 0.0f) continue;
+        drawQuadHorn(pass, stoneTex, b, s.apex, h, s.size, col, /*additive=*/false);
     }
 }
 

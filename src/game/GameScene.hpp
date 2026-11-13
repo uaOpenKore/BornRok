@@ -270,6 +270,17 @@ private:
     Texture napalmTex_[NapalmBeatEffect::kTexFrames];  // 폭발1..8.tga, loaded once
     bool napalmTexReady_ = false, napalmTexTried_ = false;
     void ensureNapalmFx(Application& app);  // load the 8 explosion textures once
+    // EF_EARTHSPIKE (WZ_EARTHSPIKE 90): nostalre stone-blade eruption at the cell (central spring blade +
+    // ring of 6 rising blades). Spawned on the 0x117 ground channel; shares the QuadHorn blade primitive.
+    struct EarthSpikeFx {
+        EarthSpikeEffect eff;
+        u32 gid;   // 0 -> ground-anchored at pos (the cell)
+        Vec3 pos;  // cell world position
+    };
+    std::vector<EarthSpikeFx> earthSpikeFx_;
+    Texture earthSpikeStoneTex_;  // stone.tga/.bmp
+    bool earthSpikeTexReady_ = false, earthSpikeTexTried_ = false;
+    void ensureEarthSpikeFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

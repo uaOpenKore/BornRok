@@ -208,6 +208,35 @@ private:
     Puff puffs_[kCount];
 };
 
+// EF_EARTHSPIKE (WZ_EARTHSPIKE, skill 90) — a central stone blade erupting from the cell with a damped-
+// spring overshoot, surrounded by a ring of 6 outward-leaning blades that rise out of the ground.
+// Faithful port of nostalre earthspike.rs + spike_util.rs ("QuadHorn" spike math). Stone texture. The
+// shared QuadHorn blade draw (a base-anchored billboard blade leaning along a tilt/heading apex) is
+// reused by Heaven's Drive and Frost Diver. Replaces skill 90's flat stone-particle scatter.
+class EarthSpikeEffect {
+public:
+    static constexpr int kRing = 6;
+
+    EarthSpikeEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    // `stoneTex` = stone.bmp/.tga, loaded once by the owner. `base` = the cell's live world position.
+    void render(const WorldSpritePass& pass, const Texture& stoneTex, const Vec3& base) const;
+
+private:
+    struct Spike {
+        Vec3 base0{};       // base offset from the anchor, world units (before rise)
+        Vec3 vel{};         // apex velocity, world units per frame (0 for the centre spike)
+        Vec3 apex{};        // unit apex direction in world space (blade grows along this)
+        float size = 0.0f;        // blade half-width, world units
+        float restHeight = 0.0f;  // blade length at rest, world units
+        bool vibrate = false;     // centre spike: height follows the spring envelope
+    };
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+    Spike spikes_[kRing + 1];
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

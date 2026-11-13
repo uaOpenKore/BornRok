@@ -2162,6 +2162,7 @@ void GameScene::onExit(Application& app) {
     agiFx_.clear();
     healFx_.clear();
     napalmFx_.clear();
+    earthSpikeFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -5032,31 +5033,9 @@ void GameScene::pumpStream(Application& app) {
                             skillParticles_.emit(p);
                         }
                     }
-                    // Earth Spike (90, WZ_EARTHSPIKE): doc16/FUN_005cf9f0 -> 1 central + 10 radial stone
-                    // spikes erupting at the target (stone.bmp). Coded as a centre column + 10 brown earth
-                    // spikes in a ring shooting up.
-                    if (!romFx && haveDst && sd.skillId == 90 &&
-                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
-                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        auto spike = [&](const Vec3& at, float up) {
-                            for (int k = 0; k < 3; ++k) {
-                                skillParticles_.setEmitter(at);
-                                Particle p;
-                                p.vel = Vec3{0.0f, up + hh(k) * 0.6f, 0.0f};
-                                p.accel = Vec3{0.0f, -4.5f, 0.0f};
-                                p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.9f;  // real stone art
-                                p.size = 0.36f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
-                                skillParticles_.emit(p);
-                            }
-                        };
-                        spike(Vec3{dstPos.x, dstPos.y + 0.05f, dstPos.z}, 3.0f);  // taller centre spike
-                        for (int i = 0; i < 10; ++i) {
-                            const float a = static_cast<float>(i) / 10 * 6.2831853f;
-                            const float r = 0.7f;
-                            spike(Vec3{dstPos.x + std::cos(a) * r, dstPos.y + 0.05f, dstPos.z + std::sin(a) * r}, 2.2f);
-                        }
-                    }
+                    // Earth Spike (90, WZ_EARTHSPIKE): the nostalre stone-blade eruption is now spawned
+                    // once at the CELL on the 0x117 ground channel (authoritative, works on empty ground),
+                    // so the old per-victim stone scatter here was removed to avoid a double eruption.
                     // Sight Rasher (81, WZ_SIGHTRASHER): doc16/FUN_005ce790 -> 16 radial shards fired
                     // outward from the CASTER + a ground ring (ring_yellow). Coded as 16 bright shards
                     // shooting out from the caster along the ground + a flat yellow ring.
@@ -5511,15 +5490,23 @@ void GameScene::pumpStream(Application& app) {
                             skillFx_.push_back({cell, time_, fx.str});
                         if (gs.skillId == 137)  // AS_GRIMTOOTH: coded earth-spike burst at the cell
                             emitSkillBurst(app, 137, cell);
-                        // Earth Spike (90) / Heaven's Drive (91): ground-targeted AoE with no .str. They
-                        // arrive here (cell) even when cast on empty ground, so render the stone spikes at
-                        // the cell too, not only per-victim on 0x1de (S.: "нет эффекта"). Bright tan spikes.
-                        if (gs.skillId == 90 || gs.skillId == 91) {
-                            const int rows = gs.skillId == 91 ? 5 : 3;  // Heaven's Drive 5x5, Earth Spike a smaller cross
+                        // Earth Spike (90): nostalre stone-blade eruption at the cell — a central blade
+                        // that springs up (damped overshoot) + a ring of 6 outward-leaning blades rising
+                        // out of the ground. Ground-targeted, arrives here even on empty ground, so this
+                        // is the authoritative spawn (the per-victim 0x1de scatter was removed). Safe
+                        // no-op if stone.tga/.bmp is absent (earthSpikeTexReady_).
+                        if (gs.skillId == 90) {
+                            ensureEarthSpikeFx(app);
+                            if (earthSpikeTexReady_)
+                                earthSpikeFx_.push_back({EarthSpikeEffect(cell, time_), 0u, cell});
+                        }
+                        // Heaven's Drive (91): 5x5 rising stone spikes at the cell (grid of stone
+                        // particles; nostalre blade-grid port pending — next in the Mage batch).
+                        if (gs.skillId == 91) {
+                            const int rows = 5;
                             const float step = 0.87f;
-                            for (int gz = -(rows / 2); gz <= rows / 2; ++gz) {
-                                for (int gx = -(rows / 2); gx <= rows / 2; ++gx) {
-                                    if (gs.skillId == 90 && gx != 0 && gz != 0) continue;  // Earth Spike = a cross line
+                            for (int gz = -(rows / 2); gz <= rows / 2; ++gz)
+                                for (int gx = -(rows / 2); gx <= rows / 2; ++gx)
                                     for (int k = 0; k < 3; ++k) {
                                         skillParticles_.setEmitter(Vec3{cell.x + gx * step, cell.y + 0.05f, cell.z + gz * step});
                                         Particle p;
@@ -5529,8 +5516,6 @@ void GameScene::pumpStream(Application& app) {
                                         p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
                                         skillParticles_.emit(p);
                                     }
-                                }
-                            }
                         }
                     }
                     // Arrow Shower (47, AC_SHOWER) is a GROUND-placed skill: its damage comes from the
@@ -9543,6 +9528,16 @@ void GameScene::ensureNapalmFx(Application& app) {
     }
     if (!napalmTexReady_)
         log::warn("game: Napalm Beat FX disabled -- missing explosion texture(s) (data/texture/effect/폭발1-8.tga)");
+}
+
+void GameScene::ensureEarthSpikeFx(Application& app) {
+    if (earthSpikeTexTried_) return;
+    earthSpikeTexTried_ = true;
+    // nostalre names it stone.bmp; the existing coded path used stone.tga. Try .tga then .bmp.
+    earthSpikeTexReady_ = loadEffectTexture(app.vfs(), "stone.tga", earthSpikeStoneTex_) ||
+                          loadEffectTexture(app.vfs(), "stone.bmp", earthSpikeStoneTex_);
+    if (!earthSpikeTexReady_)
+        log::warn("game: Earth Spike FX disabled -- stone texture not found (stone.tga/.bmp)");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14243,6 +14238,16 @@ void GameScene::render(Application& app) {
                         nf.eff.render(pass, ntex, p);
                     }
                 }
+            }
+            // Earth Spike: nostalre stone-blade eruption, anchored at the cell (gid 0).
+            if (!earthSpikeFx_.empty()) {
+                for (EarthSpikeFx& es : earthSpikeFx_) es.eff.advance(time_);
+                earthSpikeFx_.erase(std::remove_if(earthSpikeFx_.begin(), earthSpikeFx_.end(),
+                                                   [&](const EarthSpikeFx& es) { return es.eff.finished(time_); }),
+                                    earthSpikeFx_.end());
+                if (earthSpikeTexReady_)
+                    for (const EarthSpikeFx& es : earthSpikeFx_)
+                        es.eff.render(pass, earthSpikeStoneTex_, es.pos);
             }
             // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
             // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.

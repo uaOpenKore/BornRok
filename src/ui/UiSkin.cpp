@@ -100,13 +100,17 @@ void UiSkin::init(const Vfs& vfs) {
             // stays the right size but sharp. Falls back to the image's own size when no .bmp exists.
             ui.w = static_cast<int>(img->width);
             ui.h = static_cast<int>(img->height);
-            const bool texIsPng = bytes->size() >= 4 && (*bytes)[0] == 0x89 && (*bytes)[1] == 'P';
-            if (texIsPng)
-                if (auto raw = vfs.read(dir + files[i]))  // the original .bmp (read() does NOT swap to png)
-                    if (auto rawImg = decodeImage(*raw); rawImg && rawImg->valid()) {
-                        ui.w = static_cast<int>(rawImg->width);
-                        ui.h = static_cast<int>(rawImg->height);
-                    }
+            // The loaded texture may be a hi-res override in ANY format — .png OR .webp (readPreferPng
+            // prefers .webp > .png > the original). Both are authored at 2x/4x, so read the original
+            // .bmp by its real name purely for the logical window size (S.: webp skins must size-align
+            // exactly like png ones). When no override exists, readPreferPng already returned this same
+            // .bmp, so the fallback reads it again and the size is unchanged (harmless). Previously this
+            // was gated on the texture being PNG, so a .webp skin kept its blown-up HD size and misaligned.
+            if (auto raw = vfs.read(dir + files[i]))  // original .bmp for logical layout size
+                if (auto rawImg = decodeImage(*raw); rawImg && rawImg->valid()) {
+                    ui.w = static_cast<int>(rawImg->width);
+                    ui.h = static_cast<int>(rawImg->height);
+                }
             // Hard override to the KNOWN RO logical size for the hardcoded-layout window skins. The
             // .bmp fallback above fails when the content maker ships an HD skin as a 2x .BMP (texIsPng
             // false -> no fallback) OR replaces the GRF .bmp itself, so the window blew up 2x (S.:

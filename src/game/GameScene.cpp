@@ -2164,6 +2164,7 @@ void GameScene::onExit(Application& app) {
     napalmFx_.clear();
     earthSpikeFx_.clear();
     heavensDriveFx_.clear();
+    frostDiverFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -4919,48 +4920,23 @@ void GameScene::pumpStream(Application& app) {
                     // Frost Diver impact (15, MG_FROSTDIVER): doc16/FUN_005cb720 -> a one-shot 8-crystal
                     // ice SHATTER on the frozen target (radial cosθ/-sinθ velocity, strong upward, big
                     // ice-blue crystals, spin). Coded as 8 ice-blue shards bursting up + outward.
+                    // Frost Diver (15, MG_FROSTDIVER): nostalre burst of 3-5 additive ice blades erupting
+                    // around the frozen target, staggered over the first 14 frames, each rising then
+                    // fading over a 40-frame life. Follows the target. Replaces the coded 8-crystal
+                    // shatter. Safe no-op if ice.tga is absent (frostDiverTexReady_).
                     if (!romFx && haveDst && sd.skillId == 15 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        const Vec3 c{dstPos.x, dstPos.y + 0.5f, dstPos.z};
-                        const int iceTex = codedFxTexId(app, "ice.tga");  // the REAL ice crystal art (doc16: ice.tga)
-                        constexpr int kCrystals = 8;  // doc16: 8-crystal shatter
-                        for (int i = 0; i < kCrystals; ++i) {
-                            const float a = static_cast<float>(i) / kCrystals * 6.2831853f;
-                            const float f = 1.1f;
-                            skillParticles_.setEmitter(c);
-                            Particle p;
-                            p.vel = Vec3{std::cos(a) * f, 2.6f, std::sin(a) * f};  // burst out + strong up
-                            p.accel = Vec3{0.0f, -3.0f, 0.0f};
-                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.6f;  // real sprite art
-                            p.size = 0.4f; p.growth = 0.0f; p.life = 0.6f; p.fxTex = iceTex; p.alphaBlend = true;
-                            skillParticles_.emit(p);
-                        }
+                        ensureFrostDiverFx(app);
+                        if (frostDiverTexReady_)
+                            frostDiverFx_.push_back({FrostDiverEffect(dstPos, time_), sd.dst, dstPos});
                     }
                     // Heaven's Drive (91, WZ_HEAVENDRIVE): doc16 -> a 5x5 grid of stone spikes erupting
                     // from the ground over the AoE (stone.bmp x25, shake). Coded as 25 brown earth spikes
                     // shooting up from each cell around the target, slightly staggered. Earth element.
-                    if (!romFx && haveDst && sd.skillId == 91 &&
-                        (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
-                        lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        constexpr float kCell = 0.87f;  // ~1 GAT cell in world units
-                        for (int gz = -2; gz <= 2; ++gz) {
-                            for (int gx = -2; gx <= 2; ++gx) {
-                                const int idx = (gz + 2) * 5 + (gx + 2);
-                                const Vec3 cell{dstPos.x + gx * kCell, dstPos.y + 0.05f, dstPos.z + gz * kCell};
-                                for (int k = 0; k < 3; ++k) {  // a few motes per spike = a little column
-                                    skillParticles_.setEmitter(cell);
-                                    Particle p;
-                                    p.vel = Vec3{0.0f, 2.4f + hh(idx * 4 + k) * 0.8f, 0.0f};  // shoot up
-                                    p.accel = Vec3{0.0f, -4.5f, 0.0f};                          // fall back
-                                    p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.8f;  // real stone art
-                                    p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
-                                    skillParticles_.emit(p);
-                                }
-                            }
-                        }
-                    }
+                    // Heaven's Drive (91, WZ_HEAVENDRIVE): the nostalre 5x5 rising stone-blade grid is now
+                    // spawned once at the CELL on the 0x117 ground channel (authoritative), so the old
+                    // per-victim stone-particle grid here was removed to avoid a double eruption.
                     // Jupitel Thunder (84, WZ_JUPITEL): doc16 -> a thunder/plasma ball flies from the
                     // caster to the target + a ground plasma burst on impact (thunder_pang +
                     // thunder_plazma_blast_a/b). Coded as a bright cyan plasma stream caster->target and a
@@ -9539,6 +9515,14 @@ void GameScene::ensureHeavensDriveFx(Application& app) {
                             loadEffectTexture(app.vfs(), "stone.bmp", heavensDriveStoneTex_);
     if (!heavensDriveTexReady_)
         log::warn("game: Heaven's Drive FX disabled -- stone texture not found (stone.tga/.bmp)");
+}
+
+void GameScene::ensureFrostDiverFx(Application& app) {
+    if (frostDiverTexTried_) return;
+    frostDiverTexTried_ = true;
+    frostDiverTexReady_ = loadEffectTexture(app.vfs(), "ice.tga", frostDiverIceTex_);
+    if (!frostDiverTexReady_)
+        log::warn("game: Frost Diver FX disabled -- ice.tga not found");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14259,6 +14243,20 @@ void GameScene::render(Application& app) {
                 if (heavensDriveTexReady_)
                     for (const HeavensDriveFx& hd : heavensDriveFx_)
                         hd.eff.render(pass, heavensDriveStoneTex_, hd.pos);
+            }
+            // Frost Diver: burst of ice blades around the frozen target (follows it).
+            if (!frostDiverFx_.empty()) {
+                for (FrostDiverFx& fd : frostDiverFx_) fd.eff.advance(time_);
+                frostDiverFx_.erase(std::remove_if(frostDiverFx_.begin(), frostDiverFx_.end(),
+                                                   [&](const FrostDiverFx& fd) { return fd.eff.finished(time_); }),
+                                    frostDiverFx_.end());
+                if (frostDiverTexReady_)
+                    for (const FrostDiverFx& fd : frostDiverFx_) {
+                        Vec3 p = fd.pos;
+                        if (fd.gid == app.session().accountId) p = playerPos_;
+                        else if (auto it = actors_.find(fd.gid); it != actors_.end()) p = it->second.pos;
+                        fd.eff.render(pass, frostDiverIceTex_, p);
+                    }
             }
             // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
             // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.

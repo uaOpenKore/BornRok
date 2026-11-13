@@ -292,6 +292,17 @@ private:
     Texture heavensDriveStoneTex_;  // stone.tga/.bmp
     bool heavensDriveTexReady_ = false, heavensDriveTexTried_ = false;
     void ensureHeavensDriveFx(Application& app);
+    // EF_FROSTDIVER (MG_FROSTDIVER 15): nostalre burst of ice blades around the frozen target. 0x1de
+    // target channel; follows the target. Reuses the QuadHorn primitive.
+    struct FrostDiverFx {
+        FrostDiverEffect eff;
+        u32 gid;   // the frozen target to follow
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<FrostDiverFx> frostDiverFx_;
+    Texture frostDiverIceTex_;  // ice.tga
+    bool frostDiverTexReady_ = false, frostDiverTexTried_ = false;
+    void ensureFrostDiverFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

@@ -981,6 +981,68 @@ void HeavensDriveEffect::render(const WorldSpritePass& pass, const Texture& ston
     }
 }
 
+// ------------------------------- FrostDiverEffect (MG_FROSTDIVER 15) ------------------------------
+namespace {
+constexpr float kFdBurstFrames = 14.0f;      // spikes spawn staggered across this window
+constexpr float kFdDurationFrames = 40.0f;   // per-spike life
+constexpr float kFdSpeedPerS = 0.18f * kSpkFps;   // 10.8 native/s rise
+constexpr float kFdRiseFrames = 20.0f;       // SPEED_LIMIT (rise window)
+constexpr float kFdPeakAlpha = 200.0f / 255.0f;
+constexpr float kFdFadeOutFrames = 10.0f;
+constexpr float kFdRadiusMin = 3.0f, kFdRadiusMax = 8.0f;   // native placement radius
+constexpr float kFdTiltMin = 80.0f, kFdTiltMax = 100.0f;
+constexpr float kFdSizeMin = 0.3f, kFdSizeMax = 0.6f;       // native half-width (thin ice needles)
+constexpr float kFdHeightMin = 7.0f, kFdHeightMax = 10.0f;
+unsigned fdRotl(unsigned v, unsigned n) { return (v << n) | (v >> (32u - n)); }
+}  // namespace
+
+FrostDiverEffect::FrostDiverEffect(const Vec3& worldPos, double bornTime) : born_(bornTime) {
+    unsigned bx, bz;
+    std::memcpy(&bx, &worldPos.x, 4);
+    std::memcpy(&bz, &worldPos.z, 4);
+    unsigned rng = 0x9E3779B9u ^ bx ^ fdRotl(bz, 11);
+    count_ = 3 + static_cast<int>(napLcg(rng) % 3u);   // 3..5
+    for (int i = 0; i < count_; ++i) {
+        const float ang = napLcgF(rng) * (2.0f * kPi);
+        const float rad = kFdRadiusMin + napLcgF(rng) * (kFdRadiusMax - kFdRadiusMin);
+        const Vec3 base0{rad * std::cos(ang) * kSpikeUnit, 0.0f, rad * std::sin(ang) * kSpikeUnit};
+        const float heading = napLcgF(rng) * 360.0f;
+        const float tilt = kFdTiltMin + napLcgF(rng) * (kFdTiltMax - kFdTiltMin);
+        const float size = kFdSizeMin + napLcgF(rng) * (kFdSizeMax - kFdSizeMin);
+        const float height = kFdHeightMin + napLcgF(rng) * (kFdHeightMax - kFdHeightMin);
+        const Vec3 apex = spkApex(tilt, heading);
+        const float vps = kFdSpeedPerS * kSpikeUnit / kSpkFps;  // world units per frame along apex
+        spikes_[i] = {base0, Vec3{apex.x * vps, apex.y * vps, apex.z * vps}, apex, size * kSpikeUnit,
+                      height * kSpikeUnit, (static_cast<float>(i) + 1.0f) * kFdBurstFrames / static_cast<float>(count_)};
+    }
+}
+
+void FrostDiverEffect::advance(double now) { ageFrames_ = static_cast<float>((now - born_) * kSpkFps); }
+
+bool FrostDiverEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kSpkFps) >= (kFdBurstFrames + kFdDurationFrames);
+}
+
+void FrostDiverEffect::render(const WorldSpritePass& pass, const Texture& iceTex,
+                              const Vec3& base) const {
+    if (!iceTex.valid()) return;
+    for (int i = 0; i < count_; ++i) {
+        const Ice& s = spikes_[i];
+        const float localAge = ageFrames_ - s.spawnFrame;
+        if (localAge < 0.0f || localAge >= kFdDurationFrames) continue;  // not yet spawned / expired
+        const float riseF = std::clamp(localAge, 0.0f, kFdRiseFrames);
+        const Vec3 b{base.x + s.base0.x + s.vel.x * riseF, base.y + s.base0.y + s.vel.y * riseF,
+                     base.z + s.base0.z + s.vel.z * riseF};
+        const float fadeStart = kFdDurationFrames - kFdFadeOutFrames;  // 30
+        const float a = localAge <= fadeStart
+                            ? kFdPeakAlpha
+                            : kFdPeakAlpha * std::clamp(1.0f - (localAge - fadeStart) / kFdFadeOutFrames,
+                                                        0.0f, 1.0f);
+        drawQuadHorn(pass, iceTex, b, s.apex, s.height, s.size, abgr(1.0f, 1.0f, 1.0f, a),
+                     /*additive=*/true);
+    }
+}
+
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {
     const std::string path = std::string("data/texture/effect/") + nameTga;
     auto bytes = vfs.readPreferPng(path);

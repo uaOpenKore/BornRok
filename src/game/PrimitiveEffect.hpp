@@ -265,6 +265,33 @@ private:
     Blade blades_[kCount];
 };
 
+// EF_FROSTDIVER (MG_FROSTDIVER, skill 15) — a burst of 3-5 additive ice blades erupting around the frozen
+// target, staggered over the first 14 frames, each rising then fading over a 40-frame life. Faithful port
+// of nostalre frost_diver.rs (FROSTDIVER params, burst mode). Ice texture, additive. Reuses the QuadHorn
+// blade primitive. Replaces skill 15's coded ice-crystal shatter.
+class FrostDiverEffect {
+public:
+    static constexpr int kMaxSpikes = 5;
+
+    FrostDiverEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    // `iceTex` = ice.tga, loaded once by the owner. `base` = the frozen target's live position.
+    void render(const WorldSpritePass& pass, const Texture& iceTex, const Vec3& base) const;
+
+private:
+    struct Ice {
+        Vec3 base0{};      // placement offset from the target, world units
+        Vec3 vel{};        // apex velocity, world units per frame (rise)
+        Vec3 apex{};       // unit apex direction in world space
+        float size = 0.0f, height = 0.0f, spawnFrame = 0.0f;
+    };
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+    int count_ = 0;
+    Ice spikes_[kMaxSpikes];
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

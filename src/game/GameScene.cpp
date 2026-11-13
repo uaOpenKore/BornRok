@@ -2163,6 +2163,7 @@ void GameScene::onExit(Application& app) {
     healFx_.clear();
     napalmFx_.clear();
     earthSpikeFx_.clear();
+    heavensDriveFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -5500,22 +5501,13 @@ void GameScene::pumpStream(Application& app) {
                             if (earthSpikeTexReady_)
                                 earthSpikeFx_.push_back({EarthSpikeEffect(cell, time_), 0u, cell});
                         }
-                        // Heaven's Drive (91): 5x5 rising stone spikes at the cell (grid of stone
-                        // particles; nostalre blade-grid port pending — next in the Mage batch).
+                        // Heaven's Drive (91): nostalre 5x5 grid of stone blades rising out of the ground
+                        // across the splash, holding, then sinking back. Ground-targeted -> spawn once at
+                        // the cell. Safe no-op if stone.tga/.bmp is absent (heavensDriveTexReady_).
                         if (gs.skillId == 91) {
-                            const int rows = 5;
-                            const float step = 0.87f;
-                            for (int gz = -(rows / 2); gz <= rows / 2; ++gz)
-                                for (int gx = -(rows / 2); gx <= rows / 2; ++gx)
-                                    for (int k = 0; k < 3; ++k) {
-                                        skillParticles_.setEmitter(Vec3{cell.x + gx * step, cell.y + 0.05f, cell.z + gz * step});
-                                        Particle p;
-                                        p.vel = Vec3{0.0f, 2.4f + 0.6f * k, 0.0f};
-                                        p.accel = Vec3{0.0f, -4.5f, 0.0f};
-                                        p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.8f;  // real stone art
-                                        p.size = 0.34f; p.growth = -0.02f; p.life = 0.5f; p.fxTex = codedFxTexId(app, "stone.tga"); p.alphaBlend = true;
-                                        skillParticles_.emit(p);
-                                    }
+                            ensureHeavensDriveFx(app);
+                            if (heavensDriveTexReady_)
+                                heavensDriveFx_.push_back({HeavensDriveEffect(cell, time_), 0u, cell});
                         }
                     }
                     // Arrow Shower (47, AC_SHOWER) is a GROUND-placed skill: its damage comes from the
@@ -9538,6 +9530,15 @@ void GameScene::ensureEarthSpikeFx(Application& app) {
                           loadEffectTexture(app.vfs(), "stone.bmp", earthSpikeStoneTex_);
     if (!earthSpikeTexReady_)
         log::warn("game: Earth Spike FX disabled -- stone texture not found (stone.tga/.bmp)");
+}
+
+void GameScene::ensureHeavensDriveFx(Application& app) {
+    if (heavensDriveTexTried_) return;
+    heavensDriveTexTried_ = true;
+    heavensDriveTexReady_ = loadEffectTexture(app.vfs(), "stone.tga", heavensDriveStoneTex_) ||
+                            loadEffectTexture(app.vfs(), "stone.bmp", heavensDriveStoneTex_);
+    if (!heavensDriveTexReady_)
+        log::warn("game: Heaven's Drive FX disabled -- stone texture not found (stone.tga/.bmp)");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14248,6 +14249,16 @@ void GameScene::render(Application& app) {
                 if (earthSpikeTexReady_)
                     for (const EarthSpikeFx& es : earthSpikeFx_)
                         es.eff.render(pass, earthSpikeStoneTex_, es.pos);
+            }
+            // Heaven's Drive: 5x5 stone-blade grid rising at the cell (gid 0).
+            if (!heavensDriveFx_.empty()) {
+                for (HeavensDriveFx& hd : heavensDriveFx_) hd.eff.advance(time_);
+                heavensDriveFx_.erase(std::remove_if(heavensDriveFx_.begin(), heavensDriveFx_.end(),
+                                                     [&](const HeavensDriveFx& hd) { return hd.eff.finished(time_); }),
+                                      heavensDriveFx_.end());
+                if (heavensDriveTexReady_)
+                    for (const HeavensDriveFx& hd : heavensDriveFx_)
+                        hd.eff.render(pass, heavensDriveStoneTex_, hd.pos);
             }
             // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
             // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.

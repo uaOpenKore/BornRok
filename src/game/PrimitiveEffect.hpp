@@ -237,6 +237,34 @@ private:
     Spike spikes_[kRing + 1];
 };
 
+// EF_HEAVENSDRIVE (WZ_HEAVENDRIVE, skill 91) — a 5×5 grid of 25 stone blades that rise out of the ground
+// across the skill's splash, hold, then sink back at the end of their life. Faithful port of nostalre
+// heavensdrive.rs: all blades share one rise/hold/sink motion (speed+accel phases); each has a random
+// size/height/heading/tilt and starts buried, poking out as it rises (depth-tested, so the terrain hides
+// the buried part). Reuses the QuadHorn blade draw + stone texture. Replaces skill 91's particle grid.
+class HeavensDriveEffect {
+public:
+    static constexpr int kGrid = 5;
+    static constexpr int kCount = kGrid * kGrid;  // 25
+
+    HeavensDriveEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    void render(const WorldSpritePass& pass, const Texture& stoneTex, const Vec3& base) const;
+
+private:
+    struct Blade {
+        Vec3 base0{};  // base offset from the cell, world units (buried below ground at spawn)
+        Vec3 apex{};   // unit apex direction in world space (blade grows / rises along this)
+        float size = 0.0f, height = 0.0f;
+    };
+    void integrateTo(float targetFrame);
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f, lastFrame_ = 0.0f;
+    float distance_ = 0.0f, speed_ = 0.0f, accel_ = 0.0f;  // shared native rise/sink motion
+    Blade blades_[kCount];
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

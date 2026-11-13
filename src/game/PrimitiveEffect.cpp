@@ -916,6 +916,71 @@ void EarthSpikeEffect::render(const WorldSpritePass& pass, const Texture& stoneT
     }
 }
 
+// ------------------------------- HeavensDriveEffect (WZ_HEAVENDRIVE 91) ---------------------------
+namespace {
+constexpr float kHdGridStep = 5.0f;     // native units between blades (one skill cell)
+constexpr float kHdBuryDepth = 10.0f;   // native depth the blades start buried below the cell
+constexpr float kHdSpeedInit = 1.0f, kHdAccelInit = 0.01f;
+constexpr float kHdChangeFrame = 11.0f, kHdChangeSpeed = -1.2f;
+constexpr float kHdSpeedLimitFrame = 14.0f;
+constexpr float kHdReturnSpeed = -1.0f, kHdReturnAccel = -0.01f;
+constexpr float kHdDurationFrames = 300.0f, kHdReturnBeforeEnd = 30.0f;
+}  // namespace
+
+HeavensDriveEffect::HeavensDriveEffect(const Vec3& worldPos, double bornTime)
+    : born_(bornTime), speed_(kHdSpeedInit), accel_(kHdAccelInit) {
+    unsigned rng = napSeedFromWorld(worldPos) ^ 0x9E3779B9u;
+    for (int i = 0; i < kGrid; ++i)
+        for (int j = 0; j < kGrid; ++j) {
+            const float offX = (-(kGrid - 1) / 2.0f + static_cast<float>(j)) * kHdGridStep;
+            const float offZ = (-(kGrid - 1) / 2.0f + static_cast<float>(i)) * kHdGridStep;
+            const float size = 3.0f + napLcgF(rng) * 0.5f;
+            const float height = 9.0f + napLcgF(rng) * 6.0f;
+            const float heading = napLcgF(rng) * 360.0f;
+            const float tilt = 80.0f + napLcgF(rng) * 20.0f;
+            Blade& b = blades_[i * kGrid + j];
+            b.base0 = Vec3{offX * kSpikeUnit, -kHdBuryDepth * kSpikeUnit, offZ * kSpikeUnit};
+            b.apex = spkApex(tilt, heading);
+            b.size = size * kSpikeUnit * 0.5f;
+            b.height = height * kSpikeUnit;
+        }
+}
+
+void HeavensDriveEffect::integrateTo(float target) {
+    // Step whole 60fps frames, replaying nostalre's phase schedule exactly (shared across all blades).
+    while (lastFrame_ + 1.0f <= target) {
+        const float f = lastFrame_;
+        if (f <= kHdChangeFrame && f + 1.0f > kHdChangeFrame) { speed_ = kHdChangeSpeed; accel_ = 0.0f; }
+        speed_ += accel_;
+        distance_ += speed_;
+        if (f <= kHdSpeedLimitFrame && f + 1.0f > kHdSpeedLimitFrame) { speed_ = 0.0f; accel_ = 0.0f; }
+        const float sink = kHdDurationFrames - kHdReturnBeforeEnd;
+        if (f <= sink && f + 1.0f > sink) { speed_ = kHdReturnSpeed; accel_ = kHdReturnAccel; }
+        lastFrame_ += 1.0f;
+    }
+}
+
+void HeavensDriveEffect::advance(double now) {
+    ageFrames_ = static_cast<float>((now - born_) * kSpkFps);
+    integrateTo(ageFrames_);
+}
+
+bool HeavensDriveEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kSpkFps) >= kHdDurationFrames;
+}
+
+void HeavensDriveEffect::render(const WorldSpritePass& pass, const Texture& stoneTex,
+                                const Vec3& base) const {
+    if (!stoneTex.valid()) return;
+    const float distW = distance_ * kSpikeUnit;  // shared rise distance, world units
+    const u32 col = abgr(1.0f, 1.0f, 1.0f, 1.0f);
+    for (const Blade& b : blades_) {
+        const Vec3 bpos{base.x + b.base0.x + b.apex.x * distW, base.y + b.base0.y + b.apex.y * distW,
+                        base.z + b.base0.z + b.apex.z * distW};
+        drawQuadHorn(pass, stoneTex, bpos, b.apex, b.height, b.size, col, /*additive=*/false);
+    }
+}
+
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {
     const std::string path = std::string("data/texture/effect/") + nameTga;
     auto bytes = vfs.readPreferPng(path);

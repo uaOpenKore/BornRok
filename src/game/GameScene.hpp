@@ -281,6 +281,17 @@ private:
     Texture earthSpikeStoneTex_;  // stone.tga/.bmp
     bool earthSpikeTexReady_ = false, earthSpikeTexTried_ = false;
     void ensureEarthSpikeFx(Application& app);
+    // EF_HEAVENSDRIVE (WZ_HEAVENDRIVE 91): nostalre 5x5 stone-blade grid rising at the cell. 0x117 ground
+    // channel; reuses the QuadHorn primitive. Own stone texture so its commit reverts independently.
+    struct HeavensDriveFx {
+        HeavensDriveEffect eff;
+        u32 gid;   // 0 -> ground-anchored at pos (the cell)
+        Vec3 pos;  // cell world position
+    };
+    std::vector<HeavensDriveFx> heavensDriveFx_;
+    Texture heavensDriveStoneTex_;  // stone.tga/.bmp
+    bool heavensDriveTexReady_ = false, heavensDriveTexTried_ = false;
+    void ensureHeavensDriveFx(Application& app);
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

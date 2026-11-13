@@ -124,6 +124,16 @@ void keyMagenta(std::vector<u8>& rgba, int w, int h) {
     for (int i = 0; i < n; ++i) {
         u8* p = &rgba[static_cast<usize>(i) * 4];
         if (p[0] < 16 && p[1] < 16 && p[2] < 16) { p[0] = p[1] = p[2] = p[3] = 0; }  // near-black bg
+        // Crisp magenta key, UNCONDITIONAL on this EFFECT path. keyAndDespillMagenta below skips keying
+        // when the layer already has transparent pixels (to spare real pink/purple ART elsewhere), but a
+        // .str EFFECT layer never has legitimate magenta — and the content's flattened webp re-exports
+        // bake a magenta background into a layer that DOES carry partial alpha, so that gate left a
+        // MAGENTA SQUARE (S. 2026-11-13: Assumptio). A strongly-magenta texel (R,B high, G low) is always
+        // the colour key here, so zero it regardless of the layer's alpha.
+        else if (p[0] > 160 && p[2] > 160 && p[1] < 80 &&
+                 std::min<int>(p[0], p[2]) - static_cast<int>(p[1]) > 90) {
+            p[0] = p[1] = p[2] = p[3] = 0;
+        }
     }
     Image img;
     img.width = static_cast<u32>(w);

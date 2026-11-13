@@ -182,6 +182,32 @@ private:
     std::vector<Mote> motes_;
 };
 
+// EF_NAPALMBEAT (MG_NAPALMBEAT, skill 11) — a cluster of additive explosion puffs bursting around the
+// target, each cycling the 8-frame explosion sprite (폭발1-8.tga). Faithful port of nostalre
+// napalmbeat.rs: 15 puffs, one spawns per 60fps frame, each lives 30 frames; its radial offset, ring
+// radius and size are deterministic from a world-position seed (so the cluster is stable per cast).
+// Pure geometry over the 8 explosion textures (no .spr/.str). Replaces the old coded particle blob.
+class NapalmBeatEffect {
+public:
+    static constexpr int kCount = 15;
+    static constexpr int kTexFrames = 8;
+
+    NapalmBeatEffect(const Vec3& worldPos, double bornTime);
+    void advance(double now);
+    bool finished(double now) const;
+    // `tex` are the 8 explosion frames (폭발1..8.tga), loaded once by the owner (null slot -> skipped).
+    // `base` is the target's live feet position so the burst follows it.
+    void render(const WorldSpritePass& pass, const Texture* const tex[kTexFrames], const Vec3& base) const;
+
+private:
+    struct Puff {
+        float spawnFrame = 0.0f, ox = 0.0f, oz = 0.0f, size = 0.0f;
+    };
+    double born_ = 0.0;
+    float ageFrames_ = 0.0f;
+    Puff puffs_[kCount];
+};
+
 // Load data/texture/effect/<nameTga> into `out` through the same decode + magenta-key path StrEffect
 // uses for its layers (hi-res .png override honoured). Returns false if the file is missing/undecodable;
 // the caller then simply skips the effect (safe no-op, never a crash).

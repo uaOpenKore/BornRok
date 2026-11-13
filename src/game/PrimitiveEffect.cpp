@@ -748,6 +748,80 @@ void HealEffect::render(const WorldSpritePass& pass, const Texture& ringTex, con
         }
 }
 
+// ------------------------------- NapalmBeatEffect (EF_NAPALMBEAT 32 / skill 11) ------------------
+namespace {
+constexpr float kNapFps = 60.0f;
+constexpr float kNapDur = 30.0f;           // PARTICLE_DURATION frames (per puff)
+constexpr float kNapFadeIn = 10.0f;
+constexpr float kNapFadeOutStart = 20.0f;
+constexpr float kNapOffMin = 1.0f, kNapOffMax = 5.0f;    // RO-native ring radius range
+constexpr float kNapSizeMin = 2.0f, kNapSizeMax = 5.0f;  // RO-native puff size range
+constexpr float kNapYOffset = -2.0f;       // RO-native (+Y down) -> lifts the cluster slightly up
+constexpr float kNapAnimSpeed = 2.0f;      // texture frames advanced per sim frame (ANIM_SPEED)
+// World units per RO-native effect unit (our world: 1 GND cell = 1u, char ~2u tall). Tuning knob — the
+// RO-native magnitudes above (offsets 1-5, sizes 2-5) are in the exe's effect space; scale to ours.
+constexpr float kNapScale = 0.28f;
+
+unsigned napLcg(unsigned& s) {
+    s = s * 1664525u + 1013904223u;
+    return s;
+}
+float napLcgF(unsigned& s) { return static_cast<float>(napLcg(s) >> 8) / static_cast<float>(1u << 24); }
+unsigned napSeedFromWorld(const Vec3& p) {  // stable per world position (FNV-ish over the 3 floats)
+    unsigned h = 0x811C9DC5u;
+    const float cs[3] = {p.x, p.y, p.z};
+    for (float c : cs) {
+        unsigned b;
+        std::memcpy(&b, &c, 4);
+        h ^= (b << 5) | (b >> 27);
+        h *= 16777619u;
+    }
+    return h;
+}
+}  // namespace
+
+NapalmBeatEffect::NapalmBeatEffect(const Vec3& worldPos, double bornTime) : born_(bornTime) {
+    unsigned rng = napSeedFromWorld(worldPos);
+    for (int i = 0; i < kCount; ++i) {
+        const float angle = napLcgF(rng) * (2.0f * kPi);
+        const float length = kNapOffMin + napLcgF(rng) * (kNapOffMax - kNapOffMin);
+        const float size = kNapSizeMin + napLcgF(rng) * (kNapSizeMax - kNapSizeMin);
+        puffs_[i] = {static_cast<float>(i), length * std::sin(angle), length * std::cos(angle), size};
+    }
+}
+
+void NapalmBeatEffect::advance(double now) {
+    ageFrames_ = static_cast<float>((now - born_) * kNapFps);
+}
+
+bool NapalmBeatEffect::finished(double now) const {
+    return static_cast<float>((now - born_) * kNapFps) >= (static_cast<float>(kCount - 1) + kNapDur);
+}
+
+void NapalmBeatEffect::render(const WorldSpritePass& pass, const Texture* const tex[kTexFrames],
+                              const Vec3& base) const {
+    for (const Puff& p : puffs_) {
+        const float localAge = ageFrames_ - p.spawnFrame;
+        if (localAge < 0.0f || localAge >= kNapDur) continue;
+        int ti = static_cast<int>(localAge * kNapAnimSpeed * static_cast<float>(kTexFrames) / kNapDur);
+        ti = std::clamp(ti, 0, kTexFrames - 1);
+        if (!tex[ti] || !tex[ti]->valid()) continue;
+        float alpha;
+        if (localAge < kNapFadeIn)
+            alpha = localAge / kNapFadeIn;
+        else if (localAge < kNapFadeOutStart)
+            alpha = 1.0f;
+        else
+            alpha = 1.0f - (localAge - kNapFadeOutStart) / (kNapDur - kNapFadeOutStart);
+        alpha = std::clamp(alpha, 0.0f, 1.0f);
+        const Vec3 c{base.x + p.ox * kNapScale, base.y + (-kNapYOffset) * kNapScale,
+                     base.z + p.oz * kNapScale};
+        const float half = p.size * kNapScale;
+        drawBillboardQuad(pass, *tex[ti], c, half, half, 0.0f, abgr(1.0f, 1.0f, 1.0f, alpha),
+                          /*additive=*/true);
+    }
+}
+
 bool loadEffectTexture(const Vfs& vfs, const char* nameTga, Texture& out) {
     const std::string path = std::string("data/texture/effect/") + nameTga;
     auto bytes = vfs.readPreferPng(path);

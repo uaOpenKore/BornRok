@@ -259,6 +259,17 @@ private:
     Texture healRingTex_, healMoteTex_;  // alpha_down.tga + pok1.tga
     bool healTexReady_ = false, healTexTried_ = false;
     void ensureHealFx(Application& app);
+    // EF_NAPALMBEAT (MG_NAPALMBEAT 11): nostalre cluster of additive explosion puffs (폭발1-8.tga) around
+    // the target. Replaces the old coded particle blob for skill 11.
+    struct NapalmFx {
+        NapalmBeatEffect eff;
+        u32 gid;   // the struck target to follow (0 = anchored at pos)
+        Vec3 pos;  // fallback anchor
+    };
+    std::vector<NapalmFx> napalmFx_;
+    Texture napalmTex_[NapalmBeatEffect::kTexFrames];  // 폭발1..8.tga, loaded once
+    bool napalmTexReady_ = false, napalmTexTried_ = false;
+    void ensureNapalmFx(Application& app);  // load the 8 explosion textures once
     // #146 delayed coded bursts (e.g. Magnificat's 2nd flower fires 0.5 cycle after the 1st). Fired by
     // emitSkillBurst when time_ reaches `at`.
     struct PendingBurst { u16 skillId; Vec3 pos; double at; };

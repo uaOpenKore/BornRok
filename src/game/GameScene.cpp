@@ -2161,6 +2161,7 @@ void GameScene::onExit(Application& app) {
     blessingFx_.clear();
     agiFx_.clear();
     healFx_.clear();
+    napalmFx_.clear();
     // Free the session-lifetime lazy caches on DISCONNECT from the map server (S. 2026-07-16: caches
     // persist across map changes and are cleared only here). bgfx is still up, so the GPU textures
     // release cleanly. A map change (changeMap) frees ONLY the location renderer, not these.
@@ -4877,33 +4878,17 @@ void GameScene::pumpStream(Application& app) {
                     // bursting outward from the target ground point with gravity (rand angle, radius
                     // rand%50+10, 8-frame violet sprite, life 30f). Coded as ~24 violet motes fanning
                     // out + falling. Ghost element, so it reads as the psychic-blast look.
+                    // Napalm Beat (11, MG_NAPALMBEAT): nostalre-style cluster of additive explosion puffs
+                    // (폭발1-8.tga) bursting around the target — a structured expanding cluster (15 puffs,
+                    // one per frame, each cycling the 8 explosion frames). Replaces the exe particle-
+                    // scatter; both use the SAME explosion art, this is the faithful cluster from nostalre
+                    // napalmbeat.rs. Safe no-op if the explosion textures are absent (napalmTexReady_).
                     if (!romFx && haveDst && sd.skillId == 11 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_; lastFxSkill_ = sd.skillId;
-                        auto hh = [](int i) { const float s = std::sin(static_cast<float>(i) * 12.9898f) * 43758.5453f; return s - std::floor(s); };
-                        // EXACT exe (FUN_005cc300): the numbered effect\폭발%d.TGA (explosion) frame set,
-                        // scattered radially with gravity. Each mote picks a frame 1..8, resolved by its
-                        // exact exe name (cp949 폭발 = \xc6\xf8\xb9\xdf) — loads from the game data at runtime.
-                        int frameTex[8];
-                        for (int f = 0; f < 8; ++f) {
-                            char name[24];
-                            std::snprintf(name, sizeof(name), "\xc6\xf8\xb9\xdf%d.tga", f + 1);  // 폭발<f>.tga
-                            frameTex[f] = codedFxTexId(app, name);
-                        }
-                        const Vec3 c{dstPos.x, dstPos.y + 0.4f, dstPos.z};
-                        constexpr int kN = 24;
-                        for (int i = 0; i < kN; ++i) {
-                            const float a = hh(i) * 6.2831853f;
-                            const float r = 0.9f + hh(i + 50) * 1.4f;  // outward speed (exe: rand%0x32+10)
-                            skillParticles_.setEmitter(c);
-                            Particle p;
-                            p.vel = Vec3{std::cos(a) * r, 0.4f + hh(i + 90) * 0.6f, std::sin(a) * r};
-                            p.accel = Vec3{0.0f, -2.2f, 0.0f};  // gravity (exe: vy -= gravity)
-                            p.r = 1.0f; p.g = 1.0f; p.b = 1.0f; p.a = 1.0f; p.da = -1.4f;  // real explosion art
-                            p.size = 0.16f; p.growth = -0.01f; p.life = 0.6f;
-                            p.fxTex = frameTex[static_cast<int>(hh(i + 7) * 8.0f) & 7]; p.alphaBlend = true;
-                            skillParticles_.emit(p);
-                        }
+                        ensureNapalmFx(app);
+                        if (napalmTexReady_)
+                            napalmFx_.push_back({NapalmBeatEffect(dstPos, time_), sd.dst, dstPos});
                     }
                     // Soul Strike (13, MG_SOULSTRIKE): doc16/FUN_005c7920 -> rising soul billboards that
                     // converge onto the target, one per cast level (curved accelerating vertical path).
@@ -9542,6 +9527,22 @@ void GameScene::ensureHealFx(Application& app) {
     healTexReady_ = a && b;
     if (!healTexReady_)
         log::warn("game: Heal FX disabled -- missing effect texture(s) (alpha_down={}, pok1={})", a, b);
+}
+
+void GameScene::ensureNapalmFx(Application& app) {
+    if (napalmTexTried_) return;
+    napalmTexTried_ = true;
+    // 폭발1.tga .. 폭발8.tga (explosion frames). The leading byte-sequence is the EUC-KR name the
+    // content ships; loadEffectTexture resolves it through the VFS alias path (same as other 이펙트).
+    napalmTexReady_ = true;
+    for (int i = 0; i < NapalmBeatEffect::kTexFrames; ++i) {
+        // 폭발<n>.tga in cp949 (the raw encoding the GRF/content stores Korean paths in, same as the
+        // status-icon + Blessing-sprite names above). \xc6\xf8\xb9\xdf = 폭발.
+        const std::string name = std::string("\xc6\xf8\xb9\xdf") + std::to_string(i + 1) + ".tga";
+        if (!loadEffectTexture(app.vfs(), name.c_str(), napalmTex_[i])) napalmTexReady_ = false;
+    }
+    if (!napalmTexReady_)
+        log::warn("game: Napalm Beat FX disabled -- missing explosion texture(s) (data/texture/effect/폭발1-8.tga)");
 }
 
 StrEffect* GameScene::skillEffect(Application& app, const char* name) {
@@ -14225,6 +14226,23 @@ void GameScene::render(Application& app) {
                         else if (auto it = actors_.find(t.gid); it != actors_.end()) p = it->second.pos;
                         t.eff.render(pass, tuHaloTex_, tuSpikeTex_, tuRingTex_, p);
                     }
+            }
+            // Napalm Beat: cluster of additive explosion puffs (폭발1-8.tga) around the struck target.
+            if (!napalmFx_.empty()) {
+                for (NapalmFx& nf : napalmFx_) nf.eff.advance(time_);
+                napalmFx_.erase(std::remove_if(napalmFx_.begin(), napalmFx_.end(),
+                                               [&](const NapalmFx& nf) { return nf.eff.finished(time_); }),
+                                napalmFx_.end());
+                if (napalmTexReady_) {
+                    const Texture* ntex[NapalmBeatEffect::kTexFrames];
+                    for (int i = 0; i < NapalmBeatEffect::kTexFrames; ++i) ntex[i] = &napalmTex_[i];
+                    for (const NapalmFx& nf : napalmFx_) {
+                        Vec3 p = nf.pos;
+                        if (nf.gid == app.session().accountId) p = playerPos_;
+                        else if (auto it = actors_.find(nf.gid); it != actors_.end()) p = it->second.pos;
+                        nf.eff.render(pass, ntex, p);
+                    }
+                }
             }
             // Blessing: cyan ground disc + rising 축복 angel sprites + particle6 twinkles, following the
             // buffed unit. The sim lives in BlessingEffect; the sprites are drawn here via CharacterActor.

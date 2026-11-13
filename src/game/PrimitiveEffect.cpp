@@ -244,7 +244,7 @@ constexpr float kBlDiscFadeOutAt = kBlParentFrames - 30.0f;      // 90
 constexpr float kBlDiscTintR = 0x20 / 255.0f;                    // cyan holy tint (0x20,0xb0,0xe8)
 constexpr float kBlDiscTintG = 0xb0 / 255.0f;
 constexpr float kBlDiscTintB = 0xe8 / 255.0f;
-constexpr float kBlDiscRadius = 2.2f;                            // world units (tunable) — ~one char cell
+constexpr float kBlDiscRadius = 0.73f;                           // world units (S.: blue disc radius /3, was 2.2)
 constexpr int kBlAngelPeriod = 3;                                // spawn an angel every 3 frames...
 constexpr int kBlAngelEndFrame = 9;                              // ...up to frame 9 (so 4 angels)
 constexpr float kBlAngelHeight = 1.9f;                           // world units above feet (tunable)
@@ -295,8 +295,8 @@ constexpr float kHealMoteRiseBase = 0.3f, kHealMoteRiseRand = 0.4f;
 constexpr float kHealMoteAlphaCap = 150.0f / 255.0f;
 constexpr float kHealMoteFadeIn = 15.0f / 255.0f, kHealMoteFadeOut = 3.0f / 255.0f;
 // World-scale knobs (ours is much smaller than the RO-native world); tunable.
-constexpr float kHealRingScale = 0.35f;       // ring radius + ribbon height
-constexpr float kHealMoteSpreadScale = 0.30f;
+constexpr float kHealRingScale = 0.175f;      // ring radius + ribbon height (S.: radius /2, was 0.35)
+constexpr float kHealMoteSpreadScale = 0.15f;  // motes follow the smaller ring (was 0.30)
 constexpr float kHealMoteSizeScale = 0.30f;
 constexpr float kHealMoteRiseScale = 0.12f;
 

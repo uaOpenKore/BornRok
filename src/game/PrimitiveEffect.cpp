@@ -145,6 +145,31 @@ void drawFlatQuad(const WorldSpritePass& pass, const Texture& tex, const Vec3& c
     submitPrim(pass, tex, vd, 4, id, 6, /*additive=*/false, /*depthTest=*/false);
 }
 
+// A flat textured disc (triangle fan) lying on the world XZ plane, centred at `c`. UVs are the unit
+// circle (centre 0.5,0.5, rim on the circle), so a radial glow texture reads as a soft disc and the
+// texture's SQUARE CORNERS are never sampled — unlike drawFlatQuad, which draws the whole square and
+// so shows the texture's dark/opaque corners as a visible rectangle. no depth test so the terrain it
+// rests on cannot occlude it. Matches nostalre's GroundDisc primitive.
+void drawGroundDisc(const WorldSpritePass& pass, const Texture& tex, const Vec3& c, float radius,
+                    int segments, u32 col, bool additive) {
+    const int n = segments + 2;  // centre + (segments+1) rim
+    std::vector<V> vd(static_cast<usize>(n));
+    std::vector<u16> id(static_cast<usize>(segments) * 3);
+    vd[0] = {c.x, c.y, c.z, 0.5f, 0.5f, col};
+    for (int i = 0; i <= segments; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(segments) * 2.0f * kPi;
+        const float ct = std::cos(t), st = std::sin(t);
+        vd[static_cast<usize>(i + 1)] = {c.x + radius * ct, c.y, c.z + radius * st,
+                                         0.5f + 0.5f * ct, 0.5f + 0.5f * st, col};
+    }
+    for (int i = 0; i < segments; ++i) {
+        id[static_cast<usize>(i) * 3 + 0] = 0;
+        id[static_cast<usize>(i) * 3 + 1] = static_cast<u16>(i + 1);
+        id[static_cast<usize>(i) * 3 + 2] = static_cast<u16>(i + 2);
+    }
+    submitPrim(pass, tex, vd.data(), n, id.data(), segments * 3, additive, /*depthTest=*/false);
+}
+
 // Linear fade-in to `peak` over `fadeIn` frames, hold, linear fade-out from `fadeOutStart` to `total`.
 float fadeInOut(float frame, float peak, float fadeIn, float fadeOutStart, float total) {
     const float rise = std::clamp(frame / std::max(fadeIn, 1e-3f), 0.0f, 1.0f);
@@ -563,7 +588,11 @@ void BlessingEffect::renderDisc(const WorldSpritePass& pass, const Texture& disc
     if (a <= 0.0f) return;
     // Sit a hair above the ground so the terrain it rests on never z-fights the disc.
     const Vec3 c{base.x, base.y + 0.05f, base.z};
-    drawFlatQuad(pass, discTex, c, kBlDiscRadius, abgr(kBlDiscTintR, kBlDiscTintG, kBlDiscTintB, a));
+    // Ground DISC (radial fan), not a square quad: the old drawFlatQuad drew the texture's full
+    // square incl. its dark corners, which read in-game as a blue RECTANGLE on cast. A disc fan
+    // samples only the circular region, so the square is gone. Alpha blend matches nostalre.
+    drawGroundDisc(pass, discTex, c, kBlDiscRadius, 32,
+                   abgr(kBlDiscTintR, kBlDiscTintG, kBlDiscTintB, a), /*additive=*/false);
 }
 
 // ------------------------------- AgiUpEffect ---------------------------------------------------

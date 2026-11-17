@@ -44,27 +44,41 @@ float g_contentSpriteScale = 1.0f;
 std::shared_ptr<Sprite> loadSprOrPngd(const Vfs& vfs, const std::string& base) {
     if (auto bs = vfs.readQuiet(base + ".spr")) return mk(Sprite::parse(*bs));
     const std::string dir = base + ".png.d/";
-    std::vector<SprFrame> frames;
-    int misses = 0;
-    for (int i = 0; misses < 16 && i < 20000; ++i) {
-        auto bytes = vfs.readQuiet(dir + std::to_string(i) + ".webp");
-        if (!bytes) bytes = vfs.readQuiet(dir + std::to_string(i) + ".png");
-        if (!bytes) { frames.emplace_back(); ++misses; continue; }  // gap -> empty frame keeps i aligned
-        misses = 0;
-        SprFrame fr;
-        if (auto img = decodeImage(*bytes); img && img->valid()) {
-            fr.width = static_cast<u16>(img->width);
-            fr.height = static_cast<u16>(img->height);
-            fr.pixels = std::move(img->rgba);
+    // Frames of one kind, contiguous from 0: "<prefix><i>.webp" (or .png). Gaps become empty frames so
+    // index i stays aligned with the .spr frame index; the trailing miss padding is dropped.
+    const auto readFrames = [&](const char* prefix) {
+        std::vector<SprFrame> frames;
+        int misses = 0;
+        for (int i = 0; misses < 16 && i < 20000; ++i) {
+            auto bytes = vfs.readQuiet(dir + prefix + std::to_string(i) + ".webp");
+            if (!bytes) bytes = vfs.readQuiet(dir + prefix + std::to_string(i) + ".png");
+            if (!bytes) { frames.emplace_back(); ++misses; continue; }  // gap -> empty frame keeps i aligned
+            misses = 0;
+            SprFrame fr;
+            if (auto img = decodeImage(*bytes); img && img->valid()) {
+                fr.width = static_cast<u16>(img->width);
+                fr.height = static_cast<u16>(img->height);
+                fr.pixels = std::move(img->rgba);
+            }
+            frames.push_back(std::move(fr));
         }
-        frames.push_back(std::move(fr));
-    }
-    while (!frames.empty() && frames.back().pixels.empty()) frames.pop_back();  // drop trailing miss padding
+        while (!frames.empty() && frames.back().pixels.empty()) frames.pop_back();  // drop trailing miss padding
+        return frames;
+    };
+    // The .spr's INDEXED frames are unpacked as <i>.*, its TRUECOLOR frames as t<i>.* (tools/sprbatch.cpp).
+    // Only <i> used to be read, so every sprite whose art is truecolor -- the effect projectiles
+    // fireball/waterball/particle1 (Fire Ball/Bolt, Cold Bolt, Soul Strike), and other effect sprites --
+    // synthesized to nothing in a WebP pack and never drew (S. 0.0.49.0 log: "load -> ready=0").
+    // Truecolor frames go after the indexed ones; the composer offsets sprType-1 layers by that base.
+    std::vector<SprFrame> frames = readFrames("");
+    const u32 tcBase = static_cast<u32>(frames.size());
+    std::vector<SprFrame> tc = readFrames("t");
+    for (SprFrame& f : tc) frames.push_back(std::move(f));
     if (frames.empty()) return nullptr;
     // The pack is authored at K× the 1k base (from the global sprite-quality config). Render at 1/K
     // logical size so a 2k/4k pack shrinks back to 1k while the full-res WebP stays the texture (crisp).
     return std::make_shared<Sprite>(
-        Sprite::fromRgbaFrames(std::move(frames), 1.0f / std::max(1.0f, g_contentSpriteScale)));
+        Sprite::fromRgbaFrames(std::move(frames), 1.0f / std::max(1.0f, g_contentSpriteScale), tcBase));
 }
 std::unordered_map<std::string, std::shared_ptr<Sprite>> s_sprCache;
 std::unordered_map<std::string, std::shared_ptr<Action>> s_actCache;
@@ -866,6 +880,28 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
         s_metaCache[appearanceKey_] = {armed_ ? 1 : 0, idleMotion_, attackMotion_};
     }
     return true;
+}
+
+std::string CharacterActor::probeSpriteFiles(const Vfs& vfs, const std::string& name) {
+    struct Dir { const char* label; std::string path; };
+    const Dir dirs[] = {{"npc", "data/sprite/npc/"},
+                        {"monster", "data/sprite/\xb8\xf3\xbd\xba\xc5\xcd/"},  // 몬스터
+                        {"item", "data/sprite/\xbe\xc6\xc0\xcc\xc5\xdb/"},     // 아이템
+                        {"effect", "data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/"},   // 이팩트
+                        {"root", "data/sprite/"}};
+    const auto has = [&](const std::string& p) { return vfs.exists(p); };
+    std::string out;
+    for (const Dir& d : dirs) {
+        const std::string b = d.path + name;
+        const bool spr = has(b + ".spr"), act = has(b + ".act");
+        const bool idx0 = has(b + ".png.d/0.webp") || has(b + ".png.d/0.png");
+        const bool tc0 = has(b + ".png.d/t0.webp") || has(b + ".png.d/t0.png");
+        if (!spr && !act && !idx0 && !tc0) continue;
+        out += std::string(out.empty() ? "" : "; ") + d.label + ": spr=" + (spr ? "yes" : "no") +
+               " act=" + (act ? "yes" : "no") + " png.d[0]=" + (idx0 ? "yes" : "no") +
+               " png.d[t0]=" + (tc0 ? "yes" : "no");
+    }
+    return out.empty() ? "no .spr/.act/.png.d in any sprite folder (missing from the content packs)" : out;
 }
 
 bool CharacterActor::loadActor(const Vfs& vfs, const std::string& name, int classId,

@@ -10,6 +10,7 @@ add_executable(client_core_tests
   test_spr.cpp
   test_act.cpp
   test_pngsprite.cpp
+  test_spritecomposer.cpp
   test_gat.cpp
   test_gnd.cpp
   test_rsw.cpp

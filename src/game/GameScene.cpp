@@ -14091,6 +14091,12 @@ void GameScene::render(Application& app) {
                         // splits load-failure (ready=0 -> content/path) from a render issue (ready=1).
                         log::info("fireballs: sprite '{}' load -> ready={} scale={}", fb.sprite,
                                   fireball_.ready() ? 1 : 0, fb.scale);
+                        // 0.0.49.0 showed ready=0 for all three: S.'s 2k WebP pack stores these truecolor
+                        // sprites as .png.d/t<i> frames, which loadSprOrPngd now reads (0.0.50.0). If it
+                        // still fails, say exactly what the packs hold for this sprite.
+                        if (!fireball_.ready())
+                            log::warn("fireballs: sprite '{}' NOT loadable -> {}", fb.sprite,
+                                      CharacterActor::probeSpriteFiles(app.vfs(), fb.sprite));
                     }
                     if (!fireball_.ready()) continue;
                     const float ft = std::clamp(static_cast<float>((time_ - fb.born) / fb.dur), 0.0f, 1.0f);

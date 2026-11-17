@@ -40,8 +40,12 @@ void composeFrame(const Action& act, const Sprite& spr, int action, int frame, f
         // indexed (its sprType targets the original .spr's indexed frames, which don't exist here).
         const bool useRgba = (L.sprType == 1) || spr.indexedFrames().empty();
         const auto& frames = useRgba ? spr.rgbaFrames() : spr.indexedFrames();
-        if (static_cast<usize>(L.sprIndex) >= frames.size()) continue;
-        const SprFrame& src = frames[L.sprIndex];
+        // A synthetic sprite keeps the original TRUECOLOR frames after the indexed ones (t<i>.webp, see
+        // loadSprOrPngd): a sprType-1 layer's index counts from that base, not from 0.
+        const i32 sprIndex =
+            (spr.synthetic() && L.sprType == 1) ? L.sprIndex + static_cast<i32>(spr.truecolorBase()) : L.sprIndex;
+        if (static_cast<usize>(sprIndex) >= frames.size()) continue;
+        const SprFrame& src = frames[sprIndex];
         if (src.width == 0 || src.height == 0) continue;
 
         // Blend the transform toward the matching layer of the next frame ONLY when that layer draws
@@ -71,7 +75,7 @@ void composeFrame(const Action& act, const Sprite& spr, int action, int frame, f
 
         ComposedQuad q;
         q.part = part;
-        q.sprIndex = L.sprIndex;
+        q.sprIndex = sprIndex;  // the frame actually drawn (frameTex/frameNrmTex look it up by this)
         q.indexed = !useRgba;
         q.w = w;
         q.h = h;

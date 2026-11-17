@@ -33,15 +33,22 @@ public:
     // renderScale < 1 shrinks the composed QUAD without touching the texture: an HD (e.g. 2k) pack
     // whose frames are K× the original .spr size passes 1/K so it renders at the original logical
     // size while the .act's (1×) layer offsets/anchors stay correct (S. 2026-09-10: "масштаб 2к / 2").
-    static Sprite fromRgbaFrames(std::vector<SprFrame> frames, float renderScale = 1.0f) {
+    // tcBase: where, in `frames`, the frames that were TRUECOLOR in the original .spr begin (a .png.d
+    // pack stores them as t<i>.webp/.png, the indexed ones as <i>.*). An .act layer with sprType 1
+    // addresses a truecolor frame by its OWN index, so the composer adds tcBase for synthetic sprites.
+    // 0 = every frame is addressed as-is (PNG-sprite manifests, pure-truecolor packs).
+    static Sprite fromRgbaFrames(std::vector<SprFrame> frames, float renderScale = 1.0f, u32 tcBase = 0) {
         Sprite s;
         s.version_ = 0x300;  // synthetic marker (real .spr versions stop at 0x2xx)
         s.rgba_ = std::move(frames);
         s.renderScale_ = renderScale;
+        s.tcBase_ = tcBase;
         return s;
     }
 
     u16 version() const { return version_; }
+    bool synthetic() const { return version_ == 0x300; }
+    u32 truecolorBase() const { return tcBase_; }  // see fromRgbaFrames
     float renderScale() const { return renderScale_; }
     const std::vector<SprFrame>& indexedFrames() const { return indexed_; }
     const std::vector<SprFrame>& rgbaFrames() const { return rgba_; }
@@ -84,6 +91,7 @@ public:
 
 private:
     u16 version_ = 0;
+    u32 tcBase_ = 0;  // synthetic sprites only: first rgba_ frame that was truecolor (see fromRgbaFrames)
     std::vector<SprFrame> indexed_;
     std::vector<SprFrame> rgba_;
     std::array<SprPalColor, 256> palette_{};

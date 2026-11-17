@@ -629,7 +629,10 @@ private:
     // 이펙트\waterball.spr (verified in uaRO.exe CEffect + data.grf). Same from->to falling-sprite
     // model as arrows_; count/damage come from the server 0x1de (div/damage). `sprite` = effect .spr
     // basename (loaded from data/sprite/이펙트/).
-    struct Fireball { Vec3 from, to; double born, dur; const char* sprite; float roll = 0.0f; float scale = 1.0f; };
+    // faceFlight: ignore `roll` and turn the ball along its on-screen flight every frame (the ball leads, the
+    // tail trails back toward where it came from). fireball.spr is drawn ball-UP / tail-down.
+    struct Fireball { Vec3 from, to; double born, dur; const char* sprite; float roll = 0.0f; float scale = 1.0f;
+                      bool faceFlight = false; };
     std::vector<Fireball> fireballs_;
     CharacterActor fireball_;
     std::string fireballSprite_;  // sprite currently loaded into fireball_ ("" = none)

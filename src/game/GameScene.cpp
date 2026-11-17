@@ -4847,8 +4847,8 @@ void GameScene::pumpStream(Application& app) {
                             const int n = std::clamp<int>(sd.div, 1, 10);  // one fireball per bolt (= level)
                             const Vec3 from{cp.x, cp.y + 0.9f, cp.z};
                             const Vec3 to{dstPos.x, dstPos.y + 0.9f, dstPos.z};
-                            for (int i = 0; i < n; ++i)
-                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 0.0f});  // fly caster->target (roll 0; 180 made it head-down per S. -- orientation of the point-up spr on a horizontal path needs a screenshot to nail)
+                            for (int i = 0; i < n; ++i)  // fly caster->target, ball first, tail toward the caster
+                                fireballs_.push_back({from, to, time_ + i * 0.12, 0.28, "fireball", 0.0f, 1.0f, true});
                         }
                     }
                     // Lightning Bolt (20, MG_LIGHTNINGBOLT): a VERTICAL thunder strike onto the target,
@@ -5114,18 +5114,21 @@ void GameScene::pumpStream(Application& app) {
                             skillParticles_.emit(p);
                         }
                     }
-                    // Fire Ball (17): a single fire explosion AT the target (not falling, single-hit --
-                    // the normal damage number applies). Same 이펙트\fireball.spr the exe animates in
-                    // place (CEffect @ 0x5cadde, sizes 80/130/180 by level). Stationary => from == to.
+                    // Fire Ball (17): one big 이펙트\fireball.spr ball FALLING from above onto the target, ball
+                    // first (single-hit -- the normal damage number applies). S. 2026-11-17: "фаербалл
+                    // перевернут вверх ногами, и он просто появляется на цели, а должен падать сверху на
+                    // цель" -- it used to sit in place at the target (from == to) drawn tail-down. The exe
+                    // (FUN_005cab90) gives the ball a heading (+0x38) and a speed of -distance/life
+                    // (+0x240), so it moves there too. Same height/arc as Cold Bolt's fall.
                     if (!romFx && haveDst && sd.skillId == 17 &&
                         (sd.skillId != lastFxSkill_ || time_ - lastBurstAt_ > 0.3)) {
                         lastBurstAt_ = time_;
                         lastFxSkill_ = sd.skillId;
-                        const Vec3 at{dstPos.x, dstPos.y + 1.0f, dstPos.z};
-                        // The exe blows fireball.spr up to 80/130/180 px by level (CEffect @0x5cadde) --
-                        // ~2.5x the Fire Bolt projectile. At scale 1.0 the stationary flame is tiny and
-                        // reads as "нет спрайта" (S.). Render it large so it looks like an explosion.
-                        fireballs_.push_back({at, at, time_, 0.7, "fireball", 0.0f, 2.5f});  // explode in place, big
+                        const Vec3 from{dstPos.x, dstPos.y + 9.0f, dstPos.z};  // starts high above the target
+                        const Vec3 to{dstPos.x, dstPos.y + 1.0f, dstPos.z};    // lands on the target body
+                        // The exe blows fireball.spr up to 80/130/180 px (CEffect @0x5cadde) -- ~2.5x the Fire
+                        // Bolt projectile; at 1.0 it reads as "нет спрайта" (S.). Kept large.
+                        fireballs_.push_back({from, to, time_, 0.4, "fireball", 0.0f, 2.5f, true});
                     }
                     // Blitz Beat (129, HT_BLITZBEAT) + Falcon Assault (381, SN_FALCONASSAULT): the hunter's
                     // falcon dives at the target and pecks it (S.: "должен сокол атаковать цель" / "фалкон
@@ -14122,9 +14125,20 @@ void GameScene::render(Application& app) {
                     const Vec3 p{fb.from.x + (fb.to.x - fb.from.x) * ft,
                                  fb.from.y + (fb.to.y - fb.from.y) * ft,
                                  fb.from.z + (fb.to.z - fb.from.z) * ft};
+                    float roll = fb.roll;
+                    if (fb.faceFlight) {
+                        // Same screen-space alignment as the arrows above (atan2(sx,-sy) points SPRITE-DOWN
+                        // along the flight), plus 180 deg because fireball.spr is drawn ball-up: the ball
+                        // then leads and the tail trails toward the caster / the sky (S. 2026-11-17: "фаер
+                        // болты летят хвостом вниз, а должны лететь хвостом к чару"). Follows the camera.
+                        const Vec3 d{fb.to.x - fb.from.x, fb.to.y - fb.from.y, fb.to.z - fb.from.z};
+                        const float sx = d.x * pass.right.x + d.y * pass.right.y + d.z * pass.right.z;
+                        const float sy = d.x * pass.up.x + d.y * pass.up.y + d.z * pass.up.z;
+                        roll = std::atan2(sx, -sy) + 3.14159265f;
+                    }
                     fireball_.setFrameInterp(app.fxInterp());
                     fireball_.renderWorld(pass, p, 0, Anim::Effect, time_, 0.0, 0.0f, 1.0f, fb.scale,
-                                          true, true, true, false, fb.roll);  // Effect loops on time_; additive fire glow. fb.roll flips falling bolts upright (Fire Ball explode-in-place stays roll=0); fb.scale shrinks Cold Bolt's waterball
+                                          true, true, true, false, roll);  // Effect loops on time_; additive fire glow. roll: fixed (Cold Bolt's falling waterball = 180 deg) or along the flight (faceFlight); fb.scale shrinks Cold Bolt's waterball
                 }
             }
             // CR_SHIELDBOOMERANG (251): the thrown shield flying caster->target. Same lerp/prune model

@@ -50,8 +50,14 @@ from the real per-function logic. This file records the EXACT mechanics read lin
 - Central spike + radial spikes of `stone.bmp`.
 
 ### Fire Ball — `FUN_005cab90` (EF_FireBall)
-- The exe animates `이펙트\fireball.spr` IN PLACE at the target (CEffect @0x5cadde, sizes 80/130/180 by
-  level). So explode-in-place IS exe-correct; a "wrong sprite" report is a fireball.spr asset issue.
+- ~~The exe animates `이펙트\fireball.spr` IN PLACE at the target~~ — **corrected 2026-11-17** (re-read in
+  `winEXE/decomp/uaRO_decomp.c`): on effect frames 0x14/0x18/0x1c/0x20 it spawns a TYPE-5 particle
+  (`FUN_005c3670(5,…)`, life 0x14 = 20 frames, offset `+0x358/+0x35c/+0x360` = (0, −15, 0)) and gives it a
+  **heading** `+0x38` (from `FUN_00544da0` on the parent's `+0x13c/+0x144`) and a **speed** `+0x240 =
+  −distance/life` (`FUN_00544d20`) — so the ball MOVES, it is not purely in place. Spawns 2–4 get tint
+  (246,199,76) and sizes `+0x2a8` = 180/130/80. The exact path needs the TYPE-5 particle update, not traced.
+- Client (S. 2026-11-17, "должен падать сверху на цель"): one big ball falls from above onto the target,
+  ball first (`faceFlight`), GameScene.cpp Fire Ball branch.
 
 ### Others carrying an EF_ sound (constructors to port next, TYPE/life to be read per function):
 Bash `005c7c70`, Magnum Break `005c8040`, Steal `005c8400`, Detoxify `005c8710`, Endure `005ca2b0`,

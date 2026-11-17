@@ -42,6 +42,15 @@ public:
     // order) resolved against baseDir. Returns how many mounted successfully.
     int mountDataIni(const std::string& iniText, const std::string& baseDir);
 
+    // True if the archive FILE at `path` is already mounted with this source tag -- compared as the same
+    // file on disk (sameFile), so "content/x.zip", "content\\x.zip" and "content//x.zip" all match. Lets a
+    // caller skip a remount that would only rebuild the same index (a 1.47M-entry sprite.zip, 4x, S.).
+    bool isMounted(const std::string& path, ContentSource tag) const;
+    // Do two spellings name the same file or directory? std::filesystem::equivalent (sees through '\\' vs
+    // '/', "//", "./", case on Windows). When that can't be evaluated -- a path that doesn't exist, or MSVC
+    // throwing while converting non-ANSI bytes to a path -- compares the separator-normalized strings.
+    static bool sameFile(const std::string& a, const std::string& b);
+
     // Drop all mounts (loose dirs + ZIP + GRF archives), closing their handles, so the VFS
     // can be rebuilt from scratch — e.g. after the patcher fetches a fresh GRF at runtime.
     void clear() { dirs_.clear(); zips_.clear(); grfs_.clear(); preloadCache_.clear(); }

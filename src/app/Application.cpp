@@ -358,7 +358,11 @@ void Application::mountGameData() {
         contentDirs.push_back(cc);
     if (const std::string bd = fs::base_dir(); !bd.empty()) {
         const std::string bc = bd + "/content";
-        if (std::find(contentDirs.begin(), contentDirs.end(), bc) == contentDirs.end())
+        // Same FOLDER test, not a string compare: on S.'s Windows client the cache dir "C:\RO_GRF\content"
+        // and base_dir()+"/content" = "C:\RO_GRF\/content" are one folder, which a std::find on the strings
+        // missed -> the whole content folder was mounted twice (2026-11-17 log).
+        if (std::none_of(contentDirs.begin(), contentDirs.end(),
+                         [&](const std::string& d) { return Vfs::sameFile(d, bc); }))
             contentDirs.push_back(bc);
     }
     auto contentTag = [](const std::string& path) {
@@ -374,8 +378,11 @@ void Application::mountGameData() {
         // data.ini = the pack LOAD ORDER (priority); its listed packs mount first, from THIS content dir.
         if (auto ini = fs::read_file(cd + "/data.ini"))
             mounted += vfs_.mountDataIni(std::string(ini->begin(), ini->end()), cd);
-        // Any other .zip/.grf in the folder (a drop-in event pack not in data.ini). Packs already listed
-        // in data.ini re-mount here but the VFS is first-wins, so the data.ini order above keeps priority.
+        // Any other .zip/.grf in the folder (a drop-in event pack not in data.ini). A pack data.ini already
+        // mounted with the same source tag is skipped: remounting it changed nothing (the VFS is first-wins)
+        // but rebuilt its whole index -- sprite.zip's 1.47M entries, 4x with the doubled folder above (S.'s
+        // log: 44 mounts of 11 packs). data.ini mounts with the UaRO tag, so a listed GRO.grf / RoM.zip
+        // still mounts again here under its own tag for the content-source switcher, as before.
         std::vector<std::string> packs;  // deterministic order (a.zip before b.zip)
         for (auto it = stdfs::directory_iterator(cd, ec); !ec && it != stdfs::directory_iterator();
              it.increment(ec)) {
@@ -385,6 +392,7 @@ void Application::mountGameData() {
         }
         std::sort(packs.begin(), packs.end());
         for (const std::string& p : packs) {
+            if (vfs_.isMounted(p, contentTag(p))) continue;
             const bool grf = p.size() >= 4 && p.compare(p.size() - 4, 4, ".grf") == 0;
             if (grf ? vfs_.mountGrf(p, contentTag(p)) : vfs_.mountZip(p, contentTag(p))) ++mounted;
         }

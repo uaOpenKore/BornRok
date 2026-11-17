@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <set>
+#include <system_error>
 #include <utility>
 
 #if defined(_WIN32)
@@ -71,6 +73,36 @@ bool Vfs::mountZip(const std::string& path, ContentSource tag) {
     log::info("Vfs: mounted zip '{}' ({} entries)", path, zip->entries().size());
     zips_.push_back({std::move(zip), tag});
     return true;
+}
+
+bool Vfs::sameFile(const std::string& a, const std::string& b) {
+    try {
+        std::error_code ec;
+        if (std::filesystem::equivalent(std::filesystem::path(a), std::filesystem::path(b), ec)) return true;
+        if (!ec) return false;  // both exist and are different files
+    } catch (...) {
+        // MSVC: std::filesystem::path(std::string) throws on bytes the ANSI code page can't map.
+    }
+    const auto norm = [](const std::string& s) {
+        std::string out;
+        out.reserve(s.size());
+        for (char c : s) {
+            if (c == '\\') c = '/';
+            if (c == '/' && !out.empty() && out.back() == '/') continue;  // collapse "//"
+            out.push_back(c);
+        }
+        while (out.size() > 1 && out.back() == '/') out.pop_back();
+        return out;
+    };
+    return norm(a) == norm(b);
+}
+
+bool Vfs::isMounted(const std::string& path, ContentSource tag) const {
+    for (const auto& z : zips_)
+        if (z.tag == tag && sameFile(path, z.arc->path())) return true;
+    for (const auto& g : grfs_)
+        if (g.tag == tag && sameFile(path, g.arc->path())) return true;
+    return false;
 }
 
 void Vfs::mountDir(const std::string& dirPath) {

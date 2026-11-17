@@ -20,6 +20,44 @@ void write_text(const stdfs::path& p, const std::string& s) {
 }
 } // namespace
 
+// The same archive reached through different spellings ("content/x", "content\\x" on Windows, "content//x",
+// "content/./x") must count as ONE file -- S.'s client mounted every content pack 4x that way (2 spellings of
+// the content dir x data.ini + directory scan), building sprite.zip's 1.47M-entry index four times.
+TEST_CASE(vfs_same_file_sees_through_path_spelling) {
+    stdfs::path tmp = stdfs::temp_directory_path() / "uaro_vfs_samefile";
+    stdfs::remove_all(tmp);
+    stdfs::create_directories(tmp);
+    write_text(tmp / "a.grf", "x");
+    write_text(tmp / "b.grf", "y");
+    const std::string dir = tmp.string();
+    CHECK(Vfs::sameFile(dir + "/a.grf", dir + "/a.grf"));
+    CHECK(Vfs::sameFile(dir + "/a.grf", dir + "//a.grf"));
+    CHECK(Vfs::sameFile(dir + "/a.grf", dir + "/./a.grf"));
+    CHECK(Vfs::sameFile(dir, dir + "/"));                    // directories too
+    CHECK(!Vfs::sameFile(dir + "/a.grf", dir + "/b.grf"));
+    CHECK(!Vfs::sameFile(dir + "/a.grf", dir + "/missing.grf"));
+    stdfs::remove_all(tmp);
+}
+
+TEST_CASE(vfs_is_mounted_matches_same_file_and_tag) {
+    auto grfBytes = testgrf::build_grf({{"data\\a.txt", "a"}});
+    stdfs::path tmp = stdfs::temp_directory_path() / "uaro_vfs_ismounted";
+    stdfs::remove_all(tmp);
+    stdfs::create_directories(tmp);
+    testgrf::write_file((tmp / "g.grf").string(), grfBytes);
+    testgrf::write_file((tmp / "h.grf").string(), grfBytes);
+    const std::string dir = tmp.string();
+
+    Vfs vfs;
+    CHECK(!vfs.isMounted(dir + "/g.grf", ContentSource::Uaro));
+    CHECK(vfs.mountGrf(dir + "/g.grf"));                                 // default tag = Uaro
+    CHECK(vfs.isMounted(dir + "/g.grf", ContentSource::Uaro));
+    CHECK(vfs.isMounted(dir + "//./g.grf", ContentSource::Uaro));       // another spelling, same file
+    CHECK(!vfs.isMounted(dir + "/g.grf", ContentSource::Gro));          // same file, other source tag
+    CHECK(!vfs.isMounted(dir + "/h.grf", ContentSource::Uaro));         // identical bytes, other file
+    stdfs::remove_all(tmp);
+}
+
 TEST_CASE(vfs_loose_dir_overrides_grf) {
     auto grfBytes = testgrf::build_grf({{"data\\a.txt", "from_grf"}, {"data\\b.txt", "grf_b"}});
     stdfs::path tmp = stdfs::temp_directory_path() / "uaro_vfs_override";

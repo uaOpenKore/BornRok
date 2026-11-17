@@ -1216,6 +1216,10 @@ private:
     // the sell window resolve each slot to a name and an icon.
     std::unordered_map<u16, net::InvItem> inventory_;
     std::unordered_map<u16, net::InvItem> storage_;  // Kafra storage contents, by storage index (slot+1)
+    // True until the first storage list packet of an open arrives: that one starts the list clean, the
+    // rest APPEND. The server sends a big storage (guild storage up to 2338) as several 0x1f0/0xa6 chunks
+    // of <= 1000 entries (the original client's 20 KB packet buffer), then 0xf2; 0xf2 / 0xf8 re-arm it.
+    bool storageListFresh_ = true;
     std::unordered_map<u16, net::InvItem> cart_;     // pushcart contents, by cart index (slot+2)
     std::unordered_map<u32, net::GroundItem> groundItems_;  // items lying on the floor, by object id
     u32 pendingPickup_ = 0;  // floor item we walked toward to pick up; sent once we're adjacent

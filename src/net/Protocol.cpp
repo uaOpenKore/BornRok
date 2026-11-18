@@ -135,13 +135,15 @@ std::vector<u8> buildWalkRequest(u16 x, u16 y) {
     // S 00a7 — ServerType8 (uaRO) walktoxy (CZ_REQUEST_MOVE), 8 bytes, matching uOK210.
     // sendMove: pack("C*",0xA7,0,0,0) . getCoordString(x,y).
     // uOK210 getCoordString packs 0x44(8b),x(10b),y(10b),0(4b) = 4 bytes and ONLY strips
-    // the leading byte for serverType 0; serverType 8 KEEPS it. So coords are 4 bytes with a
-    // leading 0x44, not the 3-byte WBUFPOS. Sending 3 bytes makes the server drop the link.
+    // the leading byte for serverType 0; serverType 8 KEEPS it. The packet must stay 8 bytes
+    // (sending 3-byte coords makes the server drop the link), but the server reads the cell at
+    // offset 5 only (packet_db walktoxy pos 5): offsets 2..4 carry kPadMarker, not OpenKore's
+    // 00 00 44, so the server's [PADMETRIC] log can tell BornRok from bots (S. 2026-11-18).
     ByteWriter w;
     w.u16le(0x00a7);
-    w.u8v(0x00);
-    w.u8v(0x00);
-    w.u8v(0x44);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
     w.u8v(static_cast<u8>(x >> 2));
     w.u8v(static_cast<u8>((x << 6) | ((y >> 4) & 0x3f)));
     w.u8v(static_cast<u8>(y << 4));
@@ -162,13 +164,14 @@ std::vector<u8> buildAttack(u32 targetGid, u8 action) {
     // S 0190 — ServerType8 (uaRO) actionrequest (CZ_REQUEST_ACT), 19 bytes, matching uOK210
     // sendAction (pack 'v x3 a4 x9 C'): 0190 000000 <target_id>.L <9 pad> <action>.B
     // (target@5, action@18). The standard 0x0089 we sent before is this server's TICKSEND.
+    // Unused bytes carry kPadMarker instead of OpenKore's zeros ([PADMETRIC]).
     ByteWriter w;
     w.u16le(0x0190);
-    w.u8v(0x00);
-    w.u8v(0x00);
-    w.u8v(0x00);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
     w.u32le(targetGid);
-    for (int i = 0; i < 9; ++i) w.u8v(0x00);
+    for (int i = 0; i < 9; ++i) w.u8v(kPadMarker);
     w.u8v(action);
     return w.data();
 }
@@ -230,14 +233,15 @@ std::vector<u8> buildCraftReply(CraftKind kind, const CraftItem& it) {
 std::vector<u8> buildUseSkill(u16 level, u16 skillId, u32 targetId) {
     // S 0072 — ServerType8 (uaRO) skill_use to target (uOK210 sendSkillUse, pack 'v x4 v x2 v x9'),
     // 25 bytes: 0072 <4 pad> <lv>.W <2 pad> <skillId>.W <9 pad> <targetID>.L.
+    // Unused bytes carry kPadMarker instead of OpenKore's zeros ([PADMETRIC]).
     ByteWriter w;
     w.u16le(0x0072);
-    for (int i = 0; i < 4; ++i) w.u8v(0x00);
+    for (int i = 0; i < 4; ++i) w.u8v(kPadMarker);
     w.u16le(level);
-    w.u8v(0x00);
-    w.u8v(0x00);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
     w.u16le(skillId);
-    for (int i = 0; i < 9; ++i) w.u8v(0x00);
+    for (int i = 0; i < 9; ++i) w.u8v(kPadMarker);
     w.u32le(targetId);
     return w.data();
 }
@@ -1523,10 +1527,11 @@ std::vector<u8> buildTickSend(u32 tick) {
     // sendSync: 0089 0000 <tick>.L. The server keeps the session's VIEW fresh off this; the
     // standard 0x007e we sent before is not the ticksend on this server -> it never refreshed
     // our view, so units entering range arrived as plain moves, never spawns (#95).
+    // Unused bytes carry kPadMarker instead of OpenKore's zeros ([PADMETRIC]).
     ByteWriter w;
     w.u16le(0x0089);
-    w.u8v(0x00);
-    w.u8v(0x00);
+    w.u8v(kPadMarker);
+    w.u8v(kPadMarker);
     w.u32le(tick);
     return w.data();
 }

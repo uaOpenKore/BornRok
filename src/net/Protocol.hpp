@@ -509,6 +509,10 @@ std::vector<u8> buildMakeChar(const std::string& name, u8 str, u8 agi, u8 vit, u
                               u8 luk, u8 slot, u16 hairStyle, u16 hairColor);
 std::vector<u8> buildWantToConnection(u32 accountId, u32 charId, u32 loginId1, u32 tick, u8 sex);
 std::vector<u8> buildLoadEndAck();
+// The bytes the server never reads in the walk / attack / skill-on-target / tick packets. OpenKore sends zeros there
+// (00 00 44 in the walk); BornRok sends this marker so the server's [PADMETRIC] log can tell BornRok players from
+// OpenKore bots (S. 2026-11-18).
+constexpr u8 kPadMarker = 0x01;
 std::vector<u8> buildTickSend(u32 tick);
 std::vector<u8> buildWalkRequest(u16 x, u16 y);  // CZ_REQUEST_MOVE (0x85)
 std::vector<u8> buildNameRequest(u32 gid);       // CZ_REQNAME (0x94): ask for a unit's name

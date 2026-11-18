@@ -186,6 +186,8 @@ TEST_CASE(protocol_build_ch_enter_and_select) {
     CHECK_EQ(tk.size(), 8u);  // ServerType8 (uaRO) sync (uOK210 sendSync)
     CHECK_EQ(net::peekId(tk), 0x0089);
     CHECK_EQ(tk[4] | (tk[5] << 8) | (tk[6] << 16) | (tk[7] << 24), 777);  // tick @4
+    CHECK_EQ(tk[2], net::kPadMarker);  // unused bytes carry BornRok's marker, not OpenKore's zeros
+    CHECK_EQ(tk[3], net::kPadMarker);
 }
 
 TEST_CASE(protocol_build_npc_input) {
@@ -485,9 +487,13 @@ TEST_CASE(protocol_framing) {
 
 TEST_CASE(protocol_walk_request) {
     const B w = net::buildWalkRequest(150, 200);
-    CHECK_EQ(w.size(), 8u);  // ServerType8 (uaRO) walktoxy (uOK210 sendMove): a7 00 00 00 + 0x44 + 3B pos
+    CHECK_EQ(w.size(), 8u);  // ServerType8 (uaRO) walktoxy: a7 00 + 3 unused bytes + 3B pos
     CHECK_EQ(net::peekId(w), 0x00a7);
-    CHECK_EQ(w[4], 0x44);  // serverType 8 keeps getCoordString's leading byte
+    // Offsets 2..4 are unused by the server (packet_db walktoxy pos 5). OpenKore sends 00 00 44 there;
+    // BornRok sends its marker so the server's [PADMETRIC] log can tell the two apart (S. 2026-11-18).
+    CHECK_EQ(w[2], net::kPadMarker);
+    CHECK_EQ(w[3], net::kPadMarker);
+    CHECK_EQ(w[4], net::kPadMarker);
     // The server unpacks the cell from offset 5 (after the 0x44 lead byte); round-trip it.
     const u16 x = static_cast<u16>((w[5] << 2) | (w[6] >> 6));
     const u16 y = static_cast<u16>(((w[6] & 0x3f) << 4) | (w[7] >> 4));
@@ -603,6 +609,8 @@ TEST_CASE(protocol_attack_act) {
     CHECK_EQ(static_cast<u16>(a[0] | (a[1] << 8)), 0x0190);
     const u32 tg = static_cast<u32>(a[5] | (a[6] << 8) | (a[7] << 16) | (a[8] << 24));
     CHECK_EQ(tg, 150000u);  // target @5
+    for (int i : {2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17})
+        CHECK_EQ(a[static_cast<usize>(i)], net::kPadMarker);  // unused bytes: BornRok's marker
     CHECK_EQ(a[18], 0x07);  // action @18
 
     B b(29, 0);  // 0x8a damage
@@ -1318,6 +1326,8 @@ TEST_CASE(protocol_use_skill) {
     CHECK_EQ(static_cast<u16>(b[10] | (b[11] << 8)), 41);  // skill id @10
     CHECK_EQ(static_cast<u32>(b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24)),
              2000123u);  // target @21
+    for (int i : {2, 3, 4, 5, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20})
+        CHECK_EQ(b[static_cast<usize>(i)], net::kPadMarker);  // unused bytes: BornRok's marker
 }
 
 TEST_CASE(protocol_my_vending) {

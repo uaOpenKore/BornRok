@@ -1,0 +1,10 @@
+# Shell scripts MUST keep LF line endings on every platform. A CRLF checkout (Windows git with core.autocrlf, the
+# tree then built from WSL) turns the shebang into "#!/usr/bin/env bash\r" and Linux stops at the first line:
+# "env: 'bash\r': No such file or directory" (S. 2026-11-19, ./scripts/build-linux.sh from /mnt/c/...).
+# eol=lf makes git write these with LF in every working tree, regardless of core.autocrlf.
+*.sh text eol=lf
+
+# Other Linux-side text that breaks with CRLF (desktop entries, flatpak/appstream manifests).
+*.desktop text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

@@ -8,6 +8,9 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <string>
 
 #include "core/Log.hpp"
 #include "render/Shader.hpp"
@@ -16,14 +19,19 @@ namespace uaro {
 
 namespace {
 
-// MSAA backbuffer flag. OFF on Android: budget GLES drivers (e.g. ZTE 8050) crash with a null deref
-// inside bgfx::gl::RendererContextGL::submit on the MSAA resolve/blit after the world renders (S. log).
-// MSAA is barely visible on a phone screen anyway. Desktop/Xbox keep 4x.
+// MSAA backbuffer flag for the Settings -> Video -> MSAA choice (samples 0/2/4/8). Always OFF on
+// Android: budget GLES drivers (e.g. ZTE 8050) crash with a null deref inside
+// bgfx::gl::RendererContextGL::submit on the MSAA resolve/blit after the world renders (S. log), and
+// MSAA is barely visible on a phone screen anyway.
+u32 msaaResetFlag(int samples) {
 #if defined(__ANDROID__)
-constexpr u32 kResetMsaa = 0u;
+    (void)samples;
+    return 0u;
 #else
-constexpr u32 kResetMsaa = BGFX_RESET_MSAA_X4;
+    return samples >= 8 ? BGFX_RESET_MSAA_X8 : samples >= 4 ? BGFX_RESET_MSAA_X4
+         : samples >= 2 ? BGFX_RESET_MSAA_X2 : 0u;
 #endif
+}
 
 // Forward bgfx's own diagnostics (renderer pick, GPU, caps, and -- crucially -- shader/format/
 // framebuffer errors) into OUR console log. Without this, bgfx writes them only to the platform
@@ -44,13 +52,51 @@ struct BgfxLogCallback : public bgfx::CallbackI {
     void profilerBegin(const char*, uint32_t, const char*, uint16_t) override {}
     void profilerBeginLiteral(const char*, uint32_t, const char*, uint16_t) override {}
     void profilerEnd() override {}
-    uint32_t cacheReadSize(uint64_t) override { return 0; }
-    bool cacheRead(uint64_t, void*, uint32_t) override { return false; }
-    void cacheWrite(uint64_t, const void*, uint32_t) override {}
+    // Shader program / pipeline cache (GL program binaries, the Vulkan pipeline cache, D3D12 PSOs):
+    // bgfx hands us opaque blobs keyed by a hash; we keep them as files so the next session skips the
+    // driver compile (the first-use hitches every session). Runs on bgfx's render thread; cacheDir_ is
+    // set before bgfx::init and never changes after. Empty dir = no cache (consoles).
+    uint32_t cacheReadSize(uint64_t id) override {
+        if (cacheDir_.empty()) return 0;
+        std::error_code ec;
+        const auto n = std::filesystem::file_size(cachePath(id), ec);
+        return (ec || n == 0 || n > kMaxCacheBlob) ? 0 : static_cast<uint32_t>(n);
+    }
+    bool cacheRead(uint64_t id, void* data, uint32_t size) override {
+        if (cacheDir_.empty()) return false;
+        std::ifstream in(cachePath(id), std::ios::binary);
+        return in && in.read(static_cast<char*>(data), size) && in.gcount() == static_cast<std::streamsize>(size);
+    }
+    void cacheWrite(uint64_t id, const void* data, uint32_t size) override {
+        if (cacheDir_.empty() || size == 0 || size > kMaxCacheBlob) return;
+        std::error_code ec;
+        std::filesystem::create_directories(cacheDir_, ec);
+        const std::string path = cachePath(id), tmp = path + ".tmp";
+        {
+            std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+            if (!out || !out.write(static_cast<const char*>(data), size)) {
+                out.close();
+                std::filesystem::remove(tmp, ec);
+                return;
+            }
+        }
+        std::filesystem::rename(tmp, path, ec);  // whole file or nothing, even if we die mid-write
+        if (ec) std::filesystem::remove(tmp, ec);
+    }
     void screenShot(const char*, uint32_t, uint32_t, uint32_t, const void*, uint32_t, bool) override {}
     void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override {}
     void captureEnd() override {}
     void captureFrame(const void*, uint32_t) override {}
+
+    std::string cacheDir_;
+
+private:
+    static constexpr uintmax_t kMaxCacheBlob = 64u << 20;  // sanity cap per blob
+    std::string cachePath(uint64_t id) const {
+        char name[32];
+        std::snprintf(name, sizeof(name), "%016llx.bin", static_cast<unsigned long long>(id));
+        return cacheDir_ + "/" + name;
+    }
 };
 BgfxLogCallback g_bgfxCallback;
 
@@ -99,6 +145,8 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
     sceneW_ = cfg.width;
     sceneH_ = cfg.height;
     vsync_ = cfg.vsync;
+    msaa_ = cfg.msaa;
+    g_bgfxCallback.cacheDir_ = cfg.cacheDir;
 
     // NOTE: bgfx manages its own render thread on desktop. Single-threaded mode
     // (calling bgfx::renderFrame() before init) is needed for Metal on macOS/iOS
@@ -123,13 +171,14 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
 #endif
     init.resolution.width = static_cast<u32>(width_);
     init.resolution.height = static_cast<u32>(height_);
-    init.resolution.reset = kResetMsaa | (vsync_ ? BGFX_RESET_VSYNC : 0u);
+    init.resolution.reset = resetFlags();
     init.platformData.nwh = nw.nwh;
     init.platformData.ndt = nw.ndt;
     init.callback = &g_bgfxCallback;  // route bgfx's own trace/fatal into our console log
 
-    log::info("render: bgfx::init requested type=auto {}x{} reset={}{}", width_, height_,
-              kResetMsaa ? "MSAAx4" : "noMSAA", vsync_ ? "|vsync" : "");
+    log::info("render: bgfx::init requested type=auto {}x{} reset=MSAAx{}{}{}", width_, height_,
+              msaaResetFlag(msaa_) ? msaa_ : 0, vsync_ ? "|vsync" : "",
+              cfg.cacheDir.empty() ? "" : " (shader cache on)");
     if (!bgfx::init(init)) {
         log::error("render: bgfx::init FAILED -- no usable graphics backend (driver/GPU?)");
         return false;
@@ -204,7 +253,7 @@ void RenderDevice::reacquire(const NativeWindow& nw) {
     pd.nwh = nw.nwh;
     bgfx::setPlatformData(pd);
     bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_),
-                kResetMsaa | (vsync_ ? BGFX_RESET_VSYNC : 0u));
+                resetFlags());
     bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
     if (hdrActive()) createHdrTarget();
     if (fsrActive()) createFsrTargets();
@@ -221,7 +270,7 @@ void RenderDevice::resize(int width, int height) {
     height_ = height;
     recomputeRenderSize();
     bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_),
-                kResetMsaa | (vsync_ ? BGFX_RESET_VSYNC : 0u));
+                resetFlags());
     bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
     if (hdrActive()) createHdrTarget();  // resize the offscreen targets to match
     if (fsrActive()) createFsrTargets();
@@ -650,8 +699,42 @@ void RenderDevice::setVsync(bool on) {
     if (!inited_ || on == vsync_) return;
     vsync_ = on;
     bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_),
-                kResetMsaa | (vsync_ ? BGFX_RESET_VSYNC : 0u));
+                resetFlags());
     bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+}
+
+u32 RenderDevice::resetFlags() const {
+    return msaaResetFlag(msaa_) | (vsync_ ? BGFX_RESET_VSYNC : 0u);
+}
+
+void RenderDevice::setMsaa(int samples) {
+    samples = samples >= 8 ? 8 : samples >= 4 ? 4 : samples >= 2 ? 2 : 0;
+    if (samples == msaa_) return;
+    msaa_ = samples;
+    if (!inited_) return;
+    bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_), resetFlags());
+    bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
+    log::info("render: MSAA x{}", msaaResetFlag(msaa_) ? msaa_ : 0);
+}
+
+std::string RenderDevice::statsLine() const {
+    if (!inited_) return {};
+    const bgfx::Stats* st = bgfx::getStats();
+    if (!st) return {};
+    auto ms = [](i64 ticks, i64 freq) { return freq > 0 ? static_cast<double>(ticks) * 1000.0 / static_cast<double>(freq) : 0.0; };
+    u32 tris = 0;
+    for (int t = 0; t < bgfx::Topology::Count; ++t)
+        if (t == bgfx::Topology::TriList || t == bgfx::Topology::TriStrip) tris += st->numPrims[t];
+    char buf[320];
+    std::snprintf(buf, sizeof(buf),
+                  "draws %u, tris %uk, textures %u (%.0f MB), targets %.0f MB, cpu submit %.1f ms, "
+                  "wait render %.1f ms, wait submit %.1f ms, gpu %.1f ms",
+                  st->numDraw, tris / 1000u, st->numTextures,
+                  st->textureMemoryUsed > 0 ? static_cast<double>(st->textureMemoryUsed) / 1048576.0 : -1.0,
+                  st->rtMemoryUsed > 0 ? static_cast<double>(st->rtMemoryUsed) / 1048576.0 : -1.0,
+                  ms(st->cpuTimeEnd - st->cpuTimeBegin, st->cpuTimerFreq), ms(st->waitRender, st->cpuTimerFreq),
+                  ms(st->waitSubmit, st->cpuTimerFreq), ms(st->gpuTimeEnd - st->gpuTimeBegin, st->gpuTimerFreq));
+    return buf;
 }
 
 void RenderDevice::beginFrame() {

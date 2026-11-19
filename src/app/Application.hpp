@@ -156,6 +156,13 @@ public:
     // Off on desktop). For Switch/Android perf.
     int lod() const { return lod_; }
     void setLod(int radius);
+    // Backbuffer MSAA samples 0/2/4 (Settings -> Video -> MSAA). Applied live; Off on the Switch profile.
+    int msaa() const { return msaa_; }
+    void setMsaa(int samples);
+    // Texture size cap in pixels, 0 = full size (Settings -> Video -> Texture Size). Applies from the
+    // next map load; 512 on the Switch profile. See g_texMaxDim.
+    int texMaxDim() const { return texMaxDim_; }
+    void setTexMaxDim(int px);
     // FSR1 upscale factor (#111): 1.0 = off; <1 renders lower-res + EASU/RCAS upscales. Persisted.
     float fsr() const { return fsr_; }
     void setFsr(float scale);
@@ -334,6 +341,9 @@ private:
     int fxWaterTrail_ = 1;                        // water wake trails on/off; default on (#watertrail)
     int xbr_ = 0;                                // xBR 4x texture upscale: 0 off / 1 on; default OFF (#xbr)
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
+    int msaa_ = 4;                               // backbuffer MSAA samples 0/2/4 (0 on the Switch profile)
+    int texMaxDim_ = 0;                          // texture size cap, 0 = full (512 on the Switch profile)
+    int perfLogSec_ = 10;                        // perf log line period in seconds, 0 = off ("perflog")
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)
     bool gamepadMode_ = false;                   // pad-driven control mode active (#102/#115)

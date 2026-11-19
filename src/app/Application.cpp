@@ -8,10 +8,12 @@
 #include <memory>
 #include <sstream>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 
 #include "core/Lang.hpp"
 #include "core/Log.hpp"
+#include "core/SysMem.hpp"
 #include "formats/Webp.hpp"
 #include "core/time/Clock.hpp"
 #include "game/BootScene.hpp"
@@ -30,6 +32,14 @@
 namespace uaro {
 
 namespace {
+// ARM64 Linux (Switch under L4T, Jetson, other boards) gets the light video profile (see loadConfig).
+// A constant rather than an #if around the code, so the block is compiled - and checked - everywhere.
+#if defined(__linux__) && defined(__aarch64__) && !defined(__ANDROID__)
+constexpr bool kArmLinuxProfile = true;
+#else
+constexpr bool kArmLinuxProfile = false;
+#endif
+
 // A "baked" distribution ships ALL content inside the package -> the patcher must NOT run at all (S.
 // 2026-07-29). The content-platform TOKEN classifies the closed consoles + iOS + Steam Deck; MSIX
 // (Windows) and Flatpak (Linux) share the desktop token, so they're caught by fs::is_packaged_install()
@@ -58,6 +68,12 @@ int Application::run(const AppConfig& cfg) {
     rc.width = pw;
     rc.height = ph;
     rc.vsync = cfg.vsync;
+    rc.msaa = msaa_;  // the saved choice is applied by applyVideo() once settings/game.cfg is read
+#if !defined(CLIENT_CONSOLE)
+    // bgfx's shader/pipeline cache (Vulkan pipeline cache, GL program binaries, D3D12 PSOs) in the
+    // writable data dir, so a session doesn't recompile every pipeline on first use.
+    rc.cacheDir = (std::filesystem::path(fs::data_dir()) / "cache" / "bgfx").string();
+#endif
     if (!render_.init(platform_.window().native(), rc)) {
         platform_.shutdown();
         return 3;
@@ -225,6 +241,11 @@ int Application::run(const AppConfig& cfg) {
 
     log::info("entering main loop");
     Clock clock;
+    // Perf log line (#perf, every perfLogSec_ seconds): fps, frame work time, bgfx stats and memory, so
+    // a slow device (Switch under L4T next to a game server) reports where the time and the RAM go.
+    auto perfT0 = std::chrono::steady_clock::now();
+    int perfFrames = 0;
+    double perfWorkMs = 0.0, perfMaxMs = 0.0;
     while (platform_.pump(input_)) {
         const auto frameStart = std::chrono::steady_clock::now();
 
@@ -290,9 +311,35 @@ int Application::run(const AppConfig& cfg) {
 
         if (scenes_.empty() || quitRequested_) break;
 
-        // FPS-lock (#104): with vsync off (or a strict cap), sleep to hold the target frame time.
-        if (fpsLimit_ > 0) {
-            const auto target = std::chrono::duration<double>(1.0 / fpsLimit_);
+        const auto workEnd = std::chrono::steady_clock::now();
+        const double workMs = std::chrono::duration<double, std::milli>(workEnd - frameStart).count();
+        ++perfFrames;
+        perfWorkMs += workMs;
+        perfMaxMs = std::max(perfMaxMs, workMs);
+        if (perfLogSec_ > 0) {
+            const double perfSec = std::chrono::duration<double>(workEnd - perfT0).count();
+            if (perfSec >= perfLogSec_) {
+                const MemInfo mem = readMemInfo();
+                const i64 rss = readProcessRssBytes();
+                auto gb = [](double bytes) { return bytes < 0 ? -1.0 : bytes / 1073741824.0; };
+                log::info("perf: {:.1f} fps, frame work {:.1f} ms avg / {:.1f} max | {} | rss {:.2f} GB, "
+                          "mem avail {:.2f} GB, swap used {:.2f} GB",
+                          perfFrames / perfSec, perfWorkMs / std::max(1, perfFrames), perfMaxMs,
+                          render_.statsLine(), gb(static_cast<double>(rss)),
+                          gb(mem.availKb < 0 ? -1.0 : static_cast<double>(mem.availKb) * 1024.0),
+                          gb(mem.swapUsedKb < 0 ? -1.0 : static_cast<double>(mem.swapUsedKb) * 1024.0));
+                perfT0 = workEnd;
+                perfFrames = 0;
+                perfWorkMs = perfMaxMs = 0.0;
+            }
+        }
+
+        // FPS-lock (#104): with vsync off (or a strict cap), sleep to hold the target frame time. A
+        // minimized window is held at 10 fps (game logic and the network keep running) so it stops
+        // taking a core from whatever the player switched to - or from the game server on the same box.
+        const int fpsCap = input_.minimized ? (fpsLimit_ > 0 ? std::min(fpsLimit_, 10) : 10) : fpsLimit_;
+        if (fpsCap > 0) {
+            const auto target = std::chrono::duration<double>(1.0 / fpsCap);
             const auto spent = std::chrono::steady_clock::now() - frameStart;
             if (spent < target)
                 std::this_thread::sleep_for(target - spent);
@@ -547,6 +594,13 @@ void Application::loadConfig() {
                 const int lv = static_cast<int>(v + 0.5f);
                 lod_ = (lv >= 70) ? 80 : (lv >= 50) ? 60 : (lv >= 32) ? 40 : (lv >= 12) ? 25 : 0;
             }
+            else if (key == "msaa") msaa_ = v >= 3.0f ? 4 : (v >= 1.5f ? 2 : 0);  // backbuffer MSAA samples
+            else if (key == "texmaxdim") {  // texture size cap: 0 = full, else 256..4096 (power of two)
+                const int px = static_cast<int>(v + 0.5f);
+                texMaxDim_ = px <= 0 ? 0 : px <= 256 ? 256 : px <= 512 ? 512 : px <= 1024 ? 1024
+                           : px <= 2048 ? 2048 : 4096;
+            }
+            else if (key == "perflog") perfLogSec_ = std::clamp(static_cast<int>(v + 0.5f), 0, 600);  // 0 = off
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
             else if (key == "uiscaleauto") uiScaleAuto_ = (v != 0.0f);
             else if (key == "padinvlx") padInvertLX_ = (v != 0.0f);  // stick-axis inversion (#102/#115)
@@ -608,6 +662,37 @@ void Application::loadConfig() {
         log::info("video: first run on Android -> fps cap {}", fpsLimit_);
     }
 #endif
+    // Switch under L4T and other ARM64 Linux boards (S. 2026-11-19): 4 slow cores and ~4 GB of memory
+    // shared by the OS, the GPU and often a co-hosted game server, but the build is plain desktop Linux,
+    // so it used to get the desktop defaults (no LOD, planar water, grass, relief, bloom, every ambient
+    // effect, MSAA x4, full-size textures). Fill in the light profile for every key the PLAYER hasn't
+    // saved in settings/game.cfg; saved choices are never touched (delete game.cfg to get the profile).
+    if constexpr (kArmLinuxProfile) {
+        std::unordered_set<std::string> userKeys;
+        std::istringstream us(userCfg);
+        for (std::string line; std::getline(us, line);) {
+            std::istringstream ls(line);
+            std::string k;
+            if (ls >> k) userKeys.insert(k);
+        }
+        auto unset = [&userKeys](const char* k) { return userKeys.count(k) == 0; };
+        if (unset("lod")) lod_ = 25;
+        if (unset("waterreflect")) waterReflect_ = 0;
+        if (unset("grass")) grassEnabled_ = 0;
+        if (unset("normals")) normalsMode_ = 0.0f;
+        if (unset("bloom")) bloom_ = 0;
+        if (unset("fxsmoke")) fxSmoke_ = 0;
+        if (unset("fxmotes")) fxMotes_ = 0;
+        if (unset("fxbutterflies")) fxButterflies_ = 0;
+        if (unset("fxweather")) fxWeather_ = 0;
+        if (unset("msaa")) msaa_ = 0;
+        if (unset("texmaxdim")) texMaxDim_ = 512;
+        g_spriteTexBudget = 1024;
+        log::info("video: ARM64 Linux (Switch/L4T) profile for unsaved keys -> lod {}, water reflect {}, grass {}, "
+                  "normals {}, bloom {}, smoke/motes/butterflies/weather {}/{}/{}/{}, MSAA {}, textures <= {}",
+                  lod_, waterReflect_, grassEnabled_, normalsMode_, bloom_, fxSmoke_, fxMotes_, fxButterflies_,
+                  fxWeather_, msaa_, texMaxDim_);
+    }
     applyVolumes();
     applyVideo();
     loadLanguage();
@@ -664,6 +749,8 @@ void Application::setVideo(bool fullscreen, bool vsync, int fpsLimit, int worldF
 void Application::applyVideo() {
     platform_.window().setFullscreen(fullscreen_);
     render_.setVsync(vsyncOn_);
+    render_.setMsaa(msaa_);
+    g_texMaxDim = texMaxDim_;
     // Texture filtering: the ground (world) + actor-sprite (objects) draw paths read these globals
     // and override their bgfx sampler per draw (#104).
     g_worldFilterMode = worldFilter_;
@@ -714,6 +801,9 @@ void Application::saveConfig() const {
     out << "watertrail " << fxWaterTrail_ << "\n";
     out << "xbrupscale " << xbr_ << "\n";
     if (lod_ >= 0) out << "lod " << lod_ << "\n";                              // -1 = auto (unsaved) (#lod)
+    out << "msaa " << msaa_ << "\n";
+    out << "texmaxdim " << texMaxDim_ << "\n";
+    out << "perflog " << perfLogSec_ << "\n";
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -842,6 +932,18 @@ void Application::setLod(int radius) {
     // Snap to the allowed steps: 0 (off) / 25 / 40 / 60 / 80.
     lod_ = (radius >= 70) ? 80 : (radius >= 50) ? 60 : (radius >= 32) ? 40 : (radius >= 12) ? 25 : 0;
     g_lodRadius = static_cast<float>(lod_);
+    saveConfig();
+}
+
+void Application::setMsaa(int samples) {
+    msaa_ = samples >= 3 ? 4 : (samples >= 1 ? 2 : 0);
+    render_.setMsaa(msaa_);
+    saveConfig();
+}
+
+void Application::setTexMaxDim(int px) {
+    texMaxDim_ = px <= 0 ? 0 : px <= 256 ? 256 : px <= 512 ? 512 : px <= 1024 ? 1024 : px <= 2048 ? 2048 : 4096;
+    g_texMaxDim = texMaxDim_;  // read at load: takes effect from the next map
     saveConfig();
 }
 

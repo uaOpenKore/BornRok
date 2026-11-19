@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 22 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 24 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -692,6 +692,23 @@ public:
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, xby - 4.0f, 90.0f, 26.0f,
                                            app.xbrUpscale() ? "On" : "Off", 1.2f))
                 app.setXbrUpscale(!app.xbrUpscale());
+            // MSAA (backbuffer anti-aliasing): Off / x2 / x4, applied live. With Bloom/AO the scene renders
+            // into a single-sample offscreen, so MSAA only smooths the UI there (Off on the Switch profile).
+            const float msy = xby + 34.0f;
+            const int ms = app.msaa();
+            font.draw(sb, cx, msy, 1.1f, ui::color::kWinText, "MSAA");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, msy - 4.0f, 90.0f, 26.0f,
+                                           ms >= 4 ? "x4" : ms >= 2 ? "x2" : "Off", 1.2f))
+                app.setMsaa(ms >= 4 ? 0 : ms >= 2 ? 4 : 2);
+            // Texture Size cap: Full / 2048 / 1024 / 512 / 256 for ground, model and water textures. Cuts
+            // texture memory 4x per step down; applies from the next map load (512 on the Switch profile).
+            const float tsy = msy + 34.0f;
+            const int td = app.texMaxDim();
+            font.draw(sb, cx, tsy, 1.1f, ui::color::kWinText, "Texture Size");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, tsy - 4.0f, 90.0f, 26.0f,
+                                           td == 0 ? "Full" : td >= 2048 ? "2048" : td >= 1024 ? "1024"
+                                           : td >= 512 ? "512" : "256", 1.2f))
+                app.setTexMaxDim(td == 0 ? 2048 : td >= 2048 ? 1024 : td >= 1024 ? 512 : td >= 512 ? 256 : 0);
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

@@ -74,6 +74,14 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# ARM64 Linux (Nintendo Switch under L4T, Jetson boards, ...): schedule instructions for the Cortex-A57
+# of the Switch. -mtune only changes scheduling, never the instruction set, so the binary still runs on
+# every ARMv8-A core (Raspberry Pi, other ARM64 boards). Our own code only; the vcpkg deps are untouched.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$"
+   AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-mtune=cortex-a57)
+endif()
+
 add_subdirectory(third_party/lua51)  # vendored Lua 5.1 for loading RO .lub data tables from the GRF
 add_subdirectory(src)
 

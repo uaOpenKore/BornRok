@@ -8,6 +8,7 @@
 
 #include "app/Application.hpp"
 #include "core/Log.hpp"
+#include "core/math/Frustum.hpp"
 #include "formats/ImageIO.hpp"
 #include "render/SamplerFilter.hpp"
 #include "render/Shader.hpp"
@@ -134,6 +135,8 @@ bgfx::TextureHandle uploadBmp(const std::vector<u8>& bytes, const char* dbgName 
         log::info("modeltex {} {}x{} keyed={} residPink={} worst=({},{},{})", dbgName, img->width,
                   img->height, keyed, resid, wr, wg, wb);
     }
+    // Texture size cap (g_texMaxDim, Settings -> Video -> Texture Size): shrink before the upload/mips.
+    downscaleToMaxDim(*img, static_cast<u32>(std::max(0, g_texMaxDim)));
     const u16 w = static_cast<u16>(img->width), h = static_cast<u16>(img->height);
     // Alpha-cutout textures (foliage, flags) stay POINT-sampled with no mips: any blend bleeds
     // their thin geometry below the discard cutoff so it frays at distance ("only stumps"). Opaque
@@ -213,45 +216,6 @@ bool ModelRenderer::load(Application& app, const MapData& map) {
         texCache.emplace(name, h);
         return h;
     };
-    // Optional companion normal map ("<name>_n.png"). Cached like the diffuse; invalid = none.
-    // With no hand-authored map, derive the relief from the diffuse's own luminance (S.:
-    // "bump из яркости") — dark seams become grooves; a real _n.png always wins.
-    std::unordered_map<std::string, bgfx::TextureHandle> nrmCache;
-    auto getNormal = [&](const std::string& name) -> bgfx::TextureHandle {
-        auto it = nrmCache.find(name);
-        if (it != nrmCache.end()) return it->second;
-        bgfx::TextureHandle h = BGFX_INVALID_HANDLE;
-        // Optional companion normal map: try _n.webp then _n.png, QUIETLY. Its absence is normal (most
-        // tiles ship none, and all content is .webp), so it must NOT spam the missing-resource log for a
-        // _n.png that only exists as .webp — or not at all (S.: "в лог не должно писаться, если webp").
-        {
-            const std::string np = normalMapPath("data/texture/" + name);  // ..._n.png
-            std::optional<std::vector<u8>> nb;
-            if (np.size() > 4) nb = app.vfs().readQuiet(np.substr(0, np.size() - 4) + ".webp");
-            if (!nb) nb = app.vfs().readQuiet(np);
-            if (nb) h = uploadBmp(*nb);
-        }
-        if (!bgfx::isValid(h)) {
-            if (auto bytes = app.vfs().readPreferPng("data/texture/" + name))  // hi-res .png diffuse -> bump
-                if (auto img = decodeImage(*bytes); img && img->valid()) {
-                    const Image gen = normalFromLuminance(*img, 3.0f);  // x2 base; scaled live by g_normalsFactor
-                    if (gen.valid()) {
-                        const u64 flags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP |
-                                          BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC;
-                        const std::vector<u8> chain = buildMipChain(gen.rgba, gen.width, gen.height);
-                        h = bgfx::createTexture2D(static_cast<u16>(gen.width),
-                                                  static_cast<u16>(gen.height), true, 1,
-                                                  bgfx::TextureFormat::RGBA8, flags,
-                                                  bgfx::copy(chain.data(),
-                                                             static_cast<u32>(chain.size())));
-                    }
-                }
-        }
-        if (bgfx::isValid(h)) textures_.push_back(h);
-        nrmCache.emplace(name, h);
-        return h;
-    };
-
     models_.resize(map.rsmCache.size());
     for (usize mi = 0; mi < map.rsmCache.size(); ++mi) {
         const Rsm& rsm = map.rsmCache[mi];
@@ -374,7 +338,7 @@ bool ModelRenderer::load(Application& app, const MapData& map) {
         // Centre horizontally (X/Z) and sit the base (max RSM Y) at 0. Centre is measured from the
         // STATIC geometry; the same offset is folded into each animated node so it stays aligned to
         // the body (a small propeller's absence from the bbox shifts the airship centre negligibly).
-        f32 cx = 0.0f, cz = 0.0f, by = 0.0f, hx = 0.0f, hz = 0.0f;
+        f32 cx = 0.0f, cz = 0.0f, by = 0.0f, hx = 0.0f, hy = 0.0f, hz = 0.0f;
         if (!verts.empty()) {
             Vec3 mn{1e30f, 1e30f, 1e30f}, mx{-1e30f, -1e30f, -1e30f};
             for (const auto& v : verts) {
@@ -383,21 +347,26 @@ bool ModelRenderer::load(Application& app, const MapData& map) {
                 mn.z = std::min(mn.z, v.z); mx.z = std::max(mx.z, v.z);
             }
             cx = (mn.x + mx.x) * 0.5f; cz = (mn.z + mx.z) * 0.5f; by = mx.y;
-            hx = (mx.x - mn.x) * 0.5f; hz = (mx.z - mn.z) * 0.5f;
+            hx = (mx.x - mn.x) * 0.5f; hy = (mx.y - mn.y) * 0.5f; hz = (mx.z - mn.z) * 0.5f;
             for (auto& v : verts) { v.x -= cx; v.y -= by; v.z -= cz; }
         }
 
         Model& M = models_[mi];
         // Horizontal bounding-circle radius about the (now centred) origin, for the camera-occlude fade.
         M.radiusXZ = std::sqrt(hx * hx + hz * hz);
+        // Bounding sphere of the static geometry for the frustum test, in the centred model space (Y spans
+        // [-2*hy, 0] after the base was moved to 0). Spinning parts (propellers) reach outside it, so a model
+        // that has them is never culled; neither is one with no static geometry.
+        M.boundCenter = {0.0f, -hy, 0.0f};
+        M.boundRadius = std::sqrt(hx * hx + hy * hy + hz * hz);
+        M.cullable = !verts.empty() && pending.empty();
         auto buildBatches = [&](const std::vector<RawBatch>& rr, std::vector<Batch>& out) {
             for (const RawBatch& rb : rr) {
                 bgfx::TextureHandle t = rb.tex.empty() ? white_ : getTexture(rb.tex);
                 // NB: BGFX_INVALID_HANDLE expands to a braced initializer { ... }, which can't be a
                 // ternary operand (MSVC C2059), so assign it plainly then overwrite.
-                bgfx::TextureHandle n = BGFX_INVALID_HANDLE;
-                if (!rb.tex.empty()) n = getNormal(rb.tex);
-                out.push_back({bgfx::isValid(t) ? t : white_, n, rb.start, rb.count});
+                bgfx::TextureHandle n = BGFX_INVALID_HANDLE;  // relief map: buildNormals() fills it in
+                out.push_back({bgfx::isValid(t) ? t : white_, n, rb.start, rb.count, rb.tex});
             }
         };
         if (!verts.empty() && !indices.empty()) {
@@ -425,12 +394,119 @@ bool ModelRenderer::load(Application& app, const MapData& map) {
         M.ok = true;
     }
 
+    // Placements never move: compose each world matrix once here, plus a world-space bounding sphere for
+    // the per-frame frustum test (the matrix used to be rebuilt for every placement every frame).
+    placed_.clear();
+    placed_.reserve(map.placements.size());
+    {
+        const f32 hw = map.gnd.width() * 0.5f, hh = map.gnd.height() * 0.5f;
+        // Mirror the X axis (x -> width - x) so models match the left<->right-flipped ground.
+        const Mat4 mirror = Mat4::translation({static_cast<f32>(map.gnd.width()), 0.0f, 0.0f}) *
+                            Mat4::scaling({-1.0f, 1.0f, 1.0f});
+        for (const auto& [obj, mi] : map.placements) {
+            if (mi < 0 || static_cast<usize>(mi) >= models_.size() || !models_[mi].ok) continue;
+            const Model& M = models_[mi];
+            Placed pl;
+            pl.mi = mi;
+            // RSW placement -> world. pos maps with the /10 + half-extent offset found empirically; the
+            // model is scaled 1/10 with Y flipped (RSM Y points down).
+            pl.place = mirror *
+                       Mat4::translation({obj.pos[0] * 0.1f + hw, -obj.pos[1] * 0.1f, obj.pos[2] * 0.1f + hh}) *
+                       Mat4::rotationZ(-radians(obj.rot[2])) * Mat4::rotationX(-radians(obj.rot[0])) *
+                       Mat4::rotationY(radians(obj.rot[1])) *
+                       Mat4::scaling({obj.scale[0], obj.scale[1], obj.scale[2]}) *
+                       Mat4::scaling({0.1f, -0.1f, 0.1f});
+            pl.sxz = std::max(std::fabs(obj.scale[0]), std::fabs(obj.scale[2]));
+            const Vec4 c = pl.place * Vec4{M.boundCenter.x, M.boundCenter.y, M.boundCenter.z, 1.0f};
+            pl.center = {c.x, c.y, c.z};
+            auto colLen = [&pl](int col) {
+                return std::sqrt(pl.place.at(col, 0) * pl.place.at(col, 0) + pl.place.at(col, 1) * pl.place.at(col, 1) +
+                                 pl.place.at(col, 2) * pl.place.at(col, 2));
+            };
+            pl.radius = M.boundRadius * std::max({colLen(0), colLen(1), colLen(2)});
+            pl.cull = M.cullable;
+            placed_.push_back(pl);
+        }
+    }
+
+    normalsBuilt_ = false;
+    if (g_normalsFactor > 0.001f) buildNormals(app);  // relief maps only while Normals is on
+
     ready_ = true;
-    log::info("ModelRenderer: {} model(s), {} texture(s) ready", models_.size(), textures_.size());
+    log::info("ModelRenderer: {} model(s), {} placement(s), {} texture(s) ready", models_.size(), placed_.size(),
+              textures_.size());
     return true;
 }
 
+void ModelRenderer::buildNormals(Application& app) {
+    freeNormals();
+    // Optional companion normal map ("<name>_n.png"), one per texture name; invalid = none. With no
+    // hand-authored map, derive the relief from the diffuse's own luminance (S.: "bump из яркости") —
+    // dark seams become grooves; a real _n.png always wins.
+    std::unordered_map<std::string, bgfx::TextureHandle> nrmCache;
+    auto getNormal = [&](const std::string& name) -> bgfx::TextureHandle {
+        auto it = nrmCache.find(name);
+        if (it != nrmCache.end()) return it->second;
+        bgfx::TextureHandle h = BGFX_INVALID_HANDLE;
+        // Optional companion normal map: try _n.webp then _n.png, QUIETLY. Its absence is normal (most
+        // tiles ship none, and all content is .webp), so it must NOT spam the missing-resource log for a
+        // _n.png that only exists as .webp — or not at all (S.: "в лог не должно писаться, если webp").
+        {
+            const std::string np = normalMapPath("data/texture/" + name);  // ..._n.png
+            std::optional<std::vector<u8>> nb;
+            if (np.size() > 4) nb = app.vfs().readQuiet(np.substr(0, np.size() - 4) + ".webp");
+            if (!nb) nb = app.vfs().readQuiet(np);
+            if (nb) h = uploadBmp(*nb);
+        }
+        if (!bgfx::isValid(h)) {
+            if (auto bytes = app.vfs().readPreferPng("data/texture/" + name))  // hi-res .png diffuse -> bump
+                if (auto img = decodeImage(*bytes); img && img->valid()) {
+                    downscaleToMaxDim(*img, static_cast<u32>(std::max(0, g_texMaxDim)));  // same cap as the diffuse
+                    const Image gen = normalFromLuminance(*img, 3.0f);  // x2 base; scaled live by g_normalsFactor
+                    if (gen.valid()) {
+                        const u64 flags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP |
+                                          BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC;
+                        const std::vector<u8> chain = buildMipChain(gen.rgba, gen.width, gen.height);
+                        h = bgfx::createTexture2D(static_cast<u16>(gen.width),
+                                                  static_cast<u16>(gen.height), true, 1,
+                                                  bgfx::TextureFormat::RGBA8, flags,
+                                                  bgfx::copy(chain.data(),
+                                                             static_cast<u32>(chain.size())));
+                    }
+                }
+        }
+        if (bgfx::isValid(h)) normals_.push_back(h);
+        nrmCache.emplace(name, h);
+        return h;
+    };
+    auto fill = [&](std::vector<Batch>& batches) {
+        for (Batch& b : batches)
+            if (!b.texName.empty()) b.nrm = getNormal(b.texName);
+    };
+    for (Model& m : models_) {
+        fill(m.batches);
+        for (AnimNode& an : m.animNodes) fill(an.batches);
+    }
+    normalsBuilt_ = true;
+}
+
+void ModelRenderer::freeNormals() {
+    for (auto t : normals_)
+        if (bgfx::isValid(t)) bgfx::destroy(t);
+    normals_.clear();
+    auto clear = [](std::vector<Batch>& batches) {
+        for (Batch& b : batches) b.nrm = BGFX_INVALID_HANDLE;
+    };
+    for (Model& m : models_) {
+        clear(m.batches);
+        for (AnimNode& an : m.animNodes) clear(an.batches);
+    }
+    normalsBuilt_ = false;
+}
+
 void ModelRenderer::destroy() {
+    freeNormals();
+    placed_.clear();
     for (auto& m : models_) {
         if (bgfx::isValid(m.vbh)) bgfx::destroy(m.vbh);
         if (bgfx::isValid(m.ibh)) bgfx::destroy(m.ibh);
@@ -444,21 +520,27 @@ void ModelRenderer::destroy() {
         if (bgfx::isValid(t)) bgfx::destroy(t);
     textures_.clear();
     if (bgfx::isValid(white_)) bgfx::destroy(white_);
+    if (bgfx::isValid(flatNrm_)) bgfx::destroy(flatNrm_);  // was left behind on every map change
     if (bgfx::isValid(sampler_)) bgfx::destroy(sampler_);
     if (bgfx::isValid(fade_)) bgfx::destroy(fade_);
     if (bgfx::isValid(program_)) bgfx::destroy(program_);
     white_ = BGFX_INVALID_HANDLE;
+    flatNrm_ = BGFX_INVALID_HANDLE;
     sampler_ = BGFX_INVALID_HANDLE;
     fade_ = BGFX_INVALID_HANDLE;
     program_ = BGFX_INVALID_HANDLE;
     ready_ = false;
 }
 
-void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& playerPos,
-                           double time, float forceFade) const {
+void ModelRenderer::render(const MapData& map, const Mat4& view, const Mat4& proj, const Vec3& camPos,
+                           const Vec3& playerPos, double time, float forceFade) const {
+    (void)map;  // placements were composed at load (placed_)
     if (!ready_ || !bgfx::isValid(program_)) return;
     const bool xray = forceFade < 0.999f;  // Camera Lock: fade every model, not just line occluders
-    const f32 hw = map.gnd.width() * 0.5f, hh = map.gnd.height() * 0.5f;
+    // Skip placements whose bounding sphere is entirely outside the camera frustum: at the default zoom
+    // the camera sees a small part of a town, and every placement used to be submitted every frame
+    // (one draw per node x texture - ~3 000+ draws in Prontera, a lot for a slow CPU and its GL driver).
+    const Frustum frustum = Frustum::fromViewProj(proj * view);
     // Opaque world geometry: write colour+alpha+depth, depth-test less.
     const u64 opaqueState = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
                             BGFX_STATE_DEPTH_TEST_LESS;
@@ -480,11 +562,9 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
     // are handled by drawing the player's sprite on top in Camera Lock.) (#104)
     const f32 kFadeRadius = 6.0f + std::clamp((14.0f - segLen) / 14.0f, 0.0f, 1.0f) * 9.0f;
     constexpr f32 kFadeAlpha = 0.30f;  // occluder opacity (1.0 = opaque)
-    // Mirror the X axis (x -> width - x) so models match the left<->right-flipped
-    // ground. The -1 scale also mirrors each model's own geometry/rotation, so a
-    // building's left and right swap with the map. No culling, so winding is moot.
-    const Mat4 mirror = Mat4::translation({static_cast<f32>(map.gnd.width()), 0.0f, 0.0f}) *
-                        Mat4::scaling({-1.0f, 1.0f, 1.0f});
+    // (The X mirror that matches models to the left<->right-flipped ground is baked into placed_[].place;
+    // the -1 scale also mirrors each model's own geometry, and there's no back-face culling, so winding
+    // is moot.)
 
     // Camera->player line for the occlusion test, FLATTENED to the XZ (top-down) plane: a building's
     // origin sits at ground level, far below the elevated camera->player line, so a full-3D distance
@@ -507,27 +587,17 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
     const bool lodOn = lodR > 0.5f;
     const f32 lodR2 = lodR * lodR;
 
-    for (const auto& [obj, mi] : map.placements) {
-        if (mi < 0 || static_cast<usize>(mi) >= models_.size()) continue;
-        const Model& M = models_[mi];
-        if (!M.ok) continue;
-
-        // RSW placement -> world. pos maps with the /10 + half-extent offset found empirically; the
-        // model is scaled 1/10 with Y flipped (RSM Y points down). The X mirror keeps models aligned
-        // with the left<->right-flipped ground.
-        const Mat4 place =
-            mirror *
-            Mat4::translation({obj.pos[0] * 0.1f + hw, -obj.pos[1] * 0.1f, obj.pos[2] * 0.1f + hh}) *
-            Mat4::rotationZ(-radians(obj.rot[2])) * Mat4::rotationX(-radians(obj.rot[0])) *
-            Mat4::rotationY(radians(obj.rot[1])) *
-            Mat4::scaling({obj.scale[0], obj.scale[1], obj.scale[2]}) *
-            Mat4::scaling({0.1f, -0.1f, 0.1f});
+    for (const Placed& P : placed_) {
+        const Model& M = models_[P.mi];
+        const Mat4& place = P.place;  // RSW placement -> world (composed once at load)
 
         // LOD cull: skip objects outside the radius (all directions).
         if (lodOn) {
             const f32 ox = place.m[12] - playerPos.x, oz = place.m[14] - playerPos.z;
             if (ox * ox + oz * oz > lodR2) continue;
         }
+        // Frustum cull (see above).
+        if (P.cull && !frustum.sphereVisible(P.center, P.radius)) continue;
 
         // Occlusion test in the XZ plane: project the placement footprint (origin x/z) onto the
         // flattened cam->player line. Occludes when t in (0.05..1.0) (between the camera and the
@@ -544,8 +614,7 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
                 // wide building is detected by its walls, not just its centre point. This is what
                 // fixed "плохо определяются элементы которые скрывать нужно" — big meshes were
                 // missed because only their origin was tested.
-                const f32 sxz = std::max(std::fabs(obj.scale[0]), std::fabs(obj.scale[2]));
-                const f32 capR = kFadeRadius + M.radiusXZ * 0.1f * sxz;
+                const f32 capR = kFadeRadius + M.radiusXZ * 0.1f * P.sxz;
                 occludes = (ex * ex + ez * ez) < capR * capR;
             }
         }
@@ -598,28 +667,28 @@ void ModelRenderer::render(const MapData& map, const Vec3& camPos, const Vec3& p
 }
 
 void ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
-                                     bgfx::ViewId view, double time) const {
+                                     bgfx::ViewId view, double time, const Vec3& playerPos) const {
+    (void)map;  // placements were composed at load (placed_)
     if (!ready_ || !bgfx::isValid(program_)) return;
     bgfx::setViewTransform(view, mirrorView.m, proj.m);
-    const f32 hw = map.gnd.width() * 0.5f, hh = map.gnd.height() * 0.5f;
     const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
                       BGFX_STATE_DEPTH_TEST_LESS;  // opaque; no fade/occlusion in the reflection
     const f32 fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
     const f32 noNrm[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // skip relief in the reflection (keep it cheap)
-    // Same world placement as render() (incl. the X mirror that aligns models with the flipped ground).
-    const Mat4 mirror = Mat4::translation({static_cast<f32>(map.gnd.width()), 0.0f, 0.0f}) *
-                        Mat4::scaling({-1.0f, 1.0f, 1.0f});
-    for (const auto& [obj, mi] : map.placements) {
-        if (mi < 0 || static_cast<usize>(mi) >= models_.size()) continue;
-        const Model& M = models_[mi];
-        if (!M.ok) continue;
-        const Mat4 place =
-            mirror *
-            Mat4::translation({obj.pos[0] * 0.1f + hw, -obj.pos[1] * 0.1f, obj.pos[2] * 0.1f + hh}) *
-            Mat4::rotationZ(-radians(obj.rot[2])) * Mat4::rotationX(-radians(obj.rot[0])) *
-            Mat4::rotationY(radians(obj.rot[1])) *
-            Mat4::scaling({obj.scale[0], obj.scale[1], obj.scale[2]}) *
-            Mat4::scaling({0.1f, -0.1f, 0.1f});
+    // The mirror pass draws the same placements again, so it gets the same LOD radius as render() and
+    // its own frustum (the mirror camera's), instead of every placement on the map.
+    const Frustum frustum = Frustum::fromViewProj(proj * mirrorView);
+    const f32 lodR = g_lodRadius;
+    const bool lodOn = lodR > 0.5f;
+    const f32 lodR2 = lodR * lodR;
+    for (const Placed& P : placed_) {
+        const Model& M = models_[P.mi];
+        const Mat4& place = P.place;
+        if (lodOn) {
+            const f32 ox = place.m[12] - playerPos.x, oz = place.m[14] - playerPos.z;
+            if (ox * ox + oz * oz > lodR2) continue;
+        }
+        if (P.cull && !frustum.sphereVisible(P.center, P.radius)) continue;
         for (const Batch& b : M.batches) {
             bgfx::setTransform(place.m);
             bgfx::setVertexBuffer(0, M.vbh);

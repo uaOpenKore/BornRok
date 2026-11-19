@@ -20,6 +20,9 @@ struct InputState {
     // the render surface. Never set on desktop. (S. 2026-08-06: black screen after minimise -> restore.)
     bool appSuspended = false;
     bool appResumed = false;
+    // Desktop window minimized/hidden (LEVEL). The main loop drops to 10 fps while set; nothing else
+    // changes (the game keeps running and talking to the server).
+    bool minimized = false;
 
     // Text typed this frame (UTF-8, may be several characters with an IME).
     std::string text;

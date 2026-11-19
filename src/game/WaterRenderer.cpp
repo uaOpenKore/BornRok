@@ -26,6 +26,8 @@ const char* const kWaterDir = "data/texture/\xbf\xf6\xc5\xcd/";
 bgfx::TextureHandle decodeJpgToTexture(const std::vector<u8>& bytes) {
     auto img = decodeImage(bytes);  // JPG/PNG/BMP/TGA by magic (water textures are usually JPG)
     if (!img || !img->valid()) return BGFX_INVALID_HANDLE;
+    // Texture size cap (g_texMaxDim): 32 animation frames of 512^2-1024^2 are 32-128 MB uncapped.
+    downscaleToMaxDim(*img, static_cast<u32>(std::max(0, g_texMaxDim)));
     // Default (wrap) sampling so the tiled UVs repeat the texture across the map.
     return bgfx::createTexture2D(
         static_cast<u16>(img->width), static_cast<u16>(img->height), false, 1,

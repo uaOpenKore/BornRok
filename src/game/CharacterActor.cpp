@@ -1063,15 +1063,26 @@ void CharacterActor::loadPngOverrides(const Vfs& vfs, int part, const std::strin
 // cleanly at teardown. unordered_map keeps element references stable across rehash, so returning a
 // Texture& into these is safe for the render path.
 namespace {
-std::unordered_map<std::string, Texture> s_frameTex;
-std::unordered_map<std::string, Texture> s_nrmTex;
+struct CachedTex {
+    Texture tex;
+    u64 lastUse = 0;  // s_texFrame when it was last drawn (LRU, see beginFrame)
+};
+std::unordered_map<std::string, CachedTex> s_frameTex;
+std::unordered_map<std::string, CachedTex> s_nrmTex;
+// Frame clock of the cache (bumped by beginFrame), and the uploads the GPU refused with the frame of
+// their next attempt: the refused frame used to be decoded, keyed and edge-bled again every frame.
+u64 s_texFrame = 0;
+std::unordered_map<std::string, u64> s_texRetryAt;
+constexpr u64 kTexRetryFrames = 30;   // ~1 s at the 30 fps cap
+constexpr u64 kTexMinIdleFrames = 90; // never release a frame drawn in the last ~3 s
 }  // namespace
 
 void CharacterActor::clearSharedCache() {
-    for (auto& [k, t] : s_frameTex) t.destroy();
+    for (auto& [k, e] : s_frameTex) e.tex.destroy();
     s_frameTex.clear();
-    for (auto& [k, t] : s_nrmTex) t.destroy();
+    for (auto& [k, e] : s_nrmTex) e.tex.destroy();
     s_nrmTex.clear();
+    s_texRetryAt.clear();
     s_sprCache.clear();  // drops the cache's ref; actors still holding a shared_ptr free on their dtor
     s_actCache.clear();
     s_metaCache.clear();
@@ -1085,10 +1096,13 @@ void CharacterActor::clearActorCache() {
     // мобов чистить при смене локации, наполнять теми, что на локации").
     auto isMob = [](const std::string& k) { return k.rfind("M:", 0) == 0; };
     for (auto it = s_frameTex.begin(); it != s_frameTex.end();) {
-        if (isMob(it->first)) { it->second.destroy(); it = s_frameTex.erase(it); } else ++it;
+        if (isMob(it->first)) { it->second.tex.destroy(); it = s_frameTex.erase(it); } else ++it;
     }
     for (auto it = s_nrmTex.begin(); it != s_nrmTex.end();) {
-        if (isMob(it->first)) { it->second.destroy(); it = s_nrmTex.erase(it); } else ++it;
+        if (isMob(it->first)) { it->second.tex.destroy(); it = s_nrmTex.erase(it); } else ++it;
+    }
+    for (auto it = s_texRetryAt.begin(); it != s_texRetryAt.end();) {
+        if (isMob(it->first)) it = s_texRetryAt.erase(it); else ++it;
     }
     for (auto it = s_sprCache.begin(); it != s_sprCache.end();) {
         if (isMob(it->first)) it = s_sprCache.erase(it); else ++it;
@@ -1099,6 +1113,40 @@ void CharacterActor::clearActorCache() {
     for (auto it = s_metaCache.begin(); it != s_metaCache.end();) {
         if (isMob(it->first)) it = s_metaCache.erase(it); else ++it;
     }
+}
+
+void CharacterActor::beginFrame() {
+    ++s_texFrame;
+    const usize budget = static_cast<usize>(std::max(256, g_spriteTexBudget));
+    const usize total = s_frameTex.size() + s_nrmTex.size();
+    if (total <= budget) return;
+    // Over budget: release frames idle for kTexMinIdleFrames, least recently drawn first, down to ~85% of
+    // the budget, so one sweep frees a batch instead of running every frame at the limit. Frames drawn
+    // recently are never touched (more than the budget on screen at once just stays over it).
+    struct Victim {
+        u64 lastUse;
+        bool nrm;
+        std::string key;
+    };
+    std::vector<Victim> victims;
+    for (const auto& [k, e] : s_frameTex)
+        if (e.lastUse + kTexMinIdleFrames < s_texFrame) victims.push_back({e.lastUse, false, k});
+    for (const auto& [k, e] : s_nrmTex)
+        if (e.lastUse + kTexMinIdleFrames < s_texFrame) victims.push_back({e.lastUse, true, k});
+    const usize target = budget * 85 / 100;
+    const usize need = total - std::min(total, target);
+    if (victims.empty() || need == 0) return;
+    std::sort(victims.begin(), victims.end(), [](const Victim& a, const Victim& b) { return a.lastUse < b.lastUse; });
+    if (victims.size() > need) victims.resize(need);
+    for (const Victim& v : victims) {
+        auto& cache = v.nrm ? s_nrmTex : s_frameTex;
+        if (auto it = cache.find(v.key); it != cache.end()) {
+            it->second.tex.destroy();  // bgfx frees it after the frames already submitted have rendered
+            cache.erase(it);
+        }
+    }
+    log::info("CharacterActor: sprite texture cache {} -> {} (budget {})", total, s_frameTex.size() + s_nrmTex.size(),
+              budget);
 }
 
 // xBR 4x upscale of a just-decoded RGBA8 frame (#xbr), in place: converts to the 0xAARRGGBB the scaler
@@ -1132,7 +1180,14 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
     const int key = part * 100000 + idx;  // pngOverride_ (per-actor) is still int-keyed
     const std::string skey = appearanceKey_ + (indexed ? "#i" : "#r") + std::to_string(key);
     auto it = s_frameTex.find(skey);
-    if (it != s_frameTex.end()) return it->second;
+    if (it != s_frameTex.end()) {
+        it->second.lastUse = s_texFrame;
+        return it->second.tex;
+    }
+    if (auto r = s_texRetryAt.find(skey); r != s_texRetryAt.end()) {  // refused recently: wait (see below)
+        if (s_texFrame < r->second) return failedTex_;
+        s_texRetryAt.erase(r);
+    }
 
     Sprite* sp = (part >= 0 && part < kParts && spr_[part]) ? &*spr_[part] : nullptr;
     Texture t;
@@ -1179,18 +1234,28 @@ Texture& CharacterActor::frameTex(int part, int idx, bool indexed) {
     // A real upload the GPU rejected (transient out-of-memory / handle pressure during the heavy
     // map-entry burst) must NOT be cached: the render skips invalid-texture quads, so a cached dead
     // handle left a player who spawned during map entry permanently invisible until they left and
-    // re-entered view (S.). Return an uncached invalid placeholder so the next frame retries the
-    // upload; once it succeeds the valid texture is cached and the retry stops.
-    if (uploaded && !t.valid())
+    // re-entered view (S.). Return an uncached invalid placeholder and retry the upload ~1 s later
+    // (not every frame: each attempt redoes the decode/keying/edge bleed); once it succeeds the valid
+    // texture is cached and the retry stops.
+    if (uploaded && !t.valid()) {
+        s_texRetryAt[skey] = s_texFrame + kTexRetryFrames;
         return failedTex_;
-    return s_frameTex.emplace(skey, t).first->second;
+    }
+    return s_frameTex.emplace(skey, CachedTex{t, s_texFrame}).first->second.tex;
 }
 
 Texture& CharacterActor::frameNrmTex(int part, int idx, bool indexed) {
     const int key = part * 100000 + idx;  // pngOverride_ (per-actor) is still int-keyed
     const std::string skey = appearanceKey_ + (indexed ? "#ni" : "#nr") + std::to_string(key);
     auto it = s_nrmTex.find(skey);
-    if (it != s_nrmTex.end()) return it->second;
+    if (it != s_nrmTex.end()) {
+        it->second.lastUse = s_texFrame;
+        return it->second.tex;
+    }
+    if (auto r = s_texRetryAt.find(skey); r != s_texRetryAt.end()) {  // refused recently: wait (see frameTex)
+        if (s_texFrame < r->second) return failedTex_;
+        s_texRetryAt.erase(r);
+    }
 
     // Rebuild the frame's RGBA exactly like frameTex (PNG override first, then the palette
     // expansion) and derive the normal map from its luminance (S.: sprite relief).
@@ -1218,8 +1283,11 @@ Texture& CharacterActor::frameNrmTex(int part, int idx, bool indexed) {
                  /*smooth=*/true);
         uploaded = true;
     }
-    if (uploaded && !t.valid()) return failedTex_;  // GPU pressure: retry next frame (see frameTex)
-    return s_nrmTex.emplace(skey, t).first->second;
+    if (uploaded && !t.valid()) {  // GPU pressure: retry ~1 s later (see frameTex)
+        s_texRetryAt[skey] = s_texFrame + kTexRetryFrames;
+        return failedTex_;
+    }
+    return s_nrmTex.emplace(skey, CachedTex{t, s_texFrame}).first->second.tex;
 }
 
 // Align an optional part (head / headgear) so its anchor coincides with the body

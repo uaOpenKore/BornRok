@@ -34,6 +34,7 @@ add_executable(client_core_tests
   test_clientinfo.cpp
   test_socket.cpp
   test_thread.cpp
+  test_perf.cpp
 )
 target_include_directories(client_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(client_core_tests PRIVATE uaro::core uaro::formats uaro::world uaro::net uaro::patcher)

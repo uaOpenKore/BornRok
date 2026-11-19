@@ -21,6 +21,7 @@ add_library(client_core STATIC
   core/time/Clock.cpp
   core/thread/ThreadRole.cpp
   core/crypto/Sha512.cpp
+  core/SysMem.cpp
 )
 target_include_directories(client_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(client_core PUBLIC cxx_std_20)

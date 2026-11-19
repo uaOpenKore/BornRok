@@ -63,4 +63,16 @@ inline bool g_xbrUpscale = false;
 // ModelRenderer each frame.
 inline float g_lodRadius = 0.0f;  // 0 off / 25 / 40 / 60 / 80
 
+// Texture size cap (Settings -> Video -> Texture Size). Ground, model and water textures (and the
+// normal maps made from them) are shrunk at load until neither side exceeds this, like dropping the
+// top mip levels: 512 turns a 1024^2 RGBA8 texture (5.3 MB with mips) into 1.3 MB. 0 = full size
+// (desktop default); 512 on the Switch/L4T profile, where the whole 4 GB is shared by the OS, the GPU
+// and the co-hosted server. Read at load, so a change applies from the next map load.
+inline int g_texMaxDim = 0;
+
+// Sprite frame textures kept in CharacterActor's shared cache (frame + relief maps together). Above
+// this, frames not drawn for a while are released, oldest first, and re-uploaded if they come back.
+// bgfx itself stops at 4096 textures for EVERYTHING (map, models, UI, fonts, sprites).
+inline int g_spriteTexBudget = 2048;
+
 }  // namespace uaro

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "app/Scene.hpp"
+#include "core/RetryBackoff.hpp"
 #include "core/math/Math.hpp"
 #include "game/CharacterActor.hpp"
 #include "game/MapRenderer.hpp"
@@ -53,6 +54,7 @@ struct MapActor {
     std::string spriteName;  // resolved 2D mob/NPC sprite name (for the failed-load retry); "" for PCs
     std::string gr2Path;     // non-empty: draw this Granny 3D model (flags/guardians/emperium) instead of a sprite
     bool spriteTried = false;
+    RetryBackoff spriteRetry;  // failed sprite load: next attempt 0.1 s later, doubling to every 2 s
     double attackUntil = 0;  // play the attack motion while time < this (set on ZC_NOTIFY_ACT)
     double attackStart = 0;  // when the swing began (its duration varies: brief for mobs, 3s for PCs)
     double hurtUntil = 0;    // play the hurt/flinch motion while time < this (on taking damage)
@@ -562,6 +564,7 @@ private:
     int atkRange_ = 1;  // player's weapon attack range from ZC_ATTACK_RANGE (0x13a); melee=1, bow~5 (S. archer)
     double lastAttackAt_ = 0.0;
     double lastAutoTargetScan_ = 0.0;  // throttle the auto-attack path-distance target scan (#76)
+    std::unordered_map<u32, double> autoUnreachUntil_;  // mob gid -> time it may be pathed to again
     // Auto-attack (#76): a bottom-right panel of toggles. AutoAttack locks the nearest filtered mob.
     bool autoAttackOn_ = false;
     bool autoHpOpen_ = false, autoSpOpen_ = false, autoFilterOpen_ = false;  // panel sub-windows (WIP)
@@ -1139,6 +1142,8 @@ private:
     // Chat lines carry a colour: server/system = green, players = blue, whispers = cyan, errors = red.
     struct ChatLine { std::string text; u32 color = 0xffffffffu; };
     std::vector<ChatLine> chatLog_;     // recent lines (newest last), capped for display
+    std::vector<ChatLine> chatWrapped_; // chatLog_ word-wrapped to the chat width (rebuilt when it changes)
+    u64 chatWrapKey_ = 0;               // hash of chatLog_ + width + scale that chatWrapped_ was built for
     std::vector<ChatLine> roomChat_;    // chat-room messages only (kept separate from the public chatLog_)
     int chatScroll_ = 0;                // lines scrolled back from the newest (0 = bottom)
     bool chatCollapsed_ = true;         // collapsed -> only a small "expand" button; default collapsed (S.)

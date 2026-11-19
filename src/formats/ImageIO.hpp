@@ -44,4 +44,11 @@ std::string normalMapPath(const std::string& diffusePath);
 // (~1.5 = subtle, ~3 = pronounced). Returns an invalid Image for invalid input.
 Image normalFromLuminance(const Image& diffuse, float strength);
 
+// Texture size cap (Settings -> Video -> Texture Size; 512 on the Switch/L4T profile): halve the image
+// with a 2x2 box filter until neither side exceeds maxDim, like dropping the top mip levels. Colour is
+// averaged weighted by alpha, so a cut-out edge next to keyed (alpha 0) texels keeps its colour instead
+// of picking up the key's pink/black; alpha is the plain average. Odd sizes floor like a mip chain.
+// No-op for maxDim == 0, an image already within the cap, or an invalid image.
+void downscaleToMaxDim(Image& img, u32 maxDim);
+
 }  // namespace uaro

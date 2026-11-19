@@ -1,5 +1,7 @@
 #include "game/GameScene.hpp"
 
+#include "net/RxCursor.hpp"
+
 #include <algorithm>
 #include <ctime>
 #include <cctype>
@@ -3794,7 +3796,9 @@ void GameScene::upsertActor(Application& app, const net::ActorEntry& e) {
 }
 
 void GameScene::pumpStream(Application& app) {
-    auto& rx = conn_.rx();
+    // Parse straight out of the receive buffer; the parsed bytes are dropped once, when the pump ends
+    // (RxCursor). Erasing the front per packet made a big burst - the map-entry area scan - quadratic.
+    net::RxCursor rx(conn_);
     for (;;) {
         const net::FrameInfo fi = net::nextPacket(rx.data(), rx.size());
         if (fi.status == net::Frame::Need) break;  // wait for more bytes
@@ -3811,7 +3815,7 @@ void GameScene::pumpStream(Application& app) {
                    net::nextPacket(rx.data() + skip, rx.size() - skip).status == net::Frame::Unknown)
                 ++skip;
             log::warn("game: unframable packet 0x{:04x}; skipped {} byte(s) to resync", fi.id, skip);
-            conn_.consume(skip);
+            rx.consume(skip);
             continue;
         }
         lastRecvCmd_ = fi.id;  // remember the last opcode the server sent us (disconnect-cause diagnostic)
@@ -3825,7 +3829,7 @@ void GameScene::pumpStream(Application& app) {
             u8 code = 0;
             const usize c = net::decodeNotifyBan(rx.data(), rx.size(), code);
             if (c == 0) break;
-            conn_.consume(c);
+            rx.consume(c);
             lastBanCode_ = code;
             log::warn("net: server sent SC_NOTIFY_BAN (0x81) in-game after {:.1f}s on map='{}': reason code={} ({})",
                       time_ - mapEnterT_, mapBase_, code, net::banErrorText(code));
@@ -7741,7 +7745,8 @@ void GameScene::pumpStream(Application& app) {
             case net::PKT_ZC_CHANGE_MAPSVR: {  // warp -> reload the map / reconnect
                 net::MapChange mc;
                 if (net::decodeMapChange(rx.data(), rx.size(), mc) != 0) {
-                    conn_.consume(fi.length);
+                    rx.consume(fi.length);
+                    rx.flush();  // changeMap may reconnect and replace the buffer
                     changeMap(app, mc);
                     return;  // map reloaded (and maybe reconnected); stop this batch
                 }
@@ -7750,7 +7755,7 @@ void GameScene::pumpStream(Application& app) {
             default:
                 break;  // known length, not handled yet -> just skip past it
         }
-        conn_.consume(fi.length);
+        rx.consume(fi.length);
     }
 }
 
@@ -7772,12 +7777,18 @@ void GameScene::changeMap(Application& app, const net::MapChange& mc) {
     if (!sameMap) {
         drawLoadingOverlay(app);  // "Loading, please wait" while the new map's ground/textures/models load
         renderer_.destroy();
-        renderer_.load(app, base);
-        spawnMapEffects(app);  // torch flames etc. for the new map
         // Free the previous map's mob/NPC sprite/animation/texture cache so each location caches only its
         // own (S. 2026-07-16). Player looks ("P...") stay cached — only mobs/NPCs ("M:...") drop, then
         // refill lazily as the new map's units spawn. Same-map warps keep everything.
         CharacterActor::clearActorCache();
+        // Let bgfx actually run those destroys BEFORE the new map allocates: it executes a frame's destroys
+        // after that frame renders, so destroy + load in one frame kept BOTH maps' textures alive at once
+        // (payon -> prontera ~3.5 GB of RGBA8 on the 1k pack; on a 4 GB Switch that is swap or worse). Two
+        // more overlay frames: the first submits the destroys, the second waits until they have run.
+        drawLoadingOverlay(app);
+        drawLoadingOverlay(app);
+        renderer_.load(app, base);
+        spawnMapEffects(app);  // torch flames etc. for the new map
     }
     if (!mapBase_.empty()) autoMobOffMaps_[mapBase_] = autoMobOff_;  // stash the old map's filter (#76)
     mapBase_ = base;
@@ -9299,6 +9310,68 @@ void GameScene::drawSkillParticles(const WorldSpritePass& pass) {
     };
     // skills + map ambience (#32) + airship clouds. Clouds MUST draw before the additive glows so their
     // alpha blend composites onto the sky/terrain, not on top of skill flashes.
+    // Batched: consecutive particles with the same texture and blend mode go out as ONE draw. They used to
+    // be one transient buffer + one submit each (the 2048-slot ambient pool alone - chimney smoke in
+    // Prontera - meant hundreds of draws a frame). Same order, same state, same per-draw uniforms
+    // (bias 0, fade 1), so the picture is unchanged.
+    static std::vector<PV> verts;  // main thread only; reused across frames
+    verts.clear();
+    bgfx::TextureHandle runTex = particleTex_;
+    bool runAlpha = false;
+    bool exhausted = false;  // transient pool ran out this frame: the rest is skipped (as before)
+    auto flush = [&]() {
+        const usize quads = verts.size() / 4;
+        usize done = 0;
+        while (done < quads && !exhausted) {
+            const u32 want = static_cast<u32>(std::min<usize>(quads - done, 16383));  // 16-bit indices
+            const u32 n = std::min({want, bgfx::getAvailTransientVertexBuffer(want * 4, *pass.layout) / 4,
+                                    bgfx::getAvailTransientIndexBuffer(want * 6) / 6});
+            if (n == 0) {
+                exhausted = true;
+                break;
+            }
+            bgfx::TransientVertexBuffer tvb;
+            bgfx::TransientIndexBuffer tib;
+            bgfx::allocTransientVertexBuffer(&tvb, n * 4, *pass.layout);
+            bgfx::allocTransientIndexBuffer(&tib, n * 6);
+            std::memcpy(tvb.data, verts.data() + done * 4, static_cast<usize>(n) * 4 * sizeof(PV));
+            u16* id = reinterpret_cast<u16*>(tib.data);
+            for (u32 q = 0; q < n; ++q) {
+                const u16 v0 = static_cast<u16>(q * 4);
+                u16* o = id + static_cast<usize>(q) * 6;
+                o[0] = v0; o[1] = static_cast<u16>(v0 + 1); o[2] = static_cast<u16>(v0 + 2);
+                o[3] = v0; o[4] = static_cast<u16>(v0 + 2); o[5] = static_cast<u16>(v0 + 3);
+            }
+            bgfx::setVertexBuffer(0, &tvb);
+            bgfx::setIndexBuffer(&tib);
+            bgfx::setTexture(0, pass.sampler, runTex);
+            if (bgfx::isValid(pass.bias)) {
+                const float biasVec[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+                bgfx::setUniform(pass.bias, biasVec);
+            }
+            if (bgfx::isValid(pass.fade)) {
+                const float fadeVec[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+                bgfx::setUniform(pass.fade, fadeVec);  // shader alpha = fade * vertex.a
+            }
+            if (runAlpha) {
+                // Airship clouds: normal alpha blend (white over blue sky) with depth TEST (LEQUAL) but no
+                // Z write, so the deck/terrain occlude clouds behind the hull while clouds never write depth
+                // over each other or the actors.
+                bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LEQUAL | BGFX_STATE_BLEND_ALPHA);
+            } else {
+                // Additive glow: SRC_ALPHA, ONE. Depth-TEST (no Z write) so walls occlude it. LESS (strict),
+                // not LEQUAL: particles render AFTER the actors, which have already written their depth, so a
+                // particle coplanar with / behind the char (equal-or-greater depth) now LOSES the test and is
+                // hidden by the char instead of blending over its body — S.: "эффекты не должны просвечиваться
+                // через чара, когда они за чаром". A particle genuinely in front (strictly nearer) still shows.
+                bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS |
+                               BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_ONE));
+            }
+            bgfx::submit(pass.view, pass.program);
+            done += n;
+        }
+        verts.clear();
+    };
     const ParticleSystem* systems[3] = {&cloudFx_, &skillParticles_, &ambientFx_};
     for (const ParticleSystem* sys : systems)
     for (const Particle& p : sys->particles()) {
@@ -9343,52 +9416,21 @@ void GameScene::drawSkillParticles(const WorldSpritePass& pass) {
             {p.pos.x + ax.x * hx - ay.x * hy, p.pos.y + ax.y * hx - ay.y * hy, p.pos.z + ax.z * hx - ay.z * hy},
             {p.pos.x + ax.x * hx + ay.x * hy, p.pos.y + ax.y * hx + ay.y * hy, p.pos.z + ax.z * hx + ay.z * hy},
             {p.pos.x - ax.x * hx + ay.x * hy, p.pos.y - ax.y * hx + ay.y * hy, p.pos.z - ax.z * hx + ay.z * hy}};
-        if (bgfx::getAvailTransientVertexBuffer(4, *pass.layout) < 4 ||
-            bgfx::getAvailTransientIndexBuffer(6) < 6)
-            return;
-        bgfx::TransientVertexBuffer tvb;
-        bgfx::TransientIndexBuffer tib;
-        bgfx::allocTransientVertexBuffer(&tvb, 4, *pass.layout);
-        bgfx::allocTransientIndexBuffer(&tib, 6);
-        PV* vd = reinterpret_cast<PV*>(tvb.data);
-        vd[0] = {c[0].x, c[0].y, c[0].z, 0.0f, 0.0f, col};
-        vd[1] = {c[1].x, c[1].y, c[1].z, 1.0f, 0.0f, col};
-        vd[2] = {c[2].x, c[2].y, c[2].z, 1.0f, 1.0f, col};
-        vd[3] = {c[3].x, c[3].y, c[3].z, 0.0f, 1.0f, col};
-        u16* id = reinterpret_cast<u16*>(tib.data);
-        id[0] = 0; id[1] = 1; id[2] = 2; id[3] = 0; id[4] = 2; id[5] = 3;
-        bgfx::setVertexBuffer(0, &tvb);
-        bgfx::setIndexBuffer(&tib);
         // A resolved RoM effect sprite (Particle.fxTex) overrides the generic glow.
         bgfx::TextureHandle ptex = particleTex_;
         if (p.fxTex >= 0 && static_cast<usize>(p.fxTex) < romFxTextures_.size() &&
             bgfx::isValid(romFxTextures_[p.fxTex]))
             ptex = romFxTextures_[p.fxTex];
-        bgfx::setTexture(0, pass.sampler, ptex);
-        if (bgfx::isValid(pass.bias)) {
-            const float biasVec[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-            bgfx::setUniform(pass.bias, biasVec);
-        }
-        if (bgfx::isValid(pass.fade)) {
-            const float fadeVec[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-            bgfx::setUniform(pass.fade, fadeVec);  // shader alpha = fade * vertex.a
-        }
-        if (p.alphaBlend) {
-            // Airship clouds: normal alpha blend (white over blue sky) with depth TEST (LEQUAL) but no
-            // Z write, so the deck/terrain occlude clouds behind the hull while clouds never write depth
-            // over each other or the actors.
-            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LEQUAL | BGFX_STATE_BLEND_ALPHA);
-        } else {
-            // Additive glow: SRC_ALPHA, ONE. Depth-TEST (no Z write) so walls occlude it. LESS (strict),
-            // not LEQUAL: particles render AFTER the actors, which have already written their depth, so a
-            // particle coplanar with / behind the char (equal-or-greater depth) now LOSES the test and is
-            // hidden by the char instead of blending over its body — S.: "эффекты не должны просвечиваться
-            // через чара, когда они за чаром". A particle genuinely in front (strictly nearer) still shows.
-            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS |
-                           BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_ONE));
-        }
-        bgfx::submit(pass.view, pass.program);
+        if (!verts.empty() && (ptex.idx != runTex.idx || p.alphaBlend != runAlpha)) flush();
+        if (exhausted) return;
+        runTex = ptex;
+        runAlpha = p.alphaBlend;
+        verts.push_back({c[0].x, c[0].y, c[0].z, 0.0f, 0.0f, col});
+        verts.push_back({c[1].x, c[1].y, c[1].z, 1.0f, 0.0f, col});
+        verts.push_back({c[2].x, c[2].y, c[2].z, 1.0f, 1.0f, col});
+        verts.push_back({c[3].x, c[3].y, c[3].z, 0.0f, 1.0f, col});
     }
+    flush();
 }
 
 void GameScene::playEffectSeq(Application& app, u16 effectId, const Vec3& at) {
@@ -11287,6 +11329,8 @@ void GameScene::pushChatToast(const std::string& text, u32 color) {
 void GameScene::update(Application& app, double dt) {
     time_ += dt;
     CharacterActor::setContentSpriteScale(app.spriteQuality());  // 1k base; 2k/4k pack -> shrink to 1k
+    CharacterActor::beginFrame();  // sprite texture cache clock + budget (releases long-unused frames)
+    renderer_.syncNormals(app);    // relief maps follow the Normals setting live (built/freed on change)
     // Put the mouse into LOGICAL space (physical / uiScale) ONCE per frame, right at the top of the
     // frame's game logic. The whole HUD is drawn and hit-tested in logical space, and the world-pick
     // viewport (lastViewW_/H_) is stored logical too, so from here on EVERY consumer — update(),
@@ -12341,12 +12385,16 @@ void GameScene::update(Application& app, double dt) {
         }
         // retryActorSprites: any sprite that failed to load on spawn (transient GRF/GPU contention
         // during the map-entry area-scan burst) leaves the unit invisible -- the draw loop skips
-        // not-ready sprites. Re-attempt EVERY not-ready actor each tick (PCs, mobs AND NPCs -- S.
-        // wants sprites/textures/animations reloaded until they come in), until it succeeds
-        // (spriteTried latches true on success, so this is a no-op in steady state).
+        // not-ready sprites. Re-attempt every not-ready actor (PCs, mobs AND NPCs -- S. wants
+        // sprites/textures/animations reloaded until they come in) until it succeeds (spriteTried
+        // latches true on success, so this is a no-op in steady state). Each actor backs off: 0.1 s,
+        // doubling to every 2 s. A sprite that doesn't exist at all (docs/missing-sprites-audit.md lists
+        // 154 views) used to be re-probed EVERY frame - .spr + up to 64 .webp/.png frame probes + .act,
+        // each through every candidate path and archive, hundreds of file lookups per frame per unit.
         for (auto& kv : actors_) {
             MapActor& a = kv.second;
             if (a.spriteTried || a.sprite.ready()) continue;
+            if (!a.spriteRetry.due(time_)) continue;
             if (a.info.pc)
                 a.sprite.load(app.vfs(), a.info.class_, a.info.sex, a.info.hair, a.info.headBottom,
                               a.info.headMid, a.info.headTop, (a.info.option & 0x20) != 0,
@@ -12356,6 +12404,7 @@ void GameScene::update(Application& app, double dt) {
             else
                 a.spriteTried = true;  // nothing to load (unknown view) -> don't spin on it
             if (a.sprite.ready()) a.spriteTried = true;
+            else a.spriteRetry.failed(time_);
         }
         // NOTE: no background preloading of effects/sprites/items/SFX (S. 2026-07-16: "убрать всю
         // предзагрузку — грузим лениво, держим в кеше"). Every asset now loads on first use and its
@@ -12647,6 +12696,9 @@ void GameScene::update(Application& app, double dt) {
         if (autoAttackOn_ && attackTarget_ == 0 && !haveWalkTarget_ && !dead_ && !dialogOpen_ &&
             shopMode_ == ShopMode::None && time_ - lastAutoTargetScan_ >= 0.25) {
             lastAutoTargetScan_ = time_;  // throttle: A* per candidate is not free
+            if (autoUnreachUntil_.size() > 256)  // drop expired entries (despawned / long-gone mobs)
+                for (auto it = autoUnreachUntil_.begin(); it != autoUnreachUntil_.end();)
+                    it = (it->second <= time_) ? autoUnreachUntil_.erase(it) : std::next(it);
             // Pick the mob with the shortest WALK to it, not the nearest as the crow flies (S.: "по
             // дистанции подхода, а не по радиусу") -- so a mob across a wall isn't chosen over a
             // closer-to-reach one. Pre-filter by straight-line range to bound the number of A* runs,
@@ -12668,12 +12720,19 @@ void GameScene::update(Application& app, double dt) {
                 float cost;
                 u16 mx = 0, my = 0;
                 if (havePlayerCell && worldToCell(a.pos, mx, my)) {
+                    // A mob we just failed to reach is skipped for 2 s (it moves, so it is re-checked then):
+                    // each failed search expands up to 16000 cells, and this scan runs 4x a second.
+                    if (auto un = autoUnreachUntil_.find(gid); un != autoUnreachUntil_.end() && time_ < un->second)
+                        continue;
                     const auto path = findPath(*md.gat, px, py, mx, my, 16000);  // larger radius -> more nodes
                     // GAT-aware: only engage mobs we can actually WALK to. A mob across an impassable
                     // strip / up a cliff returns an empty path -> SKIP it, don't try to run there
                     // (S.: "чар пытается забежать на гору через непроходимую зону"). Rank the rest by
                     // walk length (cells) with a small euclidean tiebreak.
-                    if (path.empty()) continue;
+                    if (path.empty()) {
+                        autoUnreachUntil_[gid] = time_ + 2.0;
+                        continue;
+                    }
                     cost = static_cast<float>(path.size()) + euclid * 0.001f;
                 } else {
                     cost = euclid;  // no GAT/cell info -> fall back to straight-line (old behaviour)
@@ -15427,26 +15486,50 @@ void GameScene::render(Application& app) {
             // Word-wrap each log line to the chat width (S.: переносить строки по словам); break only
             // at spaces so multibyte (Cyrillic) words stay intact. Then show the last kVis lines.
             const float maxTextW = cbw - 12.0f;
-            std::vector<ChatLine> wrapped;
-            for (const auto& src : chatLog_) {
-                std::string cur, word;
-                auto flush = [&]() {
-                    if (word.empty()) return;
-                    const std::string cand = cur.empty() ? word : cur + " " + word;
-                    if (!cur.empty() && font.width(cand, sc) > maxTextW) {
-                        wrapped.push_back({cur, src.color});
-                        cur = word;
-                    } else
-                        cur = cand;
-                    word.clear();
-                };
-                for (char c : src.text) {
-                    if (c == ' ') flush();
-                    else word += c;
+            // The wrap (string building + font.width per word over the whole 300-line log) used to run
+            // every frame; redo it only when the log, the width or the text scale changed. The key is an
+            // FNV-1a hash of every line, so none of the many places that append to chatLog_ need to know.
+            u64 wrapKey = 1469598103934665603ull;
+            auto mixKey = [&wrapKey](const void* data, usize n) {
+                const u8* b = static_cast<const u8*>(data);
+                for (usize i = 0; i < n; ++i) {
+                    wrapKey ^= b[i];
+                    wrapKey *= 1099511628211ull;
                 }
-                flush();
-                wrapped.push_back({cur, src.color});
+            };
+            for (const auto& src : chatLog_) {
+                mixKey(src.text.data(), src.text.size());
+                mixKey(&src.color, sizeof(src.color));
+                const u8 sep = 0xff;  // line boundary
+                mixKey(&sep, 1);
             }
+            mixKey(&maxTextW, sizeof(maxTextW));
+            mixKey(&sc, sizeof(sc));
+            if (wrapKey != chatWrapKey_) {
+                chatWrapKey_ = wrapKey;
+                std::vector<ChatLine>& wrapped = chatWrapped_;
+                wrapped.clear();
+                for (const auto& src : chatLog_) {
+                    std::string cur, word;
+                    auto flush = [&]() {
+                        if (word.empty()) return;
+                        const std::string cand = cur.empty() ? word : cur + " " + word;
+                        if (!cur.empty() && font.width(cand, sc) > maxTextW) {
+                            wrapped.push_back({cur, src.color});
+                            cur = word;
+                        } else
+                            cur = cand;
+                        word.clear();
+                    };
+                    for (char c : src.text) {
+                        if (c == ' ') flush();
+                        else word += c;
+                    }
+                    flush();
+                    wrapped.push_back({cur, src.color});
+                }
+            }
+            const std::vector<ChatLine>& wrapped = chatWrapped_;
             const int total = static_cast<int>(wrapped.size());
             const int maxScroll = std::max(0, total - kVis);
             if (uin.hit(cbx - 2.0f, areaY, cbw + 4.0f, areaH) && uin.wheel != 0.0f)

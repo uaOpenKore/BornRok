@@ -15,6 +15,14 @@
 namespace uaro {
 
 namespace {
+// CLAMP wrap kills the ground texture seams (S.: "полоски сгонки текстур ... свести 1 пиксель"):
+// ~87% of GND tiles sit on the texture border (u/v at 0 or 1), and with the default REPEAT wrap
+// the bilinear/anisotropic tap there bleeds in the OPPOSITE edge's texels — a thin line at every
+// tile join, worst at the lower mips. No tile tiles past [0,1] (verified across dungeon+city maps
+// via maptest UVRANGE), so clamping to the edge is lossless for the tiling and removes the bleed.
+constexpr u64 kGroundTexFlags = BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC |
+                                BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+
 // xBR 4x upscale of a ground texture (#xbr), in place. Ground UVs are normalised [0,1] per tile, so an
 // upscaled tile needs no logical bookkeeping -- just denser pixels. No-op when the toggle is off.
 void xbrUpscaleImage(Image& img) {
@@ -103,13 +111,13 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
     white_ = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_NONE,
                                    bgfx::copy(whitePx, 4));
 
-    // CLAMP wrap kills the ground texture seams (S.: "полоски сгонки текстур ... свести 1 пиксель"):
-    // ~87% of GND tiles sit on the texture border (u/v at 0 or 1), and with the default REPEAT wrap
-    // the bilinear/anisotropic tap there bleeds in the OPPOSITE edge's texels — a thin line at every
-    // tile join, worst at the lower mips. No tile tiles past [0,1] (verified across dungeon+city maps
-    // via maptest UVRANGE), so clamping to the edge is lossless for the tiling and removes the bleed.
-    constexpr u64 kTexFlags = BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC |
-                              BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    // Texture size cap (g_texMaxDim, Settings -> Video -> Texture Size): shrink the decoded tiles IN
+    // PLACE, so the upload, the relief maps made from them and the copy kept in RAM for the whole map
+    // (grass reads its tint from it) are all capped.
+    if (g_texMaxDim > 0)
+        for (auto& img : map_.textures)
+            if (img && img->valid()) downscaleToMaxDim(*img, static_cast<u32>(g_texMaxDim));
+    constexpr u64 kTexFlags = kGroundTexFlags;
     textures_.reserve(map_.textures.size());
     for (const auto& img : map_.textures) {
         if (img && img->valid()) {
@@ -140,42 +148,11 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
     const u8 flatPx[4] = {128, 128, 255, 255};  // (0,0,1) in tangent space = no perturbation
     flatNrm_ = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_NONE,
                                      bgfx::copy(flatPx, 4));
-    normalTextures_.reserve(map_.gnd.textures().size());
-    for (usize ti = 0; ti < map_.gnd.textures().size(); ++ti) {
-        const auto& name = map_.gnd.textures()[ti];
-        bgfx::TextureHandle h = flatNrm_;
-        // Optional hand-authored normal map: probe _n.webp then _n.png QUIETLY — most tiles have none, and
-        // all content ships as .webp, so an absent _n.png must NOT spam the missing-resource log (S.: "в лог
-        // не должно писаться отсутствующая текстура, если её находит по webp — у нас все изображения в webp").
-        std::optional<std::vector<u8>> nbytes;
-        {
-            const std::string np = normalMapPath("data/texture/" + name);  // ..._n.png
-            if (np.size() > 4) nbytes = app.vfs().readQuiet(np.substr(0, np.size() - 4) + ".webp");
-            if (!nbytes) nbytes = app.vfs().readQuiet(np);
-        }
-        if (nbytes) {
-            if (auto img = decodeImage(*nbytes); img && img->valid()) {
-                const std::vector<u8> chain = buildMipChain(*img);
-                h = bgfx::createTexture2D(
-                    static_cast<u16>(img->width), static_cast<u16>(img->height), true, 1,
-                    bgfx::TextureFormat::RGBA8, kTexFlags,
-                    bgfx::copy(chain.data(), static_cast<u32>(chain.size())));
-            }
-        } else if (ti < map_.textures.size() && map_.textures[ti] && map_.textures[ti]->valid()) {
-            // No hand-authored _n.png: derive relief from the diffuse's own luminance (S.:
-            // "исходя из яркости пикселя сделать высоту нормали"). Subtle strength — the dark
-            // seams of stone/brick become grooves without over-embossing painted detail.
-            const Image gen = normalFromLuminance(*map_.textures[ti], 3.0f);  // x2 base; scaled live by g_normalsFactor
-            if (gen.valid()) {
-                const std::vector<u8> chain = buildMipChain(gen);
-                h = bgfx::createTexture2D(
-                    static_cast<u16>(gen.width), static_cast<u16>(gen.height), true, 1,
-                    bgfx::TextureFormat::RGBA8, kTexFlags,
-                    bgfx::copy(chain.data(), static_cast<u32>(chain.size())));
-            }
-        }
-        normalTextures_.push_back(h);
-    }
+    // The per-tile relief maps exist only while Normals is on: they are full-size RGBA8 copies of every
+    // ground texture (the same memory again). syncNormals() builds/frees them when the setting changes.
+    normalTextures_.clear();
+    normalsBuilt_ = false;
+    if (g_normalsFactor > 0.001f) buildNormalMaps(app);
 
     // Lightmap texture (baked shadows + coloured light), sampled per-pixel by the
     // ground shader for smooth shadows. Bilinear + clamp so it interpolates across
@@ -270,6 +247,69 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
     return true;
 }
 
+void MapRenderer::buildNormalMaps(Application& app) {
+    freeNormalMaps();
+    normalTextures_.reserve(map_.gnd.textures().size());
+    for (usize ti = 0; ti < map_.gnd.textures().size(); ++ti) {
+        const auto& name = map_.gnd.textures()[ti];
+        bgfx::TextureHandle h = flatNrm_;
+        // Optional hand-authored normal map: probe _n.webp then _n.png QUIETLY — most tiles have none, and
+        // all content ships as .webp, so an absent _n.png must NOT spam the missing-resource log (S.: "в лог
+        // не должно писаться отсутствующая текстура, если её находит по webp — у нас все изображения в webp").
+        std::optional<std::vector<u8>> nbytes;
+        {
+            const std::string np = normalMapPath("data/texture/" + name);  // ..._n.png
+            if (np.size() > 4) nbytes = app.vfs().readQuiet(np.substr(0, np.size() - 4) + ".webp");
+            if (!nbytes) nbytes = app.vfs().readQuiet(np);
+        }
+        if (nbytes) {
+            if (auto img = decodeImage(*nbytes); img && img->valid()) {
+                downscaleToMaxDim(*img, static_cast<u32>(std::max(0, g_texMaxDim)));
+                const std::vector<u8> chain = buildMipChain(*img);
+                h = bgfx::createTexture2D(
+                    static_cast<u16>(img->width), static_cast<u16>(img->height), true, 1,
+                    bgfx::TextureFormat::RGBA8, kGroundTexFlags,
+                    bgfx::copy(chain.data(), static_cast<u32>(chain.size())));
+            }
+        } else if (ti < map_.textures.size() && map_.textures[ti] && map_.textures[ti]->valid()) {
+            // No hand-authored _n.png: derive relief from the diffuse's own luminance (S.:
+            // "исходя из яркости пикселя сделать высоту нормали"). Subtle strength — the dark
+            // seams of stone/brick become grooves without over-embossing painted detail.
+            const Image gen = normalFromLuminance(*map_.textures[ti], 3.0f);  // x2 base; scaled live by g_normalsFactor
+            if (gen.valid()) {
+                const std::vector<u8> chain = buildMipChain(gen);
+                h = bgfx::createTexture2D(
+                    static_cast<u16>(gen.width), static_cast<u16>(gen.height), true, 1,
+                    bgfx::TextureFormat::RGBA8, kGroundTexFlags,
+                    bgfx::copy(chain.data(), static_cast<u32>(chain.size())));
+            }
+        }
+        normalTextures_.push_back(h);
+    }
+    normalsBuilt_ = true;
+}
+
+void MapRenderer::freeNormalMaps() {
+    for (auto t : normalTextures_)
+        if (bgfx::isValid(t) && t.idx != flatNrm_.idx) bgfx::destroy(t);
+    normalTextures_.clear();
+    normalsBuilt_ = false;
+}
+
+void MapRenderer::syncNormals(Application& app) {
+    if (!ready_) return;
+    const bool want = g_normalsFactor > 0.001f;
+    if (want == normalsBuilt_) return;
+    if (want) {
+        buildNormalMaps(app);
+        models_.buildNormals(app);
+    } else {
+        freeNormalMaps();
+        models_.freeNormals();
+    }
+    log::info("MapRenderer: relief maps {} ({} ground)", want ? "built" : "freed", normalTextures_.size());
+}
+
 void MapRenderer::destroy() {
     for (auto t : textures_)
         if (bgfx::isValid(t) && t.idx != white_.idx) bgfx::destroy(t);
@@ -277,6 +317,7 @@ void MapRenderer::destroy() {
     for (auto t : normalTextures_)
         if (bgfx::isValid(t) && t.idx != flatNrm_.idx) bgfx::destroy(t);
     normalTextures_.clear();
+    normalsBuilt_ = false;
     if (bgfx::isValid(flatNrm_)) bgfx::destroy(flatNrm_);
     if (bgfx::isValid(nrmSampler_)) bgfx::destroy(nrmSampler_);
     if (bgfx::isValid(nrmParams_)) bgfx::destroy(nrmParams_);
@@ -416,7 +457,7 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
         bgfx::submit(0, program_);
     }
 
-    models_.render(map_, camPos, playerPos, time, worldFade);  // RSM objects (faded too in x-ray; time spins animated nodes)
+    models_.render(map_, view, proj, camPos, playerPos, time, worldFade);  // RSM objects (faded too in x-ray; time spins animated nodes)
     grass_.render(time, playerPos.x, playerPos.z);  // ground-grass (#grass); LOD-radius culled around the player (#lod)
 
     // Planar water reflection pass (#water): re-render the terrain from the mirror camera into the
@@ -464,7 +505,7 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
             bgfx::submit(refl.view, program_);
         }
         // Objects too (trees/buildings above water). Same mirror camera + reflection view.
-        models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time);
+        models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time, playerPos);
     }
 
     water_.render(time, refl);   // animated water surface, blended over the terrain it covers

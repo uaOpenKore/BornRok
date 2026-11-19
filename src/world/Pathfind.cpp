@@ -108,8 +108,11 @@ int addPath(int* heap, TmpPath* tp, unsigned gen, int W, int x, int y, int dist,
     return 0;
 }
 
+// maxNodes > 0 caps the expanded (popped) cells: a target the player can't reach otherwise floods the
+// whole connected area of the map before the heap runs dry (the auto-attack scan paths to every mob in
+// range four times a second). 0 = no cap - walking plans the full route (see the note above).
 std::vector<std::pair<u16, u16>> serverAStar(const std::function<bool(int, int)>& walkable, int W,
-                                             int H, int x0, int y0, int x1, int y1) {
+                                             int H, int x0, int y0, int x1, int y1, int maxNodes) {
     std::vector<std::pair<u16, u16>> out;
     const int N = W * H;
     // Single-threaded main loop -> reuse a generation-stamped scratch (grown to the biggest map seen).
@@ -129,9 +132,11 @@ std::vector<std::pair<u16, u16>> serverAStar(const std::function<bool(int, int)>
     pushHeap(heap, tp, si);
     const int xs = W - 1, ys = H - 1;
     int rp = si, x = x0, y = y0;
+    int expanded = 0;
     while (true) {
         int e = 0, f = 0, dist, cost, dc[4] = {0, 0, 0, 0};
         if (heap[0] == 0) return out;  // exhausted -> unreachable
+        if (maxNodes > 0 && ++expanded > maxNodes) return out;  // gave up (see maxNodes above)
         rp = popHeap(heap, tp);
         x = tp[rp].x; y = tp[rp].y;
         dist = tp[rp].dist + 10;
@@ -174,9 +179,8 @@ std::vector<std::pair<u16, u16>> findPath(int W, int H, const std::function<bool
     if (!path.empty()) return path;
 
     // Obstacle case: reproduce the server's A* (see serverAStar) so the route is the SAME cells the
-    // server walks. maxNodes is unused now -- serverAStar searches the whole (bounded) map.
-    (void)maxNodes;
-    return serverAStar(walkable, W, H, sx, sy, dx, dy);
+    // server walks. maxNodes (0 = whole map) only bounds searches whose callers ask for it.
+    return serverAStar(walkable, W, H, sx, sy, dx, dy, maxNodes);
 }
 
 std::vector<std::pair<u16, u16>> findPath(const Gat& gat, u16 sx, u16 sy, u16 dx, u16 dy,

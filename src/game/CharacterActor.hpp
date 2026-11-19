@@ -109,6 +109,12 @@ public:
     // "M:..."), keeping the player-appearance ("P...") entries. Called on a map change so each location
     // caches its own mobs/NPCs and frees the previous map's (S. 2026-07-16). bgfx must be up.
     static void clearActorCache();
+    // Once per in-game frame: advances the shared texture cache's clock and, while the cache holds more
+    // than g_spriteTexBudget frame textures (frames + relief maps), releases the ones not drawn for a few
+    // seconds, least recently drawn first. Their sprites stay parsed, so a frame that comes back is just
+    // re-uploaded. Before this, player looks were never released and a long town session could run the
+    // whole client into bgfx's 4096-texture limit.
+    static void beginFrame();
     // Every player body (all jobs x both sexes) + hairstyle head .spr/.act vpath, for warming the
     // VFS byte cache on map entry so WoE crowds compose without a GRF-inflate hitch (S.).
     static std::vector<std::string> playerPartPaths();

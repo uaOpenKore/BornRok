@@ -186,4 +186,38 @@ std::string normalMapPath(const std::string& diffusePath) {
     return stem + "_n.png";
 }
 
+void downscaleToMaxDim(Image& img, u32 maxDim) {
+    if (maxDim == 0 || !img.valid()) return;
+    while (img.width > maxDim || img.height > maxDim) {
+        const u32 w = img.width, h = img.height;
+        const u32 nw = std::max<u32>(1, w >> 1), nh = std::max<u32>(1, h >> 1);
+        std::vector<u8> out(static_cast<usize>(nw) * nh * 4);
+        for (u32 y = 0; y < nh; ++y) {
+            const u32 ys[2] = {std::min(h - 1, y * 2), std::min(h - 1, y * 2 + 1)};
+            for (u32 x = 0; x < nw; ++x) {
+                const u32 xs[2] = {std::min(w - 1, x * 2), std::min(w - 1, x * 2 + 1)};
+                const u8* p[4] = {&img.rgba[(static_cast<usize>(ys[0]) * w + xs[0]) * 4],
+                                  &img.rgba[(static_cast<usize>(ys[0]) * w + xs[1]) * 4],
+                                  &img.rgba[(static_cast<usize>(ys[1]) * w + xs[0]) * 4],
+                                  &img.rgba[(static_cast<usize>(ys[1]) * w + xs[1]) * 4]};
+                const u32 sumA = static_cast<u32>(p[0][3]) + p[1][3] + p[2][3] + p[3][3];
+                u8* q = &out[(static_cast<usize>(y) * nw + x) * 4];
+                for (int c = 0; c < 3; ++c) {
+                    if (sumA > 0) {
+                        const u32 s = static_cast<u32>(p[0][c]) * p[0][3] + static_cast<u32>(p[1][c]) * p[1][3] +
+                                      static_cast<u32>(p[2][c]) * p[2][3] + static_cast<u32>(p[3][c]) * p[3][3];
+                        q[c] = static_cast<u8>((s + sumA / 2) / sumA);
+                    } else {
+                        q[c] = static_cast<u8>((static_cast<u32>(p[0][c]) + p[1][c] + p[2][c] + p[3][c] + 2) / 4);
+                    }
+                }
+                q[3] = static_cast<u8>((sumA + 2) / 4);
+            }
+        }
+        img.width = nw;
+        img.height = nh;
+        img.rgba.swap(out);
+    }
+}
+
 }  // namespace uaro

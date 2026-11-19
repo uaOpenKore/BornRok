@@ -12,6 +12,8 @@ struct RenderConfig {
     int width = 1280;
     int height = 720;
     bool vsync = true;
+    int msaa = 4;          // backbuffer MSAA samples 0/2/4/8 (always 0 on Android)
+    std::string cacheDir;  // where bgfx's shader/pipeline cache blobs are kept; "" = no cache
 };
 
 // Owns the bgfx device bound to a native window. View 0 is the primary screen
@@ -46,6 +48,14 @@ public:
     // gives a permanent black screen (S. 2026-08-06). No-op off Android.
     void reacquire(const NativeWindow& nw);
     void setVsync(bool on);  // toggle V-Sync at runtime (bgfx::reset); no-op if unchanged (#104)
+    // Backbuffer MSAA (Settings -> Video -> MSAA): 0/2/4/8 samples, bgfx::reset at runtime. With
+    // Bloom/AO/grade on, the 3D scene renders into a single-sample offscreen and only the UI lands in
+    // the MSAA backbuffer, so there it costs memory bandwidth for nothing (Off on the Switch profile).
+    void setMsaa(int samples);
+    int msaa() const { return msaa_; }
+    // One line of bgfx frame statistics (draw calls, triangles, texture count/memory, CPU/GPU times) for
+    // the periodic perf log; empty before init.
+    std::string statsLine() const;
     void beginFrame();  // set view rect + clear, ensure the view is touched
     void endFrame();    // advance bgfx (present)
 
@@ -162,6 +172,7 @@ private:
     void createComposeTargets();
     void destroyComposeTargets();
     void recomputeRenderSize();  // sceneW_/sceneH_ = round(native * fsrScale_) for the 3D view
+    u32 resetFlags() const;      // bgfx::reset flags: MSAA + V-Sync
     bool upscaling() const { return fsrScale_ < 0.999f; }     // FSR1 (render below native)
     bool supersampling() const { return fsrScale_ > 1.001f; }  // SSAA (render above native)
     bool hdrActive() const { return hdrOn_ && !fsrActive() && postReady_ && bgfx::isValid(hdrFb_); }
@@ -196,6 +207,7 @@ private:
     int height_ = 0;
     int sceneW_ = 0, sceneH_ = 0;  // off-screen 3D-view size (= native * fsrScale_); <native = FSR, >native = SSAA
     bool vsync_ = true;
+    int msaa_ = 4;  // backbuffer MSAA samples (see setMsaa)
     bool inited_ = false;
     bool worldScene_ = false;  // true only while the in-game 3D scene renders (gates render-scale)
     u32 clearColor_ = 0x202830ffu;  // default until a map sets its sky colour

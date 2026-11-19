@@ -1,6 +1,7 @@
 #pragma once
 #include <bgfx/bgfx.h>
 
+#include <string>
 #include <vector>
 
 #include "core/math/Math.hpp"
@@ -27,15 +28,22 @@ public:
     // camera->player line) fade to semi-transparent so they don't hide the player.
     // forceFade < 1 fades EVERY model to that opacity (Camera Lock x-ray), instead of only the
     // placements crossing the camera->player line. (#104)
-    void render(const MapData& map, const Vec3& camPos, const Vec3& playerPos,
-                double time, float forceFade = 1.0f) const;
+    // view/proj = the main camera (view 0): placements outside its frustum are skipped.
+    void render(const MapData& map, const Mat4& view, const Mat4& proj, const Vec3& camPos,
+                const Vec3& playerPos, double time, float forceFade = 1.0f) const;
 
     // Planar-reflection pass (#water): draw every placement OPAQUE into `view` with the mirror
     // camera (mirrorView = main view * reflection matrix), same projection as the scene. No
     // camera-occlude fade (the reflection shows the full world). Used by MapRenderer for the
     // water reflection; cheap-ish — one extra draw per placement into a small offscreen.
+    // Placements outside the mirror camera's frustum or the LOD radius around playerPos are skipped.
     void renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
-                          bgfx::ViewId view, double time) const;
+                          bgfx::ViewId view, double time, const Vec3& playerPos) const;
+
+    // Relief (normal) maps exist only while Normals is on: load() builds them if it is, and
+    // MapRenderer::syncNormals() calls these when the setting changes on the current map.
+    void buildNormals(Application& app);
+    void freeNormals();
 
 private:
     struct Batch {
@@ -43,6 +51,7 @@ private:
         bgfx::TextureHandle nrm = BGFX_INVALID_HANDLE;  // optional _n.png normal map (#107)
         u32 indexStart = 0;
         u32 indexCount = 0;
+        std::string texName;  // data/texture/ name of the diffuse (to build its relief map on demand)
     };
     // A node that carries rotation keyframes (rotKeys) — e.g. an airship propeller. Its geometry is
     // baked in the node's REST space (scale/offset/mat3 only, NOT the animated rotation) into its own
@@ -62,11 +71,26 @@ private:
         std::vector<Batch> batches;
         std::vector<AnimNode> animNodes;  // rotating sub-parts drawn per-frame (usually empty)
         f32 radiusXZ = 0.0f;  // model-space horizontal bounding-circle radius (camera-occlude fade)
+        Vec3 boundCenter{};   // model-space bounding sphere of the static geometry (frustum culling)
+        f32 boundRadius = 0.0f;
+        bool cullable = false;  // false when spinning parts reach outside the sphere
         bool ok = false;
+    };
+    // One RSW placement, composed once at load: world matrix + world-space bounding sphere.
+    struct Placed {
+        Mat4 place = Mat4::identity();
+        Vec3 center{};
+        f32 radius = 0.0f;
+        f32 sxz = 1.0f;  // max |scale| on X/Z (camera-occlude capture radius)
+        int mi = 0;      // index into models_
+        bool cull = false;
     };
 
     std::vector<Model> models_;                  // parallel to map.rsmCache
+    std::vector<Placed> placed_;                 // drawable placements in RSW order
     std::vector<bgfx::TextureHandle> textures_;  // owned; deduplicated per name
+    std::vector<bgfx::TextureHandle> normals_;   // owned relief maps (only while Normals is on)
+    bool normalsBuilt_ = false;
     bgfx::ProgramHandle program_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle fade_ = BGFX_INVALID_HANDLE;  // u_fade.x: per-draw alpha (camera-occlude fade)

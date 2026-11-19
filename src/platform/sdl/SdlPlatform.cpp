@@ -501,6 +501,15 @@ bool Platform::pump(InputState& state) {
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
                 state.resized = true;
                 break;
+            case SDL_EVENT_WINDOW_MINIMIZED:
+            case SDL_EVENT_WINDOW_HIDDEN:
+                state.minimized = true;
+                break;
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_MAXIMIZED:
+            case SDL_EVENT_WINDOW_SHOWN:
+                state.minimized = false;
+                break;
             case SDL_EVENT_GAMEPAD_ADDED:
                 if (!g_pad) {  // one-controller model: adopt the first that connects
                     g_pad = SDL_OpenGamepad(e.gdevice.which);

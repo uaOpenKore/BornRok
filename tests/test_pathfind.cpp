@@ -111,3 +111,35 @@ TEST_CASE(pathfind_dest_blocked) {
 TEST_CASE(pathfind_same_cell) {
     CHECK(findPath(10, 10, kOpen, 4, 4, 4, 4).empty());
 }
+
+TEST_CASE(pathfind_max_nodes_bounds_an_unreachable_search) {
+    // 200x200 open map, the target sealed inside a one-cell wall ring: unreachable. Unbounded, A* floods
+    // the whole map; with maxNodes it gives up early. Count walkable() calls as the work done.
+    int calls = 0;
+    const std::function<bool(int, int)> sealed = [&calls](int x, int y) {
+        ++calls;
+        const int dx = x - 100, dy = y - 100;
+        const bool ring = (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) && !(dx == 0 && dy == 0);
+        return !ring;
+    };
+    auto bounded = findPath(200, 200, sealed, 10, 10, 100, 100, 500);
+    CHECK(bounded.empty());
+    const int boundedCalls = calls;
+    calls = 0;
+    auto unbounded = findPath(200, 200, sealed, 10, 10, 100, 100, 0);
+    CHECK(unbounded.empty());
+    CHECK(boundedCalls < 10000);
+    CHECK(calls > 100000);
+}
+
+TEST_CASE(pathfind_default_is_unbounded_for_long_detours) {
+    // A wall across the whole map except a gap at the far end: the only route is a long detour. Walking
+    // plans the FULL route (the hop-slicer needs it), so the default must not cut it off.
+    const std::function<bool(int, int)> wall = [](int x, int y) { return !(x == 100 && y < 290); };
+    auto p = findPath(300, 300, wall, 90, 10, 110, 10);
+    CHECK(!p.empty());
+    if (!p.empty()) {
+        CHECK_EQ(p.back().first, 110);
+        CHECK_EQ(p.back().second, 10);
+    }
+}

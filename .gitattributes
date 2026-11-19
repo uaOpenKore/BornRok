@@ -4,6 +4,10 @@
 # eol=lf makes git write these with LF in every working tree, regardless of core.autocrlf.
 *.sh text eol=lf
 
+# bgfx shader sources (and bgfx_shader.sh above): shaderc's preprocessor on Linux rejects the CR -
+# "illegal character (13 decimal) in #if" (S. 2026-11-19, the same WSL build). shaderc reads LF fine on Windows.
+*.sc text eol=lf
+
 # Other Linux-side text that breaks with CRLF (desktop entries, flatpak/appstream manifests).
 *.desktop text eol=lf
 *.yml text eol=lf

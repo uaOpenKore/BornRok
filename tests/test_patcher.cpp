@@ -1,10 +1,16 @@
 #include "patcher/ContentQuality.hpp"
 #include "patcher/GDriveUrl.hpp"
+#include "patcher/LocalReuse.hpp"
 #include "patcher/PatchManifest.hpp"
 #include "patcher/PatcherConfig.hpp"
 #include "patcher/PlatformId.hpp"
 
 #include "microtest.hpp"
+
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <optional>
 
 using namespace uaro;
 
@@ -239,4 +245,120 @@ TEST_CASE(platform_osrelease_parse) {
     CHECK(linuxDistroFromOsRelease("ID=linuxmint\nID_LIKE=\"ubuntu debian\"\n") == "ubuntu");
     // Truly unknown -> empty.
     CHECK(linuxDistroFromOsRelease("ID=arch\n") == "");
+}
+
+// ---- 2k/4k sprite packs: the 1k pack as the dye guide (sprite_1k.dyeguide) -------------------------------
+// WebP frames have no palette indices; the client recovers them from the 1k .spr bodies/heads, so a client
+// on 2k/4k sprites also keeps the 1k pack -- under its own name (the quality packs share "sprite.zip").
+
+TEST_CASE(manifest_select_2k_sprite_adds_1k_dyeguide_first) {
+    const std::string txt = "2k/sprite.zip bb m2\n1k/sprite.zip dd m1\n1k/texture.zip cc m\nroot/data.zip ff m\n";
+    auto all = PatchManifest::parse(txt);
+    ContentSelection sel{"win-x64", false, false, "1k", "2k"};
+    auto got = PatchManifest::selectForContent(all, sel);
+    int guide = -1, spr = -1;
+    for (int i = 0; i < static_cast<int>(got.size()); ++i) {
+        if (got[i].dest == kDyeGuideDest) guide = i;
+        if (got[i].kind == "sprite") spr = i;
+    }
+    CHECK(guide >= 0);
+    CHECK(spr >= 0);
+    CHECK(guide < spr);  // processed first: it can take over the local 1k sprite.zip before 2k replaces it
+    CHECK(got[guide].sha512 == "dd");
+    CHECK(got[guide].mirror == "m1");
+    CHECK(got[guide].serverPath == "1k/sprite.zip");
+    CHECK(got[guide].kind == "sprite-dyeguide");
+    CHECK(got[spr].quality == "2k");
+    CHECK(got.size() == 4);  // data + 1k texture + 2k sprite + guide
+}
+
+TEST_CASE(manifest_select_dyeguide_only_when_needed) {
+    // 1k sprites: the pack itself has the .spr -> no guide.
+    const std::string txt = "2k/sprite.zip bb m\n1k/sprite.zip dd m\n4k/sprite.zip dd m\n";
+    auto all = PatchManifest::parse(txt);
+    ContentSelection s1{"win-x64", false, false, "1k", "1k"};
+    for (auto& e : PatchManifest::selectForContent(all, s1)) CHECK(e.dest != kDyeGuideDest);
+    // 4k pack == the 1k file (same sha512, 4k not generated yet) -> it has the .spr -> no guide.
+    ContentSelection s4{"win-x64", false, false, "1k", "4k"};
+    for (auto& e : PatchManifest::selectForContent(all, s4)) CHECK(e.dest != kDyeGuideDest);
+    // A manifest without a 1k sprite row -> nothing to guide with.
+    auto only2k = PatchManifest::parse("2k/sprite.zip bb m\n");
+    ContentSelection s2{"win-x64", false, false, "1k", "2k"};
+    for (auto& e : PatchManifest::selectForContent(only2k, s2)) CHECK(e.dest != kDyeGuideDest);
+    // Bundled consoles download events only.
+    ContentSelection sb{"", true, false, "1k", "2k"};
+    for (auto& e : PatchManifest::selectForContent(all, sb)) CHECK(e.dest != kDyeGuideDest);
+}
+
+namespace {
+std::string tmpDir(const char* name) {
+    namespace sfs = std::filesystem;
+    const sfs::path d = sfs::temp_directory_path() / (std::string("uaro_reuse_") + name);
+    std::error_code ec;
+    sfs::remove_all(d, ec);
+    sfs::create_directories(d, ec);
+    return d.string();
+}
+void writeText(const std::string& p, const std::string& s) { std::ofstream(p, std::ios::binary) << s; }
+std::string readText(const std::string& p) {
+    std::ifstream f(p, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(f), {});
+}
+}  // namespace
+
+TEST_CASE(local_reuse_1k_to_2k_keeps_the_1k_pack_as_the_guide) {
+    // 1k -> 2k: sprite.zip holds the 1k pack (its verify record says sha "dd"). The guide row wants "dd" ->
+    // adopted from sprite.zip without a download; sprite.zip stays in place until 2k replaces it.
+    const std::string d = tmpDir("a");
+    writeText(d + "/sprite.zip", "ONE-K-PACK");
+    LocalFileMap cache;
+    u64 sz = 0; i64 mt = 0;
+    CHECK(localFileStat(d + "/sprite.zip", sz, mt));
+    cache["sprite.zip"] = LocalFileRec{sz, mt, "dd"};
+    int hashed = 0;
+    auto hasher = [&](const std::string&) -> std::optional<std::string> { ++hashed; return std::nullopt; };
+    const std::string src = findLocalCopy(d, kDyeGuideDest, "dd", cache, hasher);
+    CHECK(src == d + "/sprite.zip");
+    CHECK(hashed == 0);  // the verify record was enough
+    CHECK(adoptLocalCopy(src, d + "/" + kDyeGuideDest));
+    CHECK(readText(d + "/" + kDyeGuideDest) == "ONE-K-PACK");
+    CHECK(readText(d + "/sprite.zip") == "ONE-K-PACK");  // the 1k pack still mounted if 2k fails to download
+}
+
+TEST_CASE(local_reuse_2k_to_1k_takes_the_guide_back) {
+    // 2k -> 1k: sprite.zip holds 2k ("bb"), the guide holds 1k ("dd"). The 1k sprite row wants "dd" at
+    // sprite.zip -> the guide replaces it, no download.
+    const std::string d = tmpDir("b");
+    writeText(d + "/sprite.zip", "TWO-K-PACK");
+    writeText(d + "/" + kDyeGuideDest, "ONE-K-PACK");
+    LocalFileMap cache;
+    u64 sz = 0; i64 mt = 0;
+    CHECK(localFileStat(d + "/sprite.zip", sz, mt));
+    cache["sprite.zip"] = LocalFileRec{sz, mt, "bb"};
+    CHECK(localFileStat(d + "/" + kDyeGuideDest, sz, mt));
+    cache[kDyeGuideDest] = LocalFileRec{sz, mt, "dd"};
+    auto hasher = [&](const std::string&) -> std::optional<std::string> { return std::nullopt; };
+    const std::string src = findLocalCopy(d, "sprite.zip", "dd", cache, hasher);
+    CHECK(src == d + "/" + kDyeGuideDest);
+    CHECK(adoptLocalCopy(src, d + "/sprite.zip"));
+    CHECK(readText(d + "/sprite.zip") == "ONE-K-PACK");
+}
+
+TEST_CASE(local_reuse_ignores_stale_records_and_hashes_known_names) {
+    const std::string d = tmpDir("c");
+    writeText(d + "/sprite.zip", "CHANGED");
+    LocalFileMap cache;
+    cache["sprite.zip"] = LocalFileRec{3, 1, "dd"};  // size/mtime no longer match -> not trusted
+    std::vector<std::string> asked;
+    auto hasher = [&](const std::string& p) -> std::optional<std::string> {
+        asked.push_back(p);
+        return std::string("zz");
+    };
+    CHECK(findLocalCopy(d, kDyeGuideDest, "dd", cache, hasher).empty());
+    CHECK(asked.size() == 1);  // the stale file was hashed once, and did not match
+    // With a matching hash it is found.
+    auto good = [&](const std::string&) -> std::optional<std::string> { return std::string("dd"); };
+    CHECK(findLocalCopy(d, kDyeGuideDest, "dd", cache, good) == d + "/sprite.zip");
+    // The destination itself is never a source.
+    CHECK(findLocalCopy(d, "sprite.zip", "dd", cache, good).empty());
 }

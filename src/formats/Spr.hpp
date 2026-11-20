@@ -46,12 +46,22 @@ public:
         return s;
     }
 
+    // Build an in-memory INDEXED sprite (tests, and tools that make a sprite without a .spr file).
+    static Sprite fromIndexedFrames(std::vector<SprFrame> frames, const std::array<SprPalColor, 256>& palette) {
+        Sprite s;
+        s.version_ = 0x201;
+        s.indexed_ = std::move(frames);
+        s.setPalette(palette);
+        return s;
+    }
+
     u16 version() const { return version_; }
     bool synthetic() const { return version_ == 0x300; }
     u32 truecolorBase() const { return tcBase_; }  // see fromRgbaFrames
     float renderScale() const { return renderScale_; }
     const std::vector<SprFrame>& indexedFrames() const { return indexed_; }
     const std::vector<SprFrame>& rgbaFrames() const { return rgba_; }
+    std::vector<SprFrame>& mutableRgbaFrames() { return rgba_; }  // recolouring (formats/SprDye.hpp)
     bool hasPalette() const { return hasPalette_; }
     const std::array<SprPalColor, 256>& palette() const { return palette_; }
 

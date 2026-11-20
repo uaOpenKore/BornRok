@@ -1,5 +1,6 @@
 #pragma once
 #include <fstream>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -35,6 +36,9 @@ public:
     ZipArchive& operator=(const ZipArchive&) = delete;
 
     bool open(const std::string& path);
+    // Open keeping only the entries whose normalized name `keep` accepts (the 1k dye guide needs ~600 of a
+    // pack's 1.47M entries; the full index would cost hundreds of MB).
+    bool open(const std::string& path, std::function<bool(const std::string&)> keep);
     void close();
     bool isOpen() const { return stream_.is_open(); }
 
@@ -48,11 +52,13 @@ public:
     std::optional<std::vector<u8>> read(const std::string& vpath);
 
 private:
+    bool openImpl(const std::string& path);
     bool parseCentralDirectory();
 
     std::ifstream stream_;
     std::string path_;
     std::map<std::string, ZipEntry> entries_;
+    std::function<bool(const std::string&)> keep_;  // empty = keep every entry
 };
 
 }  // namespace uaro

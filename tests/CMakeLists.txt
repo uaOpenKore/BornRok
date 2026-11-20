@@ -8,6 +8,7 @@ add_executable(client_core_tests
   test_patcher.cpp
   test_ini.cpp
   test_spr.cpp
+  test_sprdye.cpp
   test_act.cpp
   test_pngsprite.cpp
   test_spritecomposer.cpp

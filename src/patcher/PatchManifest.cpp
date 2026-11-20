@@ -136,6 +136,21 @@ std::vector<PatchEntry> PatchManifest::selectForContent(const std::vector<PatchE
                 break;
         }
     }
+    // Sprites above 1k are WebP: the 1k pack comes along as the dye guide, under its own name, right before
+    // the sprite pack so the patcher can adopt a local 1k sprite.zip as the guide before 2k replaces it.
+    if (!sel.bundled && sel.spriteQuality != "1k") {
+        const PatchEntry* oneK = nullptr;
+        for (const PatchEntry& e : all)
+            if (e.category == PatchCat::Quality && e.kind == "sprite" && e.quality == "1k") oneK = &e;
+        auto chosen = std::find_if(out.begin(), out.end(),
+                                   [](const PatchEntry& e) { return e.kind == "sprite"; });
+        if (oneK && chosen != out.end() && chosen->sha512 != oneK->sha512) {
+            PatchEntry guide = *oneK;
+            guide.dest = kDyeGuideDest;
+            guide.kind = "sprite-dyeguide";
+            out.insert(chosen, std::move(guide));
+        }
+    }
     // Fetch order = base content FIRST, regardless of the manifest's line order. The BASE game
     // (root/: data.ini, data.zip, maps/model/...) is essential; the quality packs (multi-GB
     // texture/sprite.zip) are enhancement. A downloads.list that lists a 1.6 GB sprite.zip before

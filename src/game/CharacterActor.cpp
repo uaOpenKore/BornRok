@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
+#include <mutex>
 #include <array>
 #include <cmath>
 #include <optional>
@@ -12,6 +14,7 @@
 #include "core/Log.hpp"
 #include "formats/ImageIO.hpp"
 #include "formats/PngSprite.hpp"
+#include "formats/SprDye.hpp"
 #include "game/AccessorySprites.hpp"
 #include "render/SamplerFilter.hpp"
 #include "render/SpriteBatch.hpp"
@@ -19,6 +22,7 @@
 #include "resource/BodyPalRemap.hpp"
 #include "resource/ExeNameTable.hpp"
 #include "resource/Vfs.hpp"
+#include "resource/Zip.hpp"
 #include "world/SpriteComposer.hpp"
 
 namespace uaro {
@@ -127,6 +131,42 @@ void warnMissingDyePal(const char* kind, int color, const std::string& palPath) 
         log::warn("dye: {} colour {} has no palette '{}' — part shows default colour (add this .pal)",
                   kind, color, palPath);
 }
+// The dye guide (CharacterActor::setDyeGuide): the 1k sprite pack, opened apart from the VFS (mounted, its
+// 1k .spr would hide the 2k WebP frames) with only the human body/head .spr indexed. Its parsed sprites are
+// cached; one mutex for both, actors load on worker threads and a ZipArchive has one read stream.
+std::mutex g_dyeGuideMx;
+std::unique_ptr<ZipArchive> g_dyeGuide;
+std::unordered_map<std::string, std::shared_ptr<Sprite>> g_dyeGuideSpr;
+
+std::shared_ptr<Sprite> dyeGuideSprite(const std::string& base) {
+    std::lock_guard<std::mutex> lk(g_dyeGuideMx);
+    if (!g_dyeGuide) return nullptr;
+    auto it = g_dyeGuideSpr.find(base);
+    if (it != g_dyeGuideSpr.end()) return it->second;
+    std::shared_ptr<Sprite> spr;
+    if (auto bytes = g_dyeGuide->read(base + ".spr"))
+        if (auto parsed = Sprite::parse(*bytes); parsed && !parsed->indexedFrames().empty())
+            spr = std::make_shared<Sprite>(std::move(*parsed));
+    if (!spr) log::warn("dye: no 1k guide sprite for '{}' in {} -- this WebP part shows its default colour", base,
+                        g_dyeGuide->path());
+    g_dyeGuideSpr.emplace(base, spr);
+    return spr;
+}
+
+// Dye a WebP (synthetic) part with the palette `dye` through its 1k guide sprite. `remapBody` = the body's
+// sex/name for the sprite.zip index remap (resource/BodyPalRemap.hpp), empty for heads (not re-indexed).
+void dyeWebpPart(Sprite& part, const std::string& base, const std::array<SprPalColor, 256>& dye,
+                 const std::string& remapBody, bool male) {
+    const auto guide = dyeGuideSprite(base);
+    if (!guide) return;
+    if (!remapBody.empty())
+        if (const BodyPalRemap* rm = findBodyPalRemap(remapBody, male, sprPaletteFingerprint(guide->palette()))) {
+            dyeTruecolorFromGuide(part, *guide, remapPalette(dye, rm->map));
+            return;
+        }
+    dyeTruecolorFromGuide(part, *guide, dye);
+}
+
 const std::string kMale = "\xb3\xb2";                       // 남
 const std::string kFemale = "\xbf\xa9";                     // 여
 const std::string kShield = "\xb9\xe6\xc6\xd0";             // 방패 (shield sprite folder)
@@ -507,6 +547,25 @@ void keyMagentaRgba(std::vector<u8>& px) {
 }
 } // namespace
 
+void CharacterActor::setDyeGuide(const std::string& path) {
+    std::lock_guard<std::mutex> lk(g_dyeGuideMx);
+    g_dyeGuideSpr.clear();
+    g_dyeGuide.reset();
+    if (path.empty()) return;
+    auto z = std::make_unique<ZipArchive>();
+    const std::string human = "data/sprite/" + kHuman + "/";
+    const std::string body = human + kBody + "/", head = human + kHead + "/";
+    if (!z->open(path, [&](const std::string& n) {
+            return (n.rfind(body, 0) == 0 || n.rfind(head, 0) == 0) && n.size() > 4 &&
+                   n.compare(n.size() - 4, 4, ".spr") == 0;
+        })) {
+        log::warn("dye: cannot open the 1k dye guide {} -- 2k bodies/heads show their default colours", path);
+        return;
+    }
+    log::info("dye: 1k dye guide {} ({} body/head sprites) -- dyes show on WebP sprites", path, z->entries().size());
+    g_dyeGuide = std::move(z);
+}
+
 void CharacterActor::setContentSpriteScale(const std::string& q) {
     // "1k"/"" -> 1 (no downscale), "2k" -> 2, "4k" -> 4. Writes the anon-namespace g_contentSpriteScale
     // above (same TU); loadSprOrPngd renders synthetic WebP sprites at 1/K to hit the 1k base.
@@ -669,7 +728,9 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
                 // copy. If this body has a remap (resource/BodyPalRemap.hpp), each index takes the dye
                 // colour of the uaRO index it stands for, so the body shows uaRO.exe's colours.
                 const u64 fp = sprPaletteFingerprint(spr_[0]->palette());
-                if (const BodyPalRemap* rm = findBodyPalRemap(job, sex != 0, fp))
+                if (spr_[0]->synthetic())  // WebP body (2k): the indices come from the 1k guide .spr
+                    dyeWebpPart(*spr_[0], bodyBase, *pal, job, sex != 0);
+                else if (const BodyPalRemap* rm = findBodyPalRemap(job, sex != 0, fp))
                     spr_[0]->setPalette(remapPalette(*pal, rm->map));
                 else
                     spr_[0]->setPalette(*pal);
@@ -702,7 +763,10 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
                     const std::string palPath = "data/palette/" + kHairPal + "/" + kHairPal +
                                                 std::to_string(hh) + "_" + sx + "_" +
                                                 std::to_string(hairColor) + ".pal";
-                    if (const auto* pal = cachedPal(vfs, palPath)) spr_[1]->setPalette(*pal);  // #150
+                    if (const auto* pal = cachedPal(vfs, palPath)) {  // #150
+                        if (spr_[1]->synthetic()) dyeWebpPart(*spr_[1], hb, *pal, "", sex != 0);  // WebP head (2k)
+                        else spr_[1]->setPalette(*pal);
+                    }
                     else warnMissingDyePal("hair", hairColor, palPath);                        // log the gap (S.)
                 }
                 loadPngOverrides(vfs, 1, hb);  // #109: loose PNG frame replacements

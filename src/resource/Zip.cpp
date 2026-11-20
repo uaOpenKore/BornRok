@@ -106,8 +106,19 @@ std::optional<std::vector<u8>> rawInflate(const u8* src, usize srcLen, u32 outLe
 
 }  // namespace
 
+bool ZipArchive::open(const std::string& path, std::function<bool(const std::string&)> keep) {
+    close();
+    keep_ = std::move(keep);
+    return openImpl(path);
+}
+
 bool ZipArchive::open(const std::string& path) {
     close();
+    keep_ = nullptr;
+    return openImpl(path);
+}
+
+bool ZipArchive::openImpl(const std::string& path) {
     stream_.open(path, std::ios::binary);
     if (!stream_) {
         log::error("ZIP: cannot open {}", path);
@@ -243,7 +254,7 @@ bool ZipArchive::parseCentralDirectory() {
         ent.compressed = compressed;
         ent.uncompressed = uncompressed;
         ent.localHeaderOffset = localOffset;
-        if (ent.isFile()) {  // skip directory entries
+        if (ent.isFile() && (!keep_ || keep_(ent.name))) {  // skip directory entries (+ filtered out)
             // When we converted an UNFLAGGED name on a UTF-8 guess, also register the RAW name as an
             // alias (emplace = never clobber a real entry): if the guess was wrong and the bytes were
             // already cp949, the raw name is the one asset requests use. Non-destructive either way.

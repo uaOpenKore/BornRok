@@ -24,6 +24,7 @@
 #include "game/ViewerScene.hpp"
 #include "game/ViewerScene2D.hpp"
 #include "net/Socket.hpp"
+#include "patcher/PatchManifest.hpp"  // kDyeGuideDest
 #include "patcher/ContentQuality.hpp"  // contentPlatformId / isBakedTokenPlatform (no-patcher decision)
 #include "platform/FileSystem.hpp"
 #include "render/SamplerFilter.hpp"
@@ -465,6 +466,14 @@ void Application::mountGameData() {
         if (stdfs::exists(cd + "/data", ec)) { vfs_.mountDir(cd + "/data"); ++mounted; }  // loose override
         if (mounted) log::info("data: {} content pack(s) mounted from '{}'", mounted, cd);
     }
+    // 2k/4k sprites are WebP (no palette indices): the patcher keeps the 1k pack beside them as the dye
+    // guide (kDyeGuideDest, not a .zip so the loop above never mounts it); hair/clothes dyes read the
+    // indices from its .spr. 1k sprites dye through their own .spr -> no guide.
+    std::string guide;
+    if (spriteQuality_ == "2k" || spriteQuality_ == "4k")
+        for (const std::string& cd : contentDirs)
+            if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guide = cd + "/" + kDyeGuideDest; break; }
+    CharacterActor::setDyeGuide(guide);
     for (usize c = 0; c < kContentCategories; ++c)
         vfs_.setContentMode(static_cast<ContentCategory>(c), contentModes_[c]);
     // Say plainly whether .webp overrides can be decoded at all -- a content maker's .webp only loads

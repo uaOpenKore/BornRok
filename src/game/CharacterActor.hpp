@@ -110,6 +110,9 @@ public:
     // Set the .spr-less WebP pack's authoring scale from the global sprite-quality config ("1k"/"2k"/
     // "4k"/"" -> 1/2/4/1). A pack loaded at 2k/4k renders back to the 1k base; default "" = 1k.
     static void setContentSpriteScale(const std::string& spriteQuality);
+    // The 1k sprite pack kept beside a 2k/4k one (patcher kDyeGuideDest): the palette indices of the WebP
+    // bodies/heads come from its .spr, so hair/clothes dyes show on 2k (formats/SprDye.hpp). "" = none.
+    static void setDyeGuide(const std::string& path);
     void destroy();
     // Free the process-wide shared frame-texture cache. MUST be called once during shutdown while
     // bgfx is still alive (before bgfx::shutdown), else the static maps destroy handles post-shutdown.

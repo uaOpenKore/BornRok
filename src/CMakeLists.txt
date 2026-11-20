@@ -78,6 +78,7 @@ endif()
 # ---------------------------------------------------------------------------
 add_library(client_formats STATIC
   formats/Spr.cpp
+  formats/SprDye.cpp
   formats/Act.cpp
   formats/PngSprite.cpp
   formats/Str.cpp
@@ -246,6 +247,7 @@ add_library(uaro::net ALIAS client_net)
 # ---------------------------------------------------------------------------
 add_library(client_patcher STATIC
   patcher/PatchManifest.cpp
+  patcher/LocalReuse.cpp
   patcher/PlatformId.cpp
   patcher/ContentQuality.cpp
   patcher/PatcherConfig.cpp

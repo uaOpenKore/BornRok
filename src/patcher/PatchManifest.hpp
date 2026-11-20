@@ -23,6 +23,11 @@ namespace uaro {
 
 enum class PatchCat { Root, Platform, Quality, Events };
 
+// Local name of the 1k sprite pack kept beside a 2k/4k one: the dye guide. WebP frames have no palette
+// indices, so the client takes them from the 1k .spr bodies/heads (CharacterActor). Not a .zip/.grf, so the
+// content mount never mounts it (its 1k .spr would hide the 2k WebP frames).
+inline const std::string kDyeGuideDest = "sprite_1k.dyeguide";
+
 struct PatchEntry {
     std::string serverPath;  // field 1, verbatim (used to build the server fallback URL)
     std::string sha512;      // field 2, lowercase hex (128 chars)
@@ -64,6 +69,8 @@ public:
     //   - Bundled clients: nothing else (base content ships in the distro).
     //   - Otherwise: Root entries, the matching Platform entries, and exactly the Quality entries
     //     whose (kind, quality) match the chosen texture/sprite qualities.
+    //   - Sprites at 2k/4k: also the 1k sprite pack as kDyeGuideDest (kind "sprite-dyeguide"), placed before
+    //     the sprite pack, unless the chosen pack IS the 1k file (same sha512).
     static std::vector<PatchEntry> selectForContent(const std::vector<PatchEntry>& all,
                                                     const ContentSelection& sel);
 };

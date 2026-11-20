@@ -10,6 +10,7 @@
 #include "core/crypto/Sha512.hpp"
 #include "net/Http.hpp"
 #include "patcher/GDriveUrl.hpp"
+#include "patcher/LocalReuse.hpp"
 #include "patcher/ContentQuality.hpp"
 #include "patcher/PatchManifest.hpp"
 #include "patcher/PatcherConfig.hpp"
@@ -50,23 +51,10 @@ bool samePath(const std::string& a, const std::string& b) {
 // (expensive) hash. Any write to a file bumps its mtime, so edits/corruption via
 // normal I/O invalidate the record and force a re-hash. Cache lives in
 // patcher/verify.cache; a missing/garbled cache just means everything re-hashes.
-struct VerifyRec {
-    u64 size = 0;
-    i64 mtime = 0;
-    std::string sha;
-};
+using VerifyRec = LocalFileRec;  // patcher/LocalReuse.hpp (shared with the local-copy reuse)
 
 // Current on-disk size + mtime of a file. false if it does not exist.
-bool statFile(const std::string& path, u64& size, i64& mtime) {
-    std::error_code ec;
-    const auto sz = fs::file_size(path, ec);
-    if (ec) return false;
-    const auto wt = fs::last_write_time(path, ec);
-    if (ec) return false;
-    size = static_cast<u64>(sz);
-    mtime = static_cast<i64>(wt.time_since_epoch().count());
-    return true;
-}
+bool statFile(const std::string& path, u64& size, i64& mtime) { return localFileStat(path, size, mtime); }
 
 // Line format: "<sha512>\t<size>\t<mtime>\t<dest>" (dest last so it may hold spaces).
 std::unordered_map<std::string, VerifyRec> loadVerifyCache(const std::string& path) {
@@ -266,6 +254,25 @@ PatchSummary PatchRunner::run(const std::function<void(const PatchProgress&)>& r
             if (auto local = Sha512::hashFileHex(dest); local && *local == e.sha512) {
                 newCache[e.dest] = VerifyRec{curSize, curMtime, e.sha512};
                 continue;  // already up to date
+            }
+        }
+
+        // The file may already be on disk under another name: the quality packs share one local name
+        // (sprite.zip) and a 2k/4k client keeps the 1k pack as the dye guide (sprite_1k.dyeguide). Switching
+        // sprite quality would otherwise download a 1.6 GB pack that is already here (S.). Adopt it instead.
+        if (e.category != PatchCat::Platform) {
+            const std::string src = findLocalCopy(
+                contentCacheDir_, fs::path(e.dest).filename().string(), e.sha512, oldCache,
+                [](const std::string& p) { return Sha512::hashFileHex(p); });
+            if (!src.empty() && adoptLocalCopy(src, dest)) {
+                log::info("patcher: {} taken from the local {} (same sha512, no download)", e.dest,
+                          fs::path(src).filename().string());
+                u64 nsz = 0;
+                i64 nmt = 0;
+                if (statFile(dest, nsz, nmt)) newCache[e.dest] = VerifyRec{nsz, nmt, e.sha512};
+                ++pr.updated;
+                ++sum.updated;
+                continue;
             }
         }
 

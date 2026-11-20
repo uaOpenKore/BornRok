@@ -59,6 +59,11 @@ enum class Anim { Idle, Walk, Attack, Hurt, Sit, Dead, Effect, Cast, Ready };
 // (3rd/4th jobs etc.) then resolve their sprite from the GRF instead of collapsing to novice.
 void setJobSpriteResolver(std::function<std::string(u16)> resolver);
 
+// Clothes-dye palette names exactly as uaRO.exe picks them: data/reality_tab.txt parsed with
+// parseExeNameTable (resource/ExeNameTable.hpp). Set by Application after the content mounts and again
+// after a patcher remount. An empty table keeps the old naming (palette named after the body sprite).
+void setBodyPaletteTable(std::vector<std::string> table);
+
 // A composed player character sprite: the job body + the hairstyle head, loaded
 // from the GRF (data/sprite/<인간족>/...), assembled via SpriteComposer and drawn
 // through SpriteBatch. First pass: idle action, facing south, embedded palettes

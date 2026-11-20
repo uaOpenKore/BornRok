@@ -31,6 +31,7 @@ add_executable(client_core_tests
   test_skilldesc.cpp
   test_grfalias.cpp
   test_mp3nametable.cpp
+  test_exenametable.cpp
   test_clientinfo.cpp
   test_socket.cpp
   test_thread.cpp

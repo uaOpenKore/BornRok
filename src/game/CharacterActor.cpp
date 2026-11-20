@@ -16,6 +16,7 @@
 #include "render/SamplerFilter.hpp"
 #include "render/SpriteBatch.hpp"
 #include "render/Xbr.hpp"
+#include "resource/ExeNameTable.hpp"
 #include "resource/Vfs.hpp"
 #include "world/SpriteComposer.hpp"
 
@@ -144,6 +145,11 @@ namespace { std::function<std::string(u16)> s_jobResolver; }
 // setJobSpriteResolver is DEFINED at the end of the file (outside this anonymous namespace) so it has
 // EXTERNAL linkage — Application.cpp calls it. It still reaches s_jobResolver (anon members inject into
 // the enclosing uaro namespace). Defining it here would give it internal linkage -> LNK2019.
+
+// uaRO.exe's clothes-dye palette names (data/reality_tab.txt, row = exeJobTableIndex(rendered class id)),
+// set by Application through setBodyPaletteTable (defined at the end of the file, like the resolver).
+// Empty until the content provides the table -> load() names the palette after the body sprite.
+namespace { std::vector<std::string> s_bodyPalTable; }
 
 // class id -> body sprite name (EUC-KR). Every entry was verified present in the
 // real data.grf. The rebirth "high" 1st jobs (4001-4007) reuse their normal
@@ -583,6 +589,9 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
                      std::to_string(shield) + "_" + std::to_string(hairColor) + "_" +
                      std::to_string(clothColor);
     isPlayer_ = true;  // composed PC body: attack uses motion 5 (ATTACK1)
+    // uaRO.exe picks the clothes-dye palette by the class it renders: the server's class id, a base class +
+    // riding mapped to its peco id (exeRenderClassId). Taken before the peco remap below.
+    const u16 palClassId = exeRenderClassId(classId, riding);
     // This server sends a MOUNTED 2nd/trans job as a SEPARATE peco class id (JOB_*2) instead of the
     // base class + OPTION_RIDING -- jobSpriteName doesn't know those ids, so the rider drew as a
     // NOVICE (S.: other Lord Knight 4014 / Paladin 4022, confirmed in the live log). Normalise the
@@ -632,12 +641,14 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
     if (bodySpr && ba) {
         spr_[0] = std::move(bodySpr);
         act_[0] = mk(Action::parse(*ba));
-        // Clothes dye (#86): override the body palette with data/palette/몸/<job>_<sex>_<color>.pal
-        // (roBrowser DBManager.getBodyPalPath). Colour 0 = default. Riding shares the body sprite, so
-        // the peco body name `job` is used as-is.
+        // Clothes dye (#86): override the body palette with data/palette/몸/<name>_<sex>_<color>.pal.
+        // <name> is the palette family uaRO.exe uses for the class (data/reality_tab.txt: Crusader ->
+        // 기사, Assassin Cross -> 어세신, every peco rider -> 페코페코_기사, ...); the body sprite name
+        // `job` only when the content has no such table. Colour 0 = default.
         if (clothColor != 0 && spr_[0]) {
-            const std::string palPath = "data/palette/" + kBodyPal + "/" + job + "_" + sx + "_" +
-                                        std::to_string(clothColor) + ".pal";
+            std::string palName = bodyPaletteName(s_bodyPalTable, palClassId);
+            if (palName.empty()) palName = job;
+            const std::string palPath = bodyPalettePath(palName, sex != 0, clothColor);
             if (const auto* pal = cachedPal(vfs, palPath)) spr_[0]->setPalette(*pal);  // #150 cache
             else warnMissingDyePal("clothes", clothColor, palPath);                    // log the gap (S.)
         }
@@ -1878,5 +1889,8 @@ void CharacterActor::renderWorld(const WorldSpritePass& pass, const Vec3& feetWo
 // External-linkage setter (declared in CharacterActor.hpp, called by Application). Defined OUT of the
 // file's anonymous namespace so it isn't internal; reaches the anon-namespace s_jobResolver by name.
 void setJobSpriteResolver(std::function<std::string(u16)> f) { s_jobResolver = std::move(f); }
+
+// Same pattern for uaRO.exe's clothes-palette name table (declared in CharacterActor.hpp).
+void setBodyPaletteTable(std::vector<std::string> table) { s_bodyPalTable = std::move(table); }
 
 } // namespace uaro

@@ -78,13 +78,19 @@ inline u16 exeRenderClassId(u16 classId, bool riding) {
     }
 }
 
-// The clothes-dye palette family uaRO.exe uses for a class: its row in data/reality_tab.txt (Crusader
-// -> 기사, Assassin Cross -> 어세신, every peco rider -> 페코페코_기사, ...). Takes the class id the exe
-// renders (exeRenderClassId: the peco ids 13 / 21 / 4014 / 4022 have rows of their own). "" when the
-// table is empty or the id is past its end: the caller falls back to its own name.
-inline std::string bodyPaletteName(const std::vector<std::string>& realityTab, u16 classId) {
+// A uaRO.exe class table's row for the class the exe renders (exeRenderClassId: the peco ids 13 / 21 /
+// 4014 / 4022 have rows of their own): data/class_tab.txt gives the body sprite, data/reality_tab.txt the
+// clothes-dye palette family. "" when the table is empty or the id is past its end: the caller falls back
+// to its own name.
+inline std::string exeClassRow(const std::vector<std::string>& table, u16 classId) {
     const usize i = exeJobTableIndex(classId);
-    return i < realityTab.size() ? realityTab[i] : std::string();
+    return i < table.size() ? table[i] : std::string();
+}
+
+// The clothes-dye palette family uaRO.exe uses for a class: its row in data/reality_tab.txt (Crusader
+// -> 기사, Assassin Cross -> 어세신, every peco rider -> 페코페코_기사, ...).
+inline std::string bodyPaletteName(const std::vector<std::string>& realityTab, u16 classId) {
+    return exeClassRow(realityTab, classId);
 }
 
 // The clothes-dye palette path uaRO.exe loads: palette\ + "몸\%s%s_%d.pal" with the sex suffix _여 (0)

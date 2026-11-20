@@ -64,6 +64,10 @@ void setJobSpriteResolver(std::function<std::string(u16)> resolver);
 // after a patcher remount. An empty table keeps the old naming (palette named after the body sprite).
 void setBodyPaletteTable(std::vector<std::string> table);
 
+// Body sprite names exactly as uaRO.exe picks them: data/class_tab.txt parsed with parseExeNameTable. Set
+// with the palette table. An empty table keeps CharacterActor's own naming (jobSpriteName/ridingBodyName).
+void setBodySpriteTable(std::vector<std::string> table);
+
 // A composed player character sprite: the job body + the hairstyle head, loaded
 // from the GRF (data/sprite/<인간족>/...), assembled via SpriteComposer and drawn
 // through SpriteBatch. First pass: idle action, facing south, embedded palettes

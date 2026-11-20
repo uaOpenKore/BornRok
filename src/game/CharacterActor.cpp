@@ -151,6 +151,9 @@ namespace { std::function<std::string(u16)> s_jobResolver; }
 // set by Application through setBodyPaletteTable (defined at the end of the file, like the resolver).
 // Empty until the content provides the table -> load() names the palette after the body sprite.
 namespace { std::vector<std::string> s_bodyPalTable; }
+// uaRO.exe's body sprite names (data/class_tab.txt, same rows), set through setBodySpriteTable. Empty ->
+// load() keeps jobSpriteName / ridingBodyName.
+namespace { std::vector<std::string> s_bodySprTable; }
 
 // class id -> body sprite name (EUC-KR). Every entry was verified present in the
 // real data.grf. The rebirth "high" 1st jobs (4001-4007) reuse their normal
@@ -252,6 +255,12 @@ const char* weaponRidingName(u16 classId) {
         case 4008: return "\xc6\xe4\xc4\xda\xc6\xe4\xc4\xda_\xb1\xe2\xbb\xe7";  // 페코페코_기사 (knight / lord knight)
         case 14:
         case 4015: return "\xbd\xc5\xc6\xe4\xc4\xda\xc5\xa9\xb7\xe7\xbc\xbc\xc0\xcc\xb4\xf5";  // 신페코크루세이더 (crusader / paladin)
+        // Riding babies: their body is the peco one now (data/class_tab.txt), so the weapon must be the
+        // mounted one too -- the folders uaRO.exe uses for them (data/reality_dir_tab.txt rows 86 / 94).
+        case 4030:
+        case 4036: return "\xc6\xe4\xc4\xda\xc6\xe4\xc4\xda_\xb1\xe2\xbb\xe7";  // 페코페코_기사 (baby knight)
+        case 4037:
+        case 4044: return "\xb1\xb8\xc6\xe4\xc4\xda\xc5\xa9\xb7\xe7\xbc\xbc\xc0\xcc\xb4\xf5";  // 구페코크루세이더 (baby crusader)
         default:   return nullptr;
     }
 }
@@ -590,9 +599,10 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
                      std::to_string(shield) + "_" + std::to_string(hairColor) + "_" +
                      std::to_string(clothColor);
     isPlayer_ = true;  // composed PC body: attack uses motion 5 (ATTACK1)
-    // uaRO.exe picks the clothes-dye palette by the class it renders: the server's class id, a base class +
-    // riding mapped to its peco id (exeRenderClassId). Taken before the peco remap below.
-    const u16 palClassId = exeRenderClassId(classId, riding);
+    // uaRO.exe picks the body sprite (data/class_tab.txt) and the clothes-dye palette (data/reality_tab.txt)
+    // by the class it renders: the server's class id, a base class + riding mapped to its peco id
+    // (exeRenderClassId). Taken before the peco remap below.
+    const u16 exeClassId = exeRenderClassId(classId, riding);
     // This server sends a MOUNTED 2nd/trans job as a SEPARATE peco class id (JOB_*2) instead of the
     // base class + OPTION_RIDING -- jobSpriteName doesn't know those ids, so the rider drew as a
     // NOVICE (S.: other Lord Knight 4014 / Paladin 4022, confirmed in the live log). Normalise the
@@ -621,7 +631,11 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
     }
     const std::string sx = (sex != 0) ? kMale : kFemale;
     const char* peco = riding ? ridingBodyName(classId) : nullptr;
-    const std::string job = peco ? std::string(peco) : jobSpriteName(classId);
+    // The body sprite uaRO.exe draws for the class (data/class_tab.txt): the same as the names below except
+    // Summer -> 초보자, Baby Peco Knight -> 페코페코_기사, Baby Dancer -> 무희바지, Baby Peco Crusader ->
+    // 구페코크루세이더. Classes past that table (3rd/4th jobs) or no table keep jobSpriteName/ridingBodyName.
+    const std::string exeBody = exeClassRow(s_bodySprTable, exeClassId);
+    const std::string job = !exeBody.empty() ? exeBody : peco ? std::string(peco) : jobSpriteName(classId);
     const std::string base = "data/sprite/" + kHuman + "/";
     // The server's hair value is an INDEX into a per-sex lookup table that gives the real head
     // sprite + palette number; only the low styles are remapped, higher ids pass through. Without
@@ -647,7 +661,7 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
         // 기사, Assassin Cross -> 어세신, every peco rider -> 페코페코_기사, ...); the body sprite name
         // `job` only when the content has no such table. Colour 0 = default.
         if (clothColor != 0 && spr_[0]) {
-            std::string palName = bodyPaletteName(s_bodyPalTable, palClassId);
+            std::string palName = bodyPaletteName(s_bodyPalTable, exeClassId);
             if (palName.empty()) palName = job;
             const std::string palPath = bodyPalettePath(palName, sex != 0, clothColor);
             if (const auto* pal = cachedPal(vfs, palPath)) {  // #150 cache
@@ -1901,7 +1915,8 @@ void CharacterActor::renderWorld(const WorldSpritePass& pass, const Vec3& feetWo
 // file's anonymous namespace so it isn't internal; reaches the anon-namespace s_jobResolver by name.
 void setJobSpriteResolver(std::function<std::string(u16)> f) { s_jobResolver = std::move(f); }
 
-// Same pattern for uaRO.exe's clothes-palette name table (declared in CharacterActor.hpp).
+// Same pattern for uaRO.exe's clothes-palette and body-sprite name tables (declared in CharacterActor.hpp).
 void setBodyPaletteTable(std::vector<std::string> table) { s_bodyPalTable = std::move(table); }
+void setBodySpriteTable(std::vector<std::string> table) { s_bodySprTable = std::move(table); }
 
 } // namespace uaro

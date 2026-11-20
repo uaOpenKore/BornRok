@@ -19,13 +19,14 @@ from collections import Counter, defaultdict
 
 OUT = "src/resource/BodyPalRemapTable.cpp"
 
-# The body sprites CharacterActor draws for this server's player classes (jobSpriteName + ridingBodyName).
+# The body sprites CharacterActor draws for this server's player classes: data/class_tab.txt (uaRO.exe's) and
+# its own jobSpriteName + ridingBodyName fallback.
 BODIES = [
     "초보자", "검사", "마법사", "궁수", "성직자", "상인", "도둑", "기사", "프리스트", "위저드", "제철공", "헌터",
     "어세신", "크루세이더", "몽크", "세이지", "로그", "연금술사", "바드", "무희", "슈퍼노비스", "건너", "닌자", "결혼",
     "산타", "여름", "태권소년", "권성", "권성융합", "소울링커", "로드나이트", "하이프리", "하이위저드", "화이트스미스",
     "스나이퍼", "어쌔신크로스", "팔라딘", "챔피온", "프로페서", "스토커", "크리에이터", "클라운", "집시",
-    "페코페코_기사", "신페코크루세이더", "로드페코", "페코팔라딘",
+    "페코페코_기사", "신페코크루세이더", "로드페코", "페코팔라딘", "무희바지", "구페코크루세이더",
 ]
 SEXES = [("남", True), ("여", False)]
 

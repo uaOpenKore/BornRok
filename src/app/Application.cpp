@@ -27,7 +27,7 @@
 #include "patcher/ContentQuality.hpp"  // contentPlatformId / isBakedTokenPlatform (no-patcher decision)
 #include "platform/FileSystem.hpp"
 #include "render/SamplerFilter.hpp"
-#include "resource/ExeNameTable.hpp"  // uaRO.exe name tables (data/reality_tab.txt -> dye palette names)
+#include "resource/ExeNameTable.hpp"  // uaRO.exe name tables (class_tab / reality_tab: body + dye palette)
 #include "ui/Widgets.hpp"  // ui::text_input_wanted() -> drive the OS keyboard on touch (#102)
 
 namespace uaro {
@@ -49,17 +49,21 @@ bool isBakedContentDistribution() {
     return isBakedTokenPlatform(contentPlatformId()) || fs::is_packaged_install();
 }
 
-// Clothes-dye palette names like uaRO.exe: data/reality_tab.txt (data.zip) maps the class id to the
-// palette family (Crusader -> 기사, Assassin Cross -> 어세신, ...). Without it CharacterActor keeps naming
-// the palette after the body sprite. Read again after a patcher remount, like the other content tables.
-void loadBodyPaletteTable(const Vfs& vfs) {
-    std::vector<std::string> table;
-    if (auto bytes = vfs.readQuiet("data/reality_tab.txt")) table = parseExeNameTable(*bytes);
-    if (table.empty())
-        log::warn("dye: data/reality_tab.txt not found -> clothes palettes named after the body sprite");
-    else
-        log::info("dye: clothes palette names from data/reality_tab.txt ({} rows)", table.size());
-    setBodyPaletteTable(std::move(table));
+// uaRO.exe's class tables (data.zip): data/reality_tab.txt maps the class id to the clothes-dye palette
+// family (Crusader -> 기사, Assassin Cross -> 어세신, ...), data/class_tab.txt to the body sprite. Without
+// them CharacterActor keeps its own naming. Read again after a patcher remount, like the other tables.
+void loadExeClassTables(const Vfs& vfs) {
+    const auto load = [&vfs](const char* vpath) {
+        std::vector<std::string> table;
+        if (auto bytes = vfs.readQuiet(vpath)) table = parseExeNameTable(*bytes);
+        if (table.empty())
+            log::warn("chars: {} not found -> CharacterActor's own names are used", vpath);
+        else
+            log::info("chars: {} ({} rows)", vpath, table.size());
+        return table;
+    };
+    setBodyPaletteTable(load("data/reality_tab.txt"));
+    setBodySpriteTable(load("data/class_tab.txt"));
 }
 }  // namespace
 
@@ -146,7 +150,7 @@ int Application::run(const AppConfig& cfg) {
     // Rune Knight, Arch Bishop, Royal Guard, Genetic, Shadow Chaser, Hyper Novice, ...) from the GRF's
     // jobname lua instead of collapsing to novice (S. 2026-07-26 Korean body-name list).
     setJobSpriteResolver([this](u16 classId) { return grfData_.jobSpriteName(classId); });
-    loadBodyPaletteTable(vfs_);  // clothes-dye palette names exactly like uaRO.exe (data/reality_tab.txt)
+    loadExeClassTables(vfs_);  // body sprites + clothes-dye palettes named exactly like uaRO.exe
     audio_.init();  // open the audio device (#103); silent no-op if built without audio
     loadConfig();   // apply saved sound volumes (settings/game.cfg) before any scene plays BGM (#104)
 #if defined(__ANDROID__) || defined(CLIENT_NX)
@@ -482,7 +486,7 @@ void Application::reloadExternalData() {
     uiSkin_.init(vfs_);
     itemDb_.load(vfs_);
     grfData_.load([this](const std::string& vpath) { return vfs_.read(vpath); });
-    loadBodyPaletteTable(vfs_);
+    loadExeClassTables(vfs_);
     log::info("patcher: remounted VFS ({} GRF, {} ZIP, {} dir) + reloaded clientinfo/skin/itemdb",
               vfs_.grfCount(), vfs_.zipCount(), vfs_.dirCount());
 }

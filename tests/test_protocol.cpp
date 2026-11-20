@@ -160,10 +160,10 @@ TEST_CASE(protocol_build_wanttoconnection) {
     CHECK_EQ(p[4] | (p[5] << 8) | (p[6] << 16) | (p[7] << 24), 2000000);  // account_id @4
     CHECK_EQ(p[8], 0x65);
     CHECK_EQ(p[9] | (p[10] << 8) | (p[11] << 16) | (p[12] << 24), 150001);  // char_id @9
-    CHECK_EQ(p[13], 0x37);
-    CHECK_EQ(p[14], 0x33);
-    CHECK_EQ(p[15], 0x36);
-    CHECK_EQ(p[16], 0x64);
+    CHECK_EQ(p[13], 'B');  // BornRok marker + capability (bit 0: renewal NPC sprites); the original sends 37 33 36 64
+    CHECK_EQ(p[14], 'R');
+    CHECK_EQ(p[15], 'K');
+    CHECK_EQ(p[16], 0x01);
     CHECK_EQ(p[25], 1);  // sex @25
 }
 

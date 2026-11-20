@@ -114,10 +114,13 @@ std::vector<u8> buildWantToConnection(u32 accountId, u32 charId, u32 loginId1, u
     w.u32le(accountId);
     w.u8v(0x65);
     w.u32le(charId);
-    w.u8v(0x37);
-    w.u8v(0x33);
-    w.u8v(0x36);
-    w.u8v(0x64);
+    // Bytes 13-16: the original client sends 37 33 36 64 here and the server never read them. BornRok sends "BRK"
+    // + a capability byte instead (bit 0: draws the renewal NPC sprites 400-699), so the server shows it the
+    // real NPC sprites and gives the original uaRO.exe -- which knows only 46-125 / 700-957 -- classic look-alikes.
+    w.u8v('B');
+    w.u8v('R');
+    w.u8v('K');
+    w.u8v(0x01);
     w.u32le(loginId1);  // map-login session id
     w.u32le(tick);
     w.u8v(sex);

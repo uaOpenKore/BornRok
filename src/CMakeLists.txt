@@ -63,6 +63,7 @@ if(ZLIB_FOUND)
     resource/LuaTables.cpp
     resource/GrfData.cpp
     resource/CardIllust.cpp
+    resource/BodyPalRemapTable.cpp
   )
   target_include_directories(client_resource PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(client_resource PUBLIC uaro::core PRIVATE ZLIB::ZLIB uaro::lua51)

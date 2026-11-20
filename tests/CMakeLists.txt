@@ -43,7 +43,8 @@ target_link_libraries(client_core_tests PRIVATE uaro::core uaro::formats uaro::w
 # Resource-layer tests (GRF/VFS) build a synthetic GRF with zlib, so they need
 # both the resource library and zlib. Added only when resource/ was built.
 if(TARGET uaro::resource)
-  target_sources(client_core_tests PRIVATE test_grf.cpp test_vfs.cpp test_zip.cpp test_itemdb.cpp test_contentroute.cpp)
+  target_sources(client_core_tests PRIVATE test_grf.cpp test_vfs.cpp test_zip.cpp test_itemdb.cpp test_contentroute.cpp
+                 test_bodypalremap.cpp)
   target_link_libraries(client_core_tests PRIVATE uaro::resource ZLIB::ZLIB)
 endif()
 

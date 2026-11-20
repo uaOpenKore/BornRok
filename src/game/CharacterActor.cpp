@@ -16,6 +16,7 @@
 #include "render/SamplerFilter.hpp"
 #include "render/SpriteBatch.hpp"
 #include "render/Xbr.hpp"
+#include "resource/BodyPalRemap.hpp"
 #include "resource/ExeNameTable.hpp"
 #include "resource/Vfs.hpp"
 #include "world/SpriteComposer.hpp"
@@ -649,8 +650,18 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
             std::string palName = bodyPaletteName(s_bodyPalTable, palClassId);
             if (palName.empty()) palName = job;
             const std::string palPath = bodyPalettePath(palName, sex != 0, clothColor);
-            if (const auto* pal = cachedPal(vfs, palPath)) spr_[0]->setPalette(*pal);  // #150 cache
-            else warnMissingDyePal("clothes", clothColor, palPath);                    // log the gap (S.)
+            if (const auto* pal = cachedPal(vfs, palPath)) {  // #150 cache
+                // The dye palettes were made for the uaRO bodies; sprite.zip's bodies are a re-indexed
+                // copy. If this body has a remap (resource/BodyPalRemap.hpp), each index takes the dye
+                // colour of the uaRO index it stands for, so the body shows uaRO.exe's colours.
+                const u64 fp = sprPaletteFingerprint(spr_[0]->palette());
+                if (const BodyPalRemap* rm = findBodyPalRemap(job, sex != 0, fp))
+                    spr_[0]->setPalette(remapPalette(*pal, rm->map));
+                else
+                    spr_[0]->setPalette(*pal);
+            } else {
+                warnMissingDyePal("clothes", clothColor, palPath);  // log the gap (S.)
+            }
         }
         loadPngOverrides(vfs, 0, bodyBase);  // #109: loose PNG frame replacements
         // Optional per-job .imf (data/imf/<job>_<sex>.imf): per-frame body layer priority + attach

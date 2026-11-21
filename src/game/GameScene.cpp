@@ -3628,7 +3628,7 @@ void GameScene::pumpAuth(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = net::banErrorText(code);
+            status_ = code == 10 ? tr("net.ban.playlimit") : std::string(net::banErrorText(code));
             return;
         }
         break;  // unknown packet before auth: wait for more / let it settle
@@ -3834,7 +3834,8 @@ void GameScene::pumpStream(Application& app) {
             log::warn("net: server sent SC_NOTIFY_BAN (0x81) in-game after {:.1f}s on map='{}': reason code={} ({})",
                       time_ - mapEnterT_, mapBase_, code, net::banErrorText(code));
             phase_ = Phase::Failed;
-            status_ = net::banErrorText(code);
+            // 10 = the server's daily play-time limit: its reason in the player's language
+            status_ = code == 10 ? tr("net.ban.playlimit") : std::string(net::banErrorText(code));
             return;
         }
         switch (fi.id) {

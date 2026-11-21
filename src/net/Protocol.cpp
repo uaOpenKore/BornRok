@@ -2705,6 +2705,7 @@ const char* banErrorText(u8 code) {
         case 2:  return "Someone has already logged in with this ID";
         case 3:  return "Speed-hack detected";
         case 8:  return "Server is jammed due to over-population";
+        case 10: return "Daily play-time limit reached";  // uAthena daily_play_limit (BornRok only)
         default: return "Disconnected by server";
     }
 }

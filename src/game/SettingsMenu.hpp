@@ -90,7 +90,7 @@ inline const HLine kTouch[] = {
     {2, "help.t14"},  // Text
     {1, "help.t15"},
 };
-inline const char* const kTopics[4] = {"Video", "Keyboard", "Gamepad", "Touch"};
+inline const char* const kTopics[4] = {"set.video", "set.keyboard", "set.gamepad", "set.touch"};  // keys: tr() where drawn
 inline int count(int topic) {
     return topic == 0 ? static_cast<int>(sizeof(kVideo) / sizeof(kVideo[0]))
            : topic == 1 ? static_cast<int>(sizeof(kKeyboard) / sizeof(kKeyboard[0]))
@@ -298,7 +298,7 @@ public:
             if (helpTopic_ < 0) {  // topic menu
                 float ry = cy;
                 for (int i = 0; i < smhelp::kTopicCount; ++i) {
-                    if (ui::button(sb, font, uin, cx, ry, cw, 34.0f, kTopics[i], 1.4f)) {
+                    if (ui::button(sb, font, uin, cx, ry, cw, 34.0f, tr(kTopics[i]), 1.4f)) {
                         helpTopic_ = i; scroll_ = 0.0f; selSwallow_ = true;
                     }
                     ry += 42.0f;
@@ -309,7 +309,7 @@ public:
             const HLine* lines = smhelp::lines(helpTopic_);
             const int nLines = smhelp::count(helpTopic_);
             // Fixed topic header (not scrolled), then the clipped/scrolled body below it.
-            font.draw(sb, cx, wy + ui::kTitleBarH + 4.0f, 1.4f, ui::color::kWinAccent, kTopics[helpTopic_]);
+            font.draw(sb, cx, wy + ui::kTitleBarH + 4.0f, 1.4f, ui::color::kWinAccent, tr(kTopics[helpTopic_]));
             const float bandTop = wy + ui::kTitleBarH + 28.0f;
             const float bandBot = wy + wh - 46.0f;  // clear of the Back button
             float ry = cy + 28.0f;
@@ -332,33 +332,33 @@ public:
         if (panel_ == 5) {  // GamePad Setup (#102/#115): per-axis stick inversion (S.: DirectInput pads
             // sometimes report an axis flipped -- Vader 5 Pro left-stick X reversed).
             bool lx = app.padInvertLX(), ly = app.padInvertLY(), rx = app.padInvertRX(), ry_ = app.padInvertRY();
-            auto toggle = [&](float y, const char* label, bool& v) {
+            auto toggle = [&](float y, const std::string& label, bool& v) {
                 font.draw(sb, cx + 16.0f, y + 4.0f, 1.1f, ui::color::kWinText, label);
-                if (ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, v ? "On" : "Off", 1.1f)) {
+                if (ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, v ? tr("set.on") : tr("set.off"), 1.1f)) {
                     v = !v;
                     app.setPadInvert(lx, ly, rx, ry_);  // persists to game.cfg immediately
                 }
             };
             float y = cy;
-            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, "Left stick");
+            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, tr("set.left_stick"));
             y += 24.0f;
-            toggle(y, "Invert X", lx); y += 30.0f;
-            toggle(y, "Invert Y", ly); y += 30.0f;
+            toggle(y, tr("set.invert_x"), lx); y += 30.0f;
+            toggle(y, tr("set.invert_y"), ly); y += 30.0f;
             y += 8.0f;
-            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, "Right stick");
+            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, tr("set.right_stick"));
             y += 24.0f;
-            toggle(y, "Invert X", rx); y += 30.0f;
-            toggle(y, "Invert Y", ry_); y += 30.0f;
+            toggle(y, tr("set.invert_x"), rx); y += 30.0f;
+            toggle(y, tr("set.invert_y"), ry_); y += 30.0f;
             y += 8.0f;
             // Swap strafe/turn between the sticks (S.): turn -> left stick, strafe -> right stick.
-            font.draw(sb, cx, y + 4.0f, 1.1f, ui::color::kWinText, "Swap strafe/turn");
+            font.draw(sb, cx, y + 4.0f, 1.1f, ui::color::kWinText, tr("set.swap_strafe_turn"));
             if (ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f,
-                           app.padSwapTurnStrafe() ? "On" : "Off", 1.1f))
+                           app.padSwapTurnStrafe() ? tr("set.on") : tr("set.off"), 1.1f))
                 app.setPadSwapTurnStrafe(!app.padSwapTurnStrafe());
             y += 34.0f;
             // Rotate sensitivity slider (S.): 1..10, 10 = current turn speed; lower = slower/finer turns.
             const int sens = app.padRotateSens();
-            font.draw(sb, cx, y, 1.1f, ui::color::kWinText, "Rotate sens: " + std::to_string(sens));
+            font.draw(sb, cx, y, 1.1f, ui::color::kWinText, (tr("set.rotate_sens") + " ") + std::to_string(sens));
             const float trackY = y + 18.0f, trackH = 12.0f;
             const float frac = static_cast<float>(sens - 1) / 9.0f;
             ui::panel(sb, cx, trackY, cw, trackH, ui::rgba(0, 0, 0, 70));
@@ -374,33 +374,33 @@ public:
             // Vibration (S.): per-event rumble toggles, all default On. ui::button auto-registers with the
             // gamepad nav focus, so no focusCtrl needed here.
             y += 6.0f;
-            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, "Vibration");
+            font.draw(sb, cx, y, 1.2f, ui::color::kWinText, tr("set.vibration"));
             y += 24.0f;
-            auto rtoggle = [&](const char* label, bool cur, void (Application::*set)(bool)) {
+            auto rtoggle = [&](const std::string& label, bool cur, void (Application::*set)(bool)) {
                 font.draw(sb, cx + 16.0f, y + 4.0f, 1.1f, ui::color::kWinText, label);
-                if (ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, cur ? "On" : "Off", 1.1f))
+                if (ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, cur ? tr("set.on") : tr("set.off"), 1.1f))
                     (app.*set)(!cur);
                 y += 30.0f;
             };
-            rtoggle("Damage", app.rumbleDamage(), &Application::setRumbleDamage);
-            rtoggle("Kill", app.rumbleKill(), &Application::setRumbleKill);
-            rtoggle("Level up", app.rumbleLevel(), &Application::setRumbleLevel);
-            rtoggle("Menu tick", app.rumbleMenu(), &Application::setRumbleMenu);
-            rtoggle("Death", app.rumbleDeath(), &Application::setRumbleDeath);
-            rtoggle("Crit hit", app.rumbleCrit(), &Application::setRumbleCrit);
+            rtoggle(tr("set.damage"), app.rumbleDamage(), &Application::setRumbleDamage);
+            rtoggle(tr("set.kill"), app.rumbleKill(), &Application::setRumbleKill);
+            rtoggle(tr("set.level_up"), app.rumbleLevel(), &Application::setRumbleLevel);
+            rtoggle(tr("set.menu_tick"), app.rumbleMenu(), &Application::setRumbleMenu);
+            rtoggle(tr("set.death"), app.rumbleDeath(), &Application::setRumbleDeath);
+            rtoggle(tr("set.crit_hit"), app.rumbleCrit(), &Application::setRumbleCrit);
             backButton(app, sb, font, uin, cx, wy + wh - 40.0f, cw);
             return open;
         }
 
         if (panel_ == 1) {  // Sound: Master / BGM / SFX sliders (blue, 5% steps)
             float vals[3] = {app.masterVol(), app.bgmVol(), app.sfxVol()};
-            static const char* const lbl[3] = {"Master", "BGM", "SFX"};
+            static const char* const lbl[3] = {"set.master", "BGM", "SFX"};
             bool changed = false;
             for (int i = 0; i < 3; ++i) {
                 const float ry = cy + static_cast<float>(i) * 46.0f;
                 const float trackY = ry + 20.0f, trackH = 12.0f;
                 font.draw(sb, cx, ry, 1.1f, ui::color::kWinText,
-                          std::string(lbl[i]) + ": " +
+                          tr(lbl[i]) + ": " +
                               std::to_string(static_cast<int>(std::lround(vals[i] * 100.0f))) + "%");
                 ui::panel(sb, cx, trackY, cw, trackH, ui::rgba(0, 0, 0, 70));
                 ui::panel(sb, cx, trackY, cw * vals[i], trackH, ui::rgba(70, 120, 230, 255));
@@ -427,10 +427,10 @@ public:
         static const int kFps[9] = {24, 25, 30, 45, 50, 60, 75, 90, 0};
         int fpsIdx = 2;
         for (int i = 0; i < 9; ++i) if (kFps[i] == app.fpsLimit()) fpsIdx = i;
-        static const char* const kMode[2] = {"Windowed", "Fullscreen"};
-        static const char* const kVs[2] = {"Enabled", "Disabled"};
-        static const char* const kFpsL[9] = {"24", "25", "30", "45", "50", "60", "75", "90", "No limit"};
-        static const char* const kFilt[3] = {"Disabled", "Bilinear", "Trilinear"};
+        static const char* const kMode[2] = {"set.windowed", "set.fullscreen"};
+        static const char* const kVs[2] = {"set.enabled", "set.disabled"};
+        static const char* const kFpsL[9] = {"24", "25", "30", "45", "50", "60", "75", "90", "set.no_limit"};
+        static const char* const kFilt[3] = {"set.disabled", "set.bilinear", "set.trilinear"};
         // Language: ISO code == texts/<code>.cfg base name (stored in game.cfg); the dropdown shows the
         // native name. Keep kLangCode and kLangName in lock-step. (S.: full multi-language list.)
         static const char* const kLangCode[31] = {
@@ -448,25 +448,25 @@ public:
             "Chinese (TW)"};
         constexpr int kLangCount = 31;
         (void)kLangCount;
-        static const char* const kGm[3] = {"Kbd+Mouse", "TouchScreen", "GamePad"};
-        static const char* const kOnOff[2] = {"Disabled", "Enabled"};
+        static const char* const kGm[3] = {"set.kbd_mouse", "set.touchscreen", "set.gamepad"};
+        static const char* const kOnOff[2] = {"set.disabled", "set.enabled"};
         struct Sel { const char* label; const char* const* opts; int n; int cur; };
         Sel sels[5];
         int nSel = 0;
         if (panel_ == 2) {
-            sels[0] = {"Video mode", kMode, 2, app.fullscreen() ? 1 : 0};
-            sels[1] = {"V-Sync", kVs, 2, app.vsyncOn() ? 0 : 1};
+            sels[0] = {"set.video_mode", kMode, 2, app.fullscreen() ? 1 : 0};
+            sels[1] = {"set.v_sync", kVs, 2, app.vsyncOn() ? 0 : 1};
             sels[2] = {"FPS-lock", kFpsL, 9, fpsIdx};
-            sels[3] = {"World filter", kFilt, 3, app.worldFilter()};
-            sels[4] = {"Objects filter", kFilt, 3, app.objFilter()};
+            sels[3] = {"set.world_filter", kFilt, 3, app.worldFilter()};
+            sels[4] = {"set.objects_filter", kFilt, 3, app.objFilter()};
             nSel = 5;
         } else {
             int langIdx = 0;
             for (int li = 0; li < kLangCount; ++li)
                 if (app.language() == kLangCode[li]) { langIdx = li; break; }
-            sels[0] = {"Language", kLangName, kLangCount, langIdx};
-            sels[1] = {"Game Mode", kGm, 3, std::clamp(app.gameMode(), 0, 2)};
-            sels[2] = {"Camera Lock", kOnOff, 2, app.cameraLock() ? 1 : 0};
+            sels[0] = {"set.language", kLangName, kLangCount, langIdx};
+            sels[1] = {"set.game_mode", kGm, 3, std::clamp(app.gameMode(), 0, 2)};
+            sels[2] = {"set.camera_lock", kOnOff, 2, app.cameraLock() ? 1 : 0};
             nSel = 3;
         }
         int newSel[5];
@@ -475,10 +475,10 @@ public:
         const float boxX = wx + ww * 0.5f - 6.0f, boxW = ww * 0.5f - 8.0f, boxH = 24.0f;
         for (int i = 0; i < nSel; ++i) {
             const float ry = cy + static_cast<float>(i) * rowH;
-            font.draw(sb, cx, ry + 6.0f, 1.0f, ui::color::kWinText, sels[i].label);
+            font.draw(sb, cx, ry + 6.0f, 1.0f, ui::color::kWinText, tr(sels[i].label));
             ui::panel(sb, boxX, ry + 2.0f, boxW, boxH, ui::color::kWinButton);
             ui::border(sb, boxX, ry + 2.0f, boxW, boxH, ui::rgba(90, 90, 100, 255));
-            font.draw(sb, boxX + 6.0f, ry + 6.0f, 1.0f, ui::color::kWinText, sels[i].opts[sels[i].cur]);
+            font.draw(sb, boxX + 6.0f, ry + 6.0f, 1.0f, ui::color::kWinText, tr(sels[i].opts[sels[i].cur]));
             font.draw(sb, boxX + boxW - 12.0f, ry + 6.0f, 1.0f, ui::color::kWinTextDim, "v");
             if (uin.mousePressed && uin.hit(boxX, ry + 2.0f, boxW, boxH)) {
                 if (selOpen_ < 0) {
@@ -503,13 +503,13 @@ public:
             if (!uin.mouseDown) selSwallow_ = false;
             const float gy0 = cy + 5.0f * rowH + 6.0f;
             float gv[2] = {app.brightness(), app.contrast()};
-            static const char* const kGl[2] = {"Brightness", "Contrast"};
+            static const char* const kGl[2] = {"set.brightness", "set.contrast"};
             bool gch = false;
             for (int i = 0; i < 2; ++i) {
                 const float rowY = gy0 + static_cast<float>(i) * 46.0f;
                 const float trackY = rowY + 20.0f, trackH = 12.0f;
                 font.draw(sb, cx, rowY, 1.1f, ui::color::kWinText,
-                          std::string(kGl[i]) + ": " +
+                          tr(kGl[i]) + ": " +
                               std::to_string(static_cast<int>(std::lround(gv[i] * 100.0f))) + "%");
                 ui::panel(sb, cx, trackY, cw, trackH, ui::rgba(0, 0, 0, 70));
                 ui::panel(sb, cx, trackY, cw * gv[i], trackH, ui::rgba(70, 120, 230, 255));
@@ -535,17 +535,17 @@ public:
             font.draw(sb, cx, hy, 1.1f, ui::color::kWinText, "HDR");
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, hy - 4.0f, 90.0f, 26.0f,
-                           app.hdr() ? "On" : "Off", 1.2f))
+                           app.hdr() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setHdr(!app.hdr());
             // 3D render-scale (#111): one control for both directions -- FSR1 upscales below native
             // (performance), SSAA supersamples above native then downsamples (top quality). Cycles
             // Off -> Quality -> Balanced -> Performance -> SSAA 1.5x -> SSAA 2x. setFsr persists.
             const float fy = hy + 34.0f;
             const float f = app.fsr();
-            const char* fl = f >= 1.9f ? "SSAA 2x" : f >= 1.4f ? "SSAA 1.5x"
-                             : f >= 0.999f ? "Off" : f >= 0.72f ? "Quality"
-                             : f >= 0.58f ? "Balanced" : "Performance";
-            font.draw(sb, cx, fy, 1.1f, ui::color::kWinText, "Render Scale");
+            const std::string fl = f >= 1.9f ? "SSAA 2x" : f >= 1.4f ? "SSAA 1.5x"
+                             : f >= 0.999f ? tr("set.off") : f >= 0.72f ? tr("set.quality")
+                             : f >= 0.58f ? tr("set.balanced") : tr("set.performance");
+            font.draw(sb, cx, fy, 1.1f, ui::color::kWinText, tr("set.render_scale"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 130.0f, fy - 4.0f, 130.0f, 26.0f, fl, 1.2f)) {
                 const float nf = f >= 1.9f ? 1.0f : f >= 1.4f ? 2.0f
@@ -558,84 +558,84 @@ public:
             // Glow's halos work in any mode. Cycles on click. setGodrayMode persists.
             const float gry = fy + 34.0f;
             const int gm = app.godrayMode();
-            const char* gml = gm == 2 ? "Rays" : gm == 1 ? "Glow" : "Off";
-            font.draw(sb, cx, gry, 1.1f, ui::color::kWinText, "Volum. Light");
+            const std::string gml = gm == 2 ? tr("set.rays") : gm == 1 ? tr("set.glow") : tr("set.off");
+            font.draw(sb, cx, gry, 1.1f, ui::color::kWinText, tr("set.volum_light"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, gry - 4.0f, 90.0f, 26.0f, gml, 1.2f))
                 app.setGodrayMode((gm + 1) % 3);
             // Bloom (#bloom): soft glow out of bright areas. On/off, default on. Best with HDR/Render
             // Scale/Volum. Light off (bloom owns the offscreen only when those don't).
             const float bly = gry + 34.0f;
-            font.draw(sb, cx, bly, 1.1f, ui::color::kWinText, "Bloom");
+            font.draw(sb, cx, bly, 1.1f, ui::color::kWinText, tr("set.bloom"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, bly - 4.0f, 90.0f, 26.0f,
-                           app.bloom() ? "On" : "Off", 1.2f))
+                           app.bloom() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setBloom(!app.bloom());
             // Ambient occlusion (#ao): depth-only SSAO contact shadows. On/off, default OFF (new;
             // mutually exclusive with Bloom — AO wins when both on; needs sampleable depth).
             const float aoy = bly + 34.0f;
-            font.draw(sb, cx, aoy, 1.1f, ui::color::kWinText, "Ambient Occlusion");
+            font.draw(sb, cx, aoy, 1.1f, ui::color::kWinText, tr("set.ambient_occlusion"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, aoy - 4.0f, 90.0f, 26.0f,
-                           app.ao() ? "On" : "Off", 1.2f))
+                           app.ao() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setAo(!app.ao());
             // Normals (S.): relief from luminance normal maps — Off / x1 / x1.5 / x2, player's
             // choice. Applied live (shader strength), persisted; default x1.5 on real GPUs.
             const float nyy = aoy + 34.0f;
             const float nmv = app.normalsMode();
-            const char* nml = nmv < 0.5f ? "Off" : nmv < 1.25f ? "x1" : nmv < 1.75f ? "x1.5" : "x2";
-            font.draw(sb, cx, nyy, 1.1f, ui::color::kWinText, "Normals");
+            const std::string nml = nmv < 0.5f ? tr("set.off") : nmv < 1.25f ? "x1" : nmv < 1.75f ? "x1.5" : "x2";
+            font.draw(sb, cx, nyy, 1.1f, ui::color::kWinText, tr("set.normals"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, nyy - 4.0f, 90.0f, 26.0f, nml, 1.2f))
                 app.setNormalsMode(nmv < 0.5f ? 1.0f : nmv < 1.25f ? 1.5f : nmv < 1.75f ? 2.0f : 0.0f);
             // Sprite frame interpolation (S.): smoothly tween .act layer transforms between frames.
             // Two independent toggles -- characters/mobs vs effects. Both OFF = the classic snap look.
             const float ay = nyy + 34.0f;
-            font.draw(sb, cx, ay, 1.1f, ui::color::kWinText, "Interp. anim");
+            font.draw(sb, cx, ay, 1.1f, ui::color::kWinText, tr("set.interp_anim"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, ay - 4.0f, 90.0f, 26.0f,
-                           app.animInterp() ? "On" : "Off", 1.2f))
+                           app.animInterp() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setAnimInterp(!app.animInterp());
             const float ey = ay + 34.0f;
-            font.draw(sb, cx, ey, 1.1f, ui::color::kWinText, "Interp. fx");
+            font.draw(sb, cx, ey, 1.1f, ui::color::kWinText, tr("set.interp_fx"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, ey - 4.0f, 90.0f, 26.0f,
-                           app.fxInterp() ? "On" : "Off", 1.2f))
+                           app.fxInterp() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxInterp(!app.fxInterp());
             // Water reflections (#water): Off / Light (sky tint) / SSR (half-res planar) / Planar
             // (full-res mirror). Heavier modes default off on mobile/console/WARP. Cycles on click.
             const float wry = ey + 34.0f;
             const int wr = app.waterReflect();
-            const char* wrl = wr == 3 ? "Planar" : wr == 2 ? "SSR" : wr == 1 ? "Light" : "Off";
-            font.draw(sb, cx, wry, 1.1f, ui::color::kWinText, "Water Reflect");
+            const std::string wrl = wr == 3 ? tr("set.planar") : wr == 2 ? "SSR" : wr == 1 ? tr("set.light") : tr("set.off");
+            font.draw(sb, cx, wry, 1.1f, ui::color::kWinText, tr("set.water_reflect"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, wry - 4.0f, 90.0f, 26.0f, wrl, 1.2f))
                 app.setWaterReflect((wr + 1) % 4);
             // Grass (#grass): on/off. Height comes from the Normals level above (x1/x1.5/x2 -> 20/30/40%).
             const float gsy = wry + 34.0f;
-            font.draw(sb, cx, gsy, 1.1f, ui::color::kWinText, "Grass");
+            font.draw(sb, cx, gsy, 1.1f, ui::color::kWinText, tr("set.grass"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, gsy - 4.0f, 90.0f, 26.0f,
-                           app.grassEnabled() ? "On" : "Off", 1.2f))
+                           app.grassEnabled() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setGrassEnabled(!app.grassEnabled());
             // Grass Wind (#grasswind): sways the grass blade tips. Default on.
             const float gwy = gsy + 34.0f;
-            font.draw(sb, cx, gwy, 1.1f, ui::color::kWinText, "Grass Wind");
+            font.draw(sb, cx, gwy, 1.1f, ui::color::kWinText, tr("set.grass_wind"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, gwy - 4.0f, 90.0f, 26.0f,
-                           app.grassWind() ? "On" : "Off", 1.2f))
+                           app.grassWind() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setGrassWind(!app.grassWind());
             // Grass Flowers (#grassflowers): scattered bright flower heads. Default on.
             const float gfy = gwy + 34.0f;
-            font.draw(sb, cx, gfy, 1.1f, ui::color::kWinText, "Grass Flowers");
+            font.draw(sb, cx, gfy, 1.1f, ui::color::kWinText, tr("set.grass_flowers"));
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, gfy - 4.0f, 90.0f, 26.0f,
-                           app.grassFlowers() ? "On" : "Off", 1.2f))
+                           app.grassFlowers() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setGrassFlowers(!app.grassFlowers());
             // LOD (#lod, Switch/Android perf): Off / 25 / 40 / 60 / 80 draw radius. Cycles on click.
             const float ly = gfy + 34.0f;
             const int lv = app.lod();
-            const char* ll = lv == 80 ? "80" : lv == 60 ? "60" : lv == 40 ? "40" : lv == 25 ? "25" : "Off";
+            const std::string ll = lv == 80 ? "80" : lv == 60 ? "60" : lv == 40 ? "40" : lv == 25 ? "25" : tr("set.off");
             font.draw(sb, cx, ly, 1.1f, ui::color::kWinText, "LOD");
             if (selOpen_ < 0 &&
                 ui::button(sb, font, uin, cx + cw - 90.0f, ly - 4.0f, 90.0f, 26.0f, ll, 1.2f)) {
@@ -644,53 +644,53 @@ public:
             }
             // Ambient / weather particle families (each on/off, default on).
             const float fxWy = ly + 34.0f;
-            font.draw(sb, cx, fxWy, 1.1f, ui::color::kWinText, "Weather FX");
+            font.draw(sb, cx, fxWy, 1.1f, ui::color::kWinText, tr("set.weather_fx"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxWy - 4.0f, 90.0f, 26.0f,
-                                           app.fxWeather() ? "On" : "Off", 1.2f))
+                                           app.fxWeather() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxWeather(!app.fxWeather());
             const float fxFy = fxWy + 34.0f;
-            font.draw(sb, cx, fxFy, 1.1f, ui::color::kWinText, "Fireflies");
+            font.draw(sb, cx, fxFy, 1.1f, ui::color::kWinText, tr("set.fireflies"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxFy - 4.0f, 90.0f, 26.0f,
-                                           app.fxFireflies() ? "On" : "Off", 1.2f))
+                                           app.fxFireflies() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxFireflies(!app.fxFireflies());
             const float fxSy = fxFy + 34.0f;
-            font.draw(sb, cx, fxSy, 1.1f, ui::color::kWinText, "Smoke");
+            font.draw(sb, cx, fxSy, 1.1f, ui::color::kWinText, tr("set.smoke"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxSy - 4.0f, 90.0f, 26.0f,
-                                           app.fxSmoke() ? "On" : "Off", 1.2f))
+                                           app.fxSmoke() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxSmoke(!app.fxSmoke());
             const float fxKy = fxSy + 34.0f;
-            font.draw(sb, cx, fxKy, 1.1f, ui::color::kWinText, "Sparkle");
+            font.draw(sb, cx, fxKy, 1.1f, ui::color::kWinText, tr("set.sparkle"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxKy - 4.0f, 90.0f, 26.0f,
-                                           app.fxSparkle() ? "On" : "Off", 1.2f))
+                                           app.fxSparkle() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxSparkle(!app.fxSparkle());
             // Atmospheric life (#fxlife): wandering butterflies + floating dust motes (open-air maps).
             const float fxBy = fxKy + 34.0f;
-            font.draw(sb, cx, fxBy, 1.1f, ui::color::kWinText, "Butterflies");
+            font.draw(sb, cx, fxBy, 1.1f, ui::color::kWinText, tr("set.butterflies"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxBy - 4.0f, 90.0f, 26.0f,
-                                           app.fxButterflies() ? "On" : "Off", 1.2f))
+                                           app.fxButterflies() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxButterflies(!app.fxButterflies());
             const float fxMy = fxBy + 34.0f;
-            font.draw(sb, cx, fxMy, 1.1f, ui::color::kWinText, "Dust Motes");
+            font.draw(sb, cx, fxMy, 1.1f, ui::color::kWinText, tr("set.dust_motes"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, fxMy - 4.0f, 90.0f, 26.0f,
-                                           app.fxMotes() ? "On" : "Off", 1.2f))
+                                           app.fxMotes() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxMotes(!app.fxMotes());
             // Animated water surface ripple (#waterripples).
             const float wry2 = fxMy + 34.0f;
-            font.draw(sb, cx, wry2, 1.1f, ui::color::kWinText, "Water Ripples");
+            font.draw(sb, cx, wry2, 1.1f, ui::color::kWinText, tr("set.water_ripples"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wry2 - 4.0f, 90.0f, 26.0f,
-                                           app.waterRipples() ? "On" : "Off", 1.2f))
+                                           app.waterRipples() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setWaterRipples(!app.waterRipples());
             // Water wake trails (#watertrail): ripple rings under units moving on water. Default on.
             const float wty = wry2 + 34.0f;
-            font.draw(sb, cx, wty, 1.1f, ui::color::kWinText, "Water Trails");
+            font.draw(sb, cx, wty, 1.1f, ui::color::kWinText, tr("set.water_trails"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, wty - 4.0f, 90.0f, 26.0f,
-                                           app.fxWaterTrail() ? "On" : "Off", 1.2f))
+                                           app.fxWaterTrail() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setFxWaterTrail(!app.fxWaterTrail());
             // xBR 4x texture upscale (#xbr): sharper sprites/ground. Default OFF (heavy ~16x memory).
             const float xby = wty + 34.0f;
             font.draw(sb, cx, xby, 1.1f, ui::color::kWinText, "xBR Textures");
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, xby - 4.0f, 90.0f, 26.0f,
-                                           app.xbrUpscale() ? "On" : "Off", 1.2f))
+                                           app.xbrUpscale() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setXbrUpscale(!app.xbrUpscale());
             // MSAA (backbuffer anti-aliasing): Off / x2 / x4, applied live. With Bloom/AO the scene renders
             // into a single-sample offscreen, so MSAA only smooths the UI there (Off on the Switch profile).
@@ -698,22 +698,22 @@ public:
             const int ms = app.msaa();
             font.draw(sb, cx, msy, 1.1f, ui::color::kWinText, "MSAA");
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, msy - 4.0f, 90.0f, 26.0f,
-                                           ms >= 4 ? "x4" : ms >= 2 ? "x2" : "Off", 1.2f))
+                                           ms >= 4 ? "x4" : ms >= 2 ? "x2" : tr("set.off"), 1.2f))
                 app.setMsaa(ms >= 4 ? 0 : ms >= 2 ? 4 : 2);
             // Texture Size cap: Full / 2048 / 1024 / 512 / 256 for ground, model and water textures. Cuts
             // texture memory 4x per step down; applies from the next map load (512 on the Switch profile).
             const float tsy = msy + 34.0f;
             const int td = app.texMaxDim();
-            font.draw(sb, cx, tsy, 1.1f, ui::color::kWinText, "Texture Size");
+            font.draw(sb, cx, tsy, 1.1f, ui::color::kWinText, tr("set.texture_size"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, tsy - 4.0f, 90.0f, 26.0f,
-                                           td == 0 ? "Full" : td >= 2048 ? "2048" : td >= 1024 ? "1024"
+                                           td == 0 ? tr("set.full") : td >= 2048 ? "2048" : td >= 1024 ? "1024"
                                            : td >= 512 ? "512" : "256", 1.2f))
                 app.setTexMaxDim(td == 0 ? 2048 : td >= 2048 ? 1024 : td >= 1024 ? 512 : td >= 512 ? 256 : 0);
             // Character Dye (S. 2026-11-21): hair/clothes dye colours on PCs; off = sprites' own colours (lighter).
             const float cdy = tsy + 34.0f;
-            font.draw(sb, cx, cdy, 1.1f, ui::color::kWinText, "Character Dye");
+            font.draw(sb, cx, cdy, 1.1f, ui::color::kWinText, tr("set.character_dye"));
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, cdy - 4.0f, 90.0f, 26.0f,
-                                           app.charDye() ? "On" : "Off", 1.2f))
+                                           app.charDye() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setCharDye(!app.charDye());
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
@@ -724,16 +724,16 @@ public:
             // Scale UI selector (S.): x1 / x1.25 / x1.5 / x2 — enlarges the whole in-game UI.
             {
                 const float ry = cy + static_cast<float>(nSel) * rowH + 4.0f;  // BELOW the 3 sels
-                font.draw(sb, cx + 8.0f, ry + 4.0f, 1.1f, ui::color::kWinText, "Scale UI");  // (Lang/Mode/Cam)
+                font.draw(sb, cx + 8.0f, ry + 4.0f, 1.1f, ui::color::kWinText, tr("set.scale_ui"));  // (Lang/Mode/Cam)
                 // Auto (default, S.): derive from screen height (>1500 -> x2, >999 -> x1.5, else x1).
-                static const char* const kScaleL[5] = {"Auto", "x1", "x1.25", "x1.5", "x2"};
+                static const char* const kScaleL[5] = {"set.auto", "x1", "x1.25", "x1.5", "x2"};
                 static const float kScaleV[5] = {1.0f, 1.0f, 1.25f, 1.5f, 2.0f};  // [0] unused (Auto)
                 int cur = 0;  // 0 = Auto
                 if (!app.uiScaleAuto())
                     for (int i = 1; i < 5; ++i)
                         if (std::abs(app.uiScale() - kScaleV[i]) < 0.01f) cur = i;
                 if (selOpen_ < 0 &&
-                    ui::button(sb, font, uin, cx + cw - 90.0f, ry, 90.0f, 24.0f, kScaleL[cur], 1.1f)) {
+                    ui::button(sb, font, uin, cx + cw - 90.0f, ry, 90.0f, 24.0f, tr(kScaleL[cur]), 1.1f)) {
                     const int nx = (cur + 1) % 5;
                     if (nx == 0) app.setUiScaleAuto(true);
                     else app.setUiScale(kScaleV[nx]);  // disables Auto
@@ -743,10 +743,10 @@ public:
             // connects (or via the prompt) and auto-disables when all pads leave; this forces it either way.
             {
                 const float ry = cy + static_cast<float>(nSel) * rowH + 34.0f;  // below Scale UI
-                font.draw(sb, cx + 8.0f, ry + 4.0f, 1.1f, ui::color::kWinText, "Control");
+                font.draw(sb, cx + 8.0f, ry + 4.0f, 1.1f, ui::color::kWinText, tr("set.control"));
                 if (selOpen_ < 0 &&
                     ui::button(sb, font, uin, cx + cw - 110.0f, ry, 110.0f, 24.0f,
-                               app.gamepadMode() ? "Gamepad" : "Keyboard", 1.1f))
+                               app.gamepadMode() ? tr("set.gamepad") : tr("set.keyboard"), 1.1f))
                     app.setGamepadMode(!app.gamepadMode());
             }
             // "Quality content" (#71 rework): Texture + Sprite each toggle 1k/4k. Replaces the old
@@ -756,9 +756,9 @@ public:
             // consoles (base content baked, quality can't change).
             if (!qualityHidden) {
                 const float uy0 = cy + static_cast<float>(nSel) * rowH + 70.0f;  // under Scale UI + Control
-                font.draw(sb, cx, uy0, 1.2f, ui::color::kWinText, "Quality content");
+                font.draw(sb, cx, uy0, 1.2f, ui::color::kWinText, tr("set.quality_content"));
                 const std::string cpid = contentPlatformId();
-                auto qualityRow = [&](int i, const char* label, const std::string& cfgVal, bool isSprite,
+                auto qualityRow = [&](int i, const std::string& label, const std::string& cfgVal, bool isSprite,
                                       void (Application::*setter)(const std::string&)) {
                     const float rowY = uy0 + 26.0f + static_cast<float>(i) * 30.0f;
                     font.draw(sb, cx + 8.0f, rowY + 2.0f, 1.0f, ui::color::kWinText, label);
@@ -769,27 +769,27 @@ public:
                         // cycle 1k -> 2k -> 4k -> 1k (S.: вернуть x2 тир), persisted
                         (app.*setter)(eff == "1k" ? "2k" : eff == "2k" ? "4k" : "1k");
                 };
-                qualityRow(0, "Texture", app.textureQuality(), /*isSprite=*/false, &Application::setTextureQuality);
-                qualityRow(1, "Sprite", app.spriteQuality(), /*isSprite=*/true, &Application::setSpriteQuality);
+                qualityRow(0, tr("set.texture"), app.textureQuality(), /*isSprite=*/false, &Application::setTextureQuality);
+                qualityRow(1, tr("set.sprite"), app.spriteQuality(), /*isSprite=*/true, &Application::setSpriteQuality);
             }
             // Camera control (S.: "настройка камеры"): RMB-drag orbit options. Invert X/Y flip the drag
             // axes; "Lock Y" freezes the pitch and only turns the camera (azimuth) while Ctrl/Shift is held.
             {
                 const float baseY = cy + static_cast<float>(nSel) * rowH + (qualityHidden ? 64.0f : 160.0f);
-                font.draw(sb, cx, baseY, 1.2f, ui::color::kWinText, "Camera");
+                font.draw(sb, cx, baseY, 1.2f, ui::color::kWinText, tr("set.camera"));
                 bool ix = app.mouseInvertX(), iy = app.mouseInvertY(), lky = app.mouseLockY();
-                auto ctoggle = [&](float y, const char* label, bool& v) {
+                auto ctoggle = [&](float y, const std::string& label, bool& v) {
                     font.draw(sb, cx + 16.0f, y + 4.0f, 1.1f, ui::color::kWinText, label);
                     if (selOpen_ < 0 &&
-                        ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, v ? "On" : "Off", 1.1f)) {
+                        ui::button(sb, font, uin, cx + cw - 70.0f, y, 70.0f, 24.0f, v ? tr("set.on") : tr("set.off"), 1.1f)) {
                         v = !v;
                         app.setMouseLook(ix, iy, lky);  // persists to game.cfg immediately
                     }
                 };
                 float y = baseY + 24.0f;
-                ctoggle(y, "Invert X", ix); y += 30.0f;
-                ctoggle(y, "Invert Y", iy); y += 30.0f;
-                ctoggle(y, "Lock Y (Ctrl/Shift)", lky); y += 30.0f;
+                ctoggle(y, tr("set.invert_x"), ix); y += 30.0f;
+                ctoggle(y, tr("set.invert_y"), iy); y += 30.0f;
+                ctoggle(y, tr("set.lock_y_ctrl_shift"), lky); y += 30.0f;
             }
         }
         backButton(app, sb, font, uin, cx, wy + wh - 40.0f, cw);
@@ -824,7 +824,7 @@ public:
                 ui::border(sb, boxX, oy, boxW, rowHt, ui::rgba(90, 90, 100, 160));
                 if (j == sels[i].cur)  // mark the current choice
                     ui::border(sb, boxX, oy, boxW, rowHt, ui::rgba(120, 200, 120, 220));
-                font.draw(sb, boxX + 6.0f, oy + 4.0f, 1.0f, ui::color::kWinText, sels[i].opts[j]);
+                font.draw(sb, boxX + 6.0f, oy + 4.0f, 1.0f, ui::color::kWinText, tr(sels[i].opts[j]));
                 if (uin.mousePressed && ov) {
                     newSel[i] = j;
                     selOpen_ = -1;

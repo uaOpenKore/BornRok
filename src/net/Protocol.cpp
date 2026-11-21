@@ -100,6 +100,21 @@ std::vector<u8> buildMakeChar(const std::string& name, u8 str, u8 agi, u8 vit, u
     return w.data();
 }
 
+// N of the client version 0.0.N.0 (UARO_VERSION_STR from the VERSION file), for the map login (bytes 2-3).
+static constexpr int parseClientBuild(const char* v) {
+    int dots = 0, n = 0;
+    for (const char* p = v; *p; ++p) {
+        if (*p == '.') { if (++dots == 3) break; n = 0; continue; }
+        if (dots == 2 && *p >= '0' && *p <= '9') n = n * 10 + (*p - '0');
+    }
+    return n;
+}
+#ifdef UARO_VERSION_STR
+static constexpr int kClientBuild = parseClientBuild(UARO_VERSION_STR);
+#else
+static constexpr int kClientBuild = 0;
+#endif
+
 std::vector<u8> buildWantToConnection(u32 accountId, u32 charId, u32 loginId1, u32 tick, u8 sex) {
     // S 009b — ServerType8 (uaRO) obfuscated map-login (CZ_ENTER), 26 bytes, matching uOK210
     // Send/ServerType8.pm::sendMapLogin EXACTLY. The server picks sd->packet_ver from this
@@ -109,8 +124,9 @@ std::vector<u8> buildWantToConnection(u32 accountId, u32 charId, u32 loginId1, u
     // 0x37 0x33 0x36 0x64 bytes are this server's fixed anti-bot padding between fields.
     ByteWriter w;
     w.u16le(0x009b);
-    w.u8v(0x39);
-    w.u8v(0x33);
+    // Bytes 2-3: the original client sends 39 33 (never read by the server). BornRok sends its build number N of
+    // 0.0.N.0 here (with the BRK mark below), so the server can log which BornRok version a player uses.
+    w.u16le(static_cast<u16>(kClientBuild));
     w.u32le(accountId);
     w.u8v(0x65);
     w.u32le(charId);

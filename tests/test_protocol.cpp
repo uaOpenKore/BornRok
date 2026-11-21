@@ -155,8 +155,14 @@ TEST_CASE(protocol_build_wanttoconnection) {
     const B p = net::buildWantToConnection(2000000, 150001, 0x33, 999, 1);
     CHECK_EQ(p.size(), 26u);  // ServerType8 (uaRO) obfuscated map-login (uOK210 sendMapLogin)
     CHECK_EQ(net::peekId(p), 0x009b);
-    CHECK_EQ(p[2], 0x39);  // fixed anti-bot padding
-    CHECK_EQ(p[3], 0x33);
+    {   // bytes 2-3: the build N of 0.0.N.0 (the server logs the BornRok version from them)
+        int dots = 0, n = 0;
+        for (const char* q = UARO_VERSION_STR; *q && dots < 3; ++q) {
+            if (*q == '.') { ++dots; n = dots == 2 ? 0 : n; continue; }
+            if (dots == 2 && *q >= '0' && *q <= '9') n = n * 10 + (*q - '0');
+        }
+        CHECK_EQ(p[2] | (p[3] << 8), n);
+    }
     CHECK_EQ(p[4] | (p[5] << 8) | (p[6] << 16) | (p[7] << 24), 2000000);  // account_id @4
     CHECK_EQ(p[8], 0x65);
     CHECK_EQ(p[9] | (p[10] << 8) | (p[11] << 16) | (p[12] << 24), 150001);  // char_id @9

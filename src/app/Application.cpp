@@ -167,6 +167,7 @@ int Application::run(const AppConfig& cfg) {
     ao_ = 0;     // AO off on Android (post-process disabled there)
     if (waterReflect_ < 0) waterReflect_ = 0;  // mobile/Switch default: reflections off (S.)
     if (grassEnabled_ < 0) grassEnabled_ = 0;  // mobile/Switch default: grass off (S.)
+    if (charDye_ < 0) charDye_ = 0;            // mobile/Switch default: no character dyes (S. 2026-11-21)
     if (lod_ < 0) lod_ = 25;  // mobile/Switch default: LOD radius 25 (S.: 25 not 60)
 #else
     render_.setHdr(hdr_);      // apply the saved HDR toggle (#111)
@@ -195,6 +196,8 @@ int Application::run(const AppConfig& cfg) {
     // from the Normals level (x1 -> 20%, x1.5 -> 30%, x2 -> 40% of char height).
     if (grassEnabled_ < 0) grassEnabled_ = render_.isSoftwareRenderer() ? 0 : 1;
     g_grassEnabled = grassEnabled_ != 0;
+    if (charDye_ < 0) charDye_ = 1;
+    g_charDye = charDye_ != 0;
     g_grassHeightFrac = (normalsMode_ < 1.0f ? 1.0f : normalsMode_) * 0.20f;
     g_grassWind = grassWind_ != 0;  // grass wind sway (#grasswind): default on, cheap enough for mobile too
     g_grassFlowers = grassFlowers_ != 0;  // grass flowers (#grassflowers): default on
@@ -608,6 +611,7 @@ void Application::loadConfig() {
             else if (key == "waterreflect")  // water reflections: 0 off / 1 light / 2 ssr / 3 planar (#water)
                 waterReflect_ = std::clamp(static_cast<int>(v + 0.5f), 0, 3);
             else if (key == "grass") grassEnabled_ = (v != 0.0f) ? 1 : 0;  // ground grass on/off (#grass)
+            else if (key == "chardye") charDye_ = (v != 0.0f) ? 1 : 0;  // character dyes on/off
             else if (key == "grasswind") grassWind_ = (v != 0.0f) ? 1 : 0;  // grass wind sway on/off (#grasswind)
             else if (key == "grassflowers") grassFlowers_ = (v != 0.0f) ? 1 : 0;  // grass flowers on/off (#grassflowers)
             else if (key == "fxweather") fxWeather_ = (v != 0.0f) ? 1 : 0;      // ambient: weather fall
@@ -708,6 +712,7 @@ void Application::loadConfig() {
         if (unset("lod")) lod_ = 25;
         if (unset("waterreflect")) waterReflect_ = 0;
         if (unset("grass")) grassEnabled_ = 0;
+        if (unset("chardye")) charDye_ = 0;
         if (unset("normals")) normalsMode_ = 0.0f;
         if (unset("bloom")) bloom_ = 0;
         if (unset("fxsmoke")) fxSmoke_ = 0;
@@ -817,6 +822,7 @@ void Application::saveConfig() const {
         << "language " << language_ << "\n";
     if (normalsMode_ >= 0.0f) out << "normals " << normalsMode_ << "\n";  // -1 = auto (unsaved)
     if (waterReflect_ >= 0) out << "waterreflect " << waterReflect_ << "\n";  // -1 = auto (unsaved) (#water)
+    if (charDye_ >= 0) out << "chardye " << charDye_ << "\n";                // character dyes (-1 = unsaved)
     if (grassEnabled_ >= 0) out << "grass " << grassEnabled_ << "\n";          // -1 = auto (unsaved) (#grass)
     out << "grasswind " << grassWind_ << "\n";                                 // grass wind sway (#grasswind)
     out << "grassflowers " << grassFlowers_ << "\n";                           // grass flowers (#grassflowers)
@@ -941,6 +947,7 @@ void Application::setGrassFlowers(bool on) {
     saveConfig();
 }
 
+void Application::setCharDye(bool on) { charDye_ = on ? 1 : 0; g_charDye = on; saveConfig(); }
 void Application::setFxWeather(bool on) { fxWeather_ = on ? 1 : 0; g_fxWeather = on; saveConfig(); }
 void Application::setFxFireflies(bool on) { fxFireflies_ = on ? 1 : 0; g_fxFireflies = on; saveConfig(); }
 void Application::setFxSmoke(bool on) { fxSmoke_ = on ? 1 : 0; g_fxSmoke = on; saveConfig(); }

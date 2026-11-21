@@ -150,6 +150,8 @@ public:
     // xBR 4x texture upscale (Settings -> Video -> xBR Textures, #xbr). Default OFF (heavy: ~16x texture
     // memory/decode). Applies as caches refill (map / appearance re-load).
     bool xbrUpscale() const { return xbr_ != 0; }
+    bool charDye() const { return charDye_ != 0; }   // hair/clothes dyes on PCs (off on Android/Switch by default)
+    void setCharDye(bool on);
     void setXbrUpscale(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
@@ -340,6 +342,7 @@ private:
     int waterRipples_ = 1;                       // animated water ripple on/off; default on (#waterripples)
     int fxWaterTrail_ = 1;                        // water wake trails on/off; default on (#watertrail)
     int xbr_ = 0;                                // xBR 4x texture upscale: 0 off / 1 on; default OFF (#xbr)
+    int charDye_ = -1;  // -1 = unsaved: on for desktop, off for Android/Switch
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     int msaa_ = 4;                               // backbuffer MSAA samples 0/2/4 (0 on the Switch profile)
     int texMaxDim_ = 0;                          // texture size cap, 0 = full (512 on the Switch profile)

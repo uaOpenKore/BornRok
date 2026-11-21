@@ -649,6 +649,7 @@ bool CharacterActor::load(const Vfs& vfs, u16 classId, u8 sex, u16 hair, u16 hea
                           u16 headMid, u16 headTop, bool riding, u16 weapon, u16 shield,
                           u16 hairColor, u16 clothColor) {
     destroy();
+    if (!g_charDye) hairColor = clothColor = 0;  // Character Dye off: the sprites' own colours, no palette work
     // Shared-cache identity: every param that changes a composed pixel (job/sex/hair/headgear/mount/
     // weapon/shield + the two dye colours). Two PCs with an identical look share frame textures.
     appearanceKey_ = "P" + std::to_string(classId) + "_" + std::to_string(sex) + "_" +

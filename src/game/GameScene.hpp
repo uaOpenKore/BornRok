@@ -168,6 +168,7 @@ private:
 
     MapRenderer renderer_;
     CharacterActor player_;
+    bool charDyeSeen_ = true;  // the Character Dye setting (g_charDye) the PC sprites were composed with
     CharacterActor falcon_;        // hunter/sniper falcon (data/sprite/아이템/ht_falcon), drawn when OPTION_FALCON
     bool falconLoaded_ = false;    // lazy-load guard (falcon sprite is map-independent)
     // Blitz Beat (129): the falcon leaves the hunter, dives at the target and pecks, then returns

@@ -56,6 +56,9 @@ inline bool g_fxWaterTrail = true;
 // decode cost ~16x, which can stutter or exhaust VRAM on weaker GPUs, so it is opt-in. Read where a
 // just-decoded frame/tile is uploaded; a change applies as caches refill (on map / appearance re-load).
 inline bool g_xbrUpscale = false;
+// Character dye (S. 2026-11-21): hair/clothes dye colours on PCs. Off = every PC in its sprite's own colours, no
+// palette read and no 2k recolour (lighter; default off on Android and the Switch).
+inline bool g_charDye = true;
 
 // LOD (#lod, Settings -> Video, for Switch/Android perf). 0 = off (draw every RSM object); else the
 // world-unit RADIUS around the player within which objects are drawn. With LOD on, objects in the rear

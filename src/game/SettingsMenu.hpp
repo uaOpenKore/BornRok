@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 24 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 25 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size + Character Dye. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -709,6 +709,12 @@ public:
                                            td == 0 ? "Full" : td >= 2048 ? "2048" : td >= 1024 ? "1024"
                                            : td >= 512 ? "512" : "256", 1.2f))
                 app.setTexMaxDim(td == 0 ? 2048 : td >= 2048 ? 1024 : td >= 1024 ? 512 : td >= 512 ? 256 : 0);
+            // Character Dye (S. 2026-11-21): hair/clothes dye colours on PCs; off = sprites' own colours (lighter).
+            const float cdy = tsy + 34.0f;
+            font.draw(sb, cx, cdy, 1.1f, ui::color::kWinText, "Character Dye");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, cdy - 4.0f, 90.0f, 26.0f,
+                                           app.charDye() ? "On" : "Off", 1.2f))
+                app.setCharDye(!app.charDye());
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

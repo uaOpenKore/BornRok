@@ -11321,6 +11321,19 @@ void GameScene::update(Application& app, double dt) {
     CharacterActor::beginFrame();  // sprite texture cache clock + budget (releases long-unused frames)
     renderer_.syncNormals(app);    // relief maps follow the Normals setting live (built/freed on change)
     renderer_.syncGrass(app);      // so does the grass: off frees its clumps/mesh/texture (#grass)
+    if (charDyeSeen_ != g_charDye) {  // Character Dye toggled: every visible PC (and we) re-composed at once
+        charDyeSeen_ = g_charDye;
+        const auto& s = app.session();
+        player_.load(app.vfs(), s.charClass, s.sex, s.charHair, s.charHeadBottom, s.charHeadMid, s.charHeadTop,
+                     playerRiding_, s.charWeapon, s.charShield, s.charHairColor, s.charClothColor);
+        for (auto& kv : actors_) {
+            MapActor& a = kv.second;
+            if (!a.info.pc) continue;
+            a.sprite.load(app.vfs(), a.info.class_, a.info.sex, a.info.hair, a.info.headBottom, a.info.headMid,
+                          a.info.headTop, (a.info.option & 0x20) != 0, a.info.weapon, a.info.shield,
+                          a.info.hairColor, a.info.clothesColor);
+        }
+    }
     // Put the mouse into LOGICAL space (physical / uiScale) ONCE per frame, right at the top of the
     // frame's game logic. The whole HUD is drawn and hit-tested in logical space, and the world-pick
     // viewport (lastViewW_/H_) is stored logical too, so from here on EVERY consumer — update(),

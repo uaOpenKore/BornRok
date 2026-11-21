@@ -32,8 +32,9 @@ void PatcherScene::onEnter(Application& app) {
     // writing next to the exe in read-only WindowsApps and silently failing). Application mounts GRFs
     // from the same data_dir(), so what the patcher downloads here is what the game loads. (S.)
     const std::string root = fs::data_dir();
-    // If data_dir() diverged from the exe dir, the exe dir is read-only = a packaged (MSIX) install;
-    // the exe is updated by the package, so tell the runner to skip the platforms/ binary. (S.:
+    // If data_dir() diverged from the exe dir, the install is packaged: a read-only MSIX, or a Steam depot
+    // (its bornrok-userdata.txt marker, see fs::data_dir); the exe is updated by the store/Steam, so tell
+    // the runner to skip the platforms/ binary. (S.:
     // "для MSIX подгрузка с platforms не нужна, всё равно не работает".)
     {
         std::string bd = fs::base_dir();

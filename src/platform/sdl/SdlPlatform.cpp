@@ -65,9 +65,15 @@ std::string data_dir() {
     // \...) is read-only — the patcher couldn't write downloads/config/log there, so it silently did
     // nothing and dropped straight to the login screen (S. 2026-07-24). Windows transparently
     // redirects the pref path into the package's LocalCache, so this works under MSIX with no extra API.
+    // A Steam install (S. 2026-11-21) ships only the program: its folder is writable, but the game data the
+    // patcher downloads must not sit among the files Steam owns and updates. The Steam depot carries the
+    // marker file bornrok-userdata.txt beside the exe -> always the per-user dir, even when the exe dir is writable.
     static const std::string cached = [] {
         std::string base = base_dir();
-        if (!base.empty()) {
+        std::error_code mec;
+        const bool userData = !base.empty() &&
+            std::filesystem::exists(std::filesystem::path(base) / "bornrok-userdata.txt", mec);
+        if (!base.empty() && !userData) {
             std::error_code ec;
             const std::filesystem::path probe =
                 std::filesystem::path(base) / ".bornrok_write_test";

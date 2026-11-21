@@ -227,19 +227,27 @@ VCPKG_ROOT=~/vcpkg STEAM_APPID=<appid> STEAM_DEPOTID=<depotid> ./scripts/build-p
 (`flatpak install --user build/BornRok.flatpak`, запуск `flatpak run com.bornrok.BornRok`).
 На Steam Deck / SteamOS ставится сайдлоадом так же.
 
-**SteamOS / Steam** (`scripts/build-steam.sh`, шаблоны `packaging/steam/*.vdf.in`):
-Steam Deck запускает игру нативно через Steam Linux Runtime — статический x86_64 бинарник
-подходит как есть. Скрипт делает:
-- `build/steam/content/` — полезная нагрузка депо (бинарник + `run.sh`; данные тянет
-  встроенный патчер при первом запуске, либо задай `STEAM_DATA_DIR=/путь` чтобы вшить их в депо);
-- `build/steam/app_build.vdf` + `depot_build.vdf` — скрипты SteamPipe с подставленными
-  `STEAM_APPID`/`STEAM_DEPOTID` и абсолютными путями;
-- `build/BornRok-steamos-x86_64.tar.gz` — портативный tar (без Steamworks-аккаунта:
-  распаковать на Деке, запустить `./run.sh`, или добавить как non-Steam игру).
+**Steam: Windows + SteamOS/Steam Deck** (`scripts/build-steam.sh`, шаблоны `packaging/steam/*.vdf.in`).
+Решение S. (2026-11-21): **в депо только программа**, игровые данные качает встроенный патчер в папку
+пользователя (`%APPDATA%\uaro\client` на Windows, `~/.local/share/uaro/client` на Linux/Deck), а не в папку
+установки Steam. Рядом с exe в каждом депо лежит файл-метка `bornrok-userdata.txt`: увидев его, клиент пишет
+данные, настройки и логи в папку пользователя и не обновляет свой exe (программу обновляет Steam).
 
-Загрузка в Steam:
+- **Linux-депо** собирается этим скриптом: статический x86_64 бинарник + `run.sh`, Steam Linux Runtime
+  запускает его как есть.
+- **Windows-депо**: собери `BornRok.exe` на Windows через `scripts/build-windows.ps1`, затем передай папку
+  сборки (`build\win-msvc\src\Release`) в `STEAM_WIN_DIR`. Скрипт возьмёт exe и DLL рядом с ним, без
+  `.pdb`/`.msix`.
+
 ```bash
+VCPKG_ROOT=~/vcpkg STEAM_APPID=<appid> STEAM_DEPOTID_LINUX=<depot> \
+  STEAM_WIN_DIR=/mnt/c/.../build/win-msvc/src/Release STEAM_DEPOTID_WIN=<depot> \
+  ./scripts/build-steam.sh
 steamcmd +login <user> +run_app_build "$PWD/build/steam/app_build.vdf" +quit
 ```
-`STEAM_APPID`/`STEAM_DEPOTID` берутся из твоего приложения в Steamworks; без них в
-`app_build.vdf` останутся плейсхолдеры.
+
+Результат: `build/steam/content-linux/`, `build/steam/content-win/`, `build/steam/app_build.vdf` (оба депо),
+`build/BornRok-steamos-x86_64.tar.gz` (портативный tar для Деки без Steamworks-аккаунта).
+AppID и DepotID берутся из приложения в Steamworks, без них в `app_build.vdf` останутся заглушки.
+В Steamworks: два депо (Windows и Linux + SteamOS), launch options `BornRok.exe` (Windows) и `run.sh` (Linux).
+`STEAM_DATA_DIR=/путь` вшивает данные в депо (не выбранный вариант, оставлен для офлайн-сборки).

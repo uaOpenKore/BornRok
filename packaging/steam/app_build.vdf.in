@@ -4,13 +4,15 @@
 "appbuild"
 {
 	"appid"		"@APPID@"
-	"desc"		"BornRok @VERSION@ (SteamOS/Linux)"
+	"desc"		"BornRok @VERSION@"
 	"buildoutput"	"@OUTPUT@"      // steamcmd writes logs + chunk cache here
-	"contentroot"	"@CONTENT@"     // the staged depot payload (binary + data)
+	"contentroot"	"@CONTENT@"     // build/steam (each depot script names its own content folder)
 	"setlive"	""              // set to a branch name (e.g. "beta") to auto-publish; empty = manual
 
+	// one line per depot: Linux/SteamOS, and Windows when it was built (the program only; the patcher
+	// downloads the data into the per-user folder)
 	"depots"
 	{
-		"@DEPOTID@"	"@DEPOTVDF@"
+@DEPOTS@
 	}
 }

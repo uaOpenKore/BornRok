@@ -46,7 +46,19 @@ constexpr bool kArmLinuxProfile = false;
 // 2026-07-29). The content-platform TOKEN classifies the closed consoles + iOS + Steam Deck; MSIX
 // (Windows) and Flatpak (Linux) share the desktop token, so they're caught by fs::is_packaged_install()
 // (itself gated to desktop, so Android — still a patching platform — is never mistaken for a package).
+// A Steam depot (fs::has_userdata_marker, S. 2026-11-21) ships only the program: the patcher downloads the data
+// into the per-user dir, on Windows and on the Steam Deck alike -- it is baked only when the depot really carries
+// the packs (<install>/content/*.zip|*.grf, scripts/build-steam.sh with STEAM_DATA_DIR).
 bool isBakedContentDistribution() {
+    if (fs::has_userdata_marker()) {
+        std::error_code ec;
+        const std::filesystem::path content = std::filesystem::path(fs::base_dir()) / "content";
+        for (std::filesystem::directory_iterator it(content, ec), end; !ec && it != end; it.increment(ec)) {
+            const std::string ext = it->path().extension().string();
+            if (ext == ".zip" || ext == ".grf") return true;
+        }
+        return false;
+    }
     return isBakedTokenPlatform(contentPlatformId()) || fs::is_packaged_install();
 }
 

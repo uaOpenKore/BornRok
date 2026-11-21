@@ -169,6 +169,8 @@ std::string pref_dir(const std::string& /*org*/, const std::string& /*app*/) {
     return "/download0/";  // TODO(SDK): or the mounted save-data path from PsConsoleServices
 }
 
+bool has_userdata_marker() { return false; }  // a console package is never a Steam depot
+
 std::string data_dir() {
     // Writable data root (real data routes through consoleServices().save*); base_dir() (/app0) is
     // read-only. Return the writable download/save mount.

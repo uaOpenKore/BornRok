@@ -353,6 +353,8 @@ std::string pref_dir(const std::string& org, const std::string& app) {
     }
 }
 
+bool has_userdata_marker() { return false; }  // a UWP/Xbox package is never a Steam depot
+
 std::string data_dir() {
     // A UWP/Xbox package's install folder is ALWAYS read-only, so the writable data root is the
     // app's LocalFolder (same place pref_dir uses). No trailing slash, matching the SDL build.

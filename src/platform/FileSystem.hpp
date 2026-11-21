@@ -23,6 +23,11 @@ std::string base_dir();
 // LocalCache). No trailing slash.
 std::string data_dir();
 
+// The Steam depot's marker file beside the exe (S. 2026-11-21): the install ships only the program, the data
+// lives in the per-user dir (data_dir() = pref_dir even though the Steam folder is writable).
+inline const char* kUserDataMarker = "bornrok-userdata.txt";
+bool has_userdata_marker();
+
 // True on a packaged, read-only DESKTOP install where the exe dir diverges from the writable data dir:
 // MSIX (Windows) or Flatpak (Linux). False for a loose/portable desktop exe (data_dir()==base_dir()),
 // and false on macOS / mobile / console backends (Android's writable-dir split is deliberately NOT

@@ -58,6 +58,15 @@ std::string pref_dir(const std::string& org, const std::string& app) {
     return result;
 }
 
+bool has_userdata_marker() {
+    static const bool marker = [] {
+        const std::string base = base_dir();
+        std::error_code ec;
+        return !base.empty() && std::filesystem::exists(std::filesystem::path(base) / kUserDataMarker, ec);
+    }();
+    return marker;
+}
+
 std::string data_dir() {
     // Resolved once: the exe directory if it is WRITABLE (portable / loose-exe build — the client's
     // existing behaviour, data beside the exe), otherwise the per-user writable dir (pref_dir). The
@@ -67,13 +76,10 @@ std::string data_dir() {
     // redirects the pref path into the package's LocalCache, so this works under MSIX with no extra API.
     // A Steam install (S. 2026-11-21) ships only the program: its folder is writable, but the game data the
     // patcher downloads must not sit among the files Steam owns and updates. The Steam depot carries the
-    // marker file bornrok-userdata.txt beside the exe -> always the per-user dir, even when the exe dir is writable.
+    // marker file kUserDataMarker beside the exe -> always the per-user dir, even when the exe dir is writable.
     static const std::string cached = [] {
         std::string base = base_dir();
-        std::error_code mec;
-        const bool userData = !base.empty() &&
-            std::filesystem::exists(std::filesystem::path(base) / "bornrok-userdata.txt", mec);
-        if (!base.empty() && !userData) {
+        if (!base.empty() && !has_userdata_marker()) {
             std::error_code ec;
             const std::filesystem::path probe =
                 std::filesystem::path(base) / ".bornrok_write_test";

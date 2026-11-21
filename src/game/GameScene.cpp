@@ -11320,6 +11320,7 @@ void GameScene::update(Application& app, double dt) {
     CharacterActor::setContentSpriteScale(app.spriteQuality());  // 1k base; 2k/4k pack -> shrink to 1k
     CharacterActor::beginFrame();  // sprite texture cache clock + budget (releases long-unused frames)
     renderer_.syncNormals(app);    // relief maps follow the Normals setting live (built/freed on change)
+    renderer_.syncGrass(app);      // so does the grass: off frees its clumps/mesh/texture (#grass)
     // Put the mouse into LOGICAL space (physical / uiScale) ONCE per frame, right at the top of the
     // frame's game logic. The whole HUD is drawn and hit-tested in logical space, and the world-pick
     // viewport (lastViewW_/H_) is stored logical too, so from here on EVERY consumer — update(),

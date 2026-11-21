@@ -26,6 +26,7 @@ public:
     // Relief (normal) maps for the ground and the models exist only while Normals is on; call once a
     // frame - it builds them when Normals gets switched on and frees them when it gets switched off.
     void syncNormals(Application& app);
+    void syncGrass(Application& app);  // grass built/freed with its setting (#grass)
 
     // Sets the view 0 transform and submits every ground batch, the models, and the
     // animated water surface (which uses `time` to pick its frame). camPos/playerPos
@@ -57,6 +58,7 @@ private:
 
     MapData map_;
     bool normalsBuilt_ = false;  // normalTextures_ holds real relief maps (Normals was on at build time)
+    bool grassLoaded_ = false;  // grass was loaded for this map (Grass on); off frees it
     bool ready_ = false;
     bgfx::VertexBufferHandle vbh_ = BGFX_INVALID_HANDLE;
     bgfx::IndexBufferHandle ibh_ = BGFX_INVALID_HANDLE;

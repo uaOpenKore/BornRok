@@ -243,7 +243,8 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
 
     models_.load(app, map_);  // RSM objects (best-effort; ground renders regardless)
     water_.load(app, map_);   // animated water surface (best-effort; skipped if none)
-    grass_.load(app, map_, water_.ready());  // ground-grass billboards on grassy cells (best-effort; #grass)
+    grassLoaded_ = false;
+    syncGrass(app);  // ground-grass billboards on grassy cells (best-effort; #grass) -- only while Grass is on
     return true;
 }
 
@@ -310,6 +311,19 @@ void MapRenderer::syncNormals(Application& app) {
     log::info("MapRenderer: relief maps {} ({} ground)", want ? "built" : "freed", normalTextures_.size());
 }
 
+// Grass follows its setting live, like the relief maps: built when it is turned on, freed when it is turned off.
+// Off used to only skip the draw -- the clumps, mesh and texture were built at every map load and kept.
+void MapRenderer::syncGrass(Application& app) {
+    if (!ready_) return;
+    if (g_grassEnabled == grassLoaded_) return;
+    if (g_grassEnabled)
+        grass_.load(app, map_, water_.ready());  // a map without grassy cells stays empty; not retried
+    else
+        grass_.destroy();
+    grassLoaded_ = g_grassEnabled;
+    log::info("MapRenderer: grass {}", g_grassEnabled ? (grass_.ready() ? "built" : "none on this map") : "freed");
+}
+
 void MapRenderer::destroy() {
     for (auto t : textures_)
         if (bgfx::isValid(t) && t.idx != white_.idx) bgfx::destroy(t);
@@ -337,6 +351,7 @@ void MapRenderer::destroy() {
     models_.destroy();
     water_.destroy();
     grass_.destroy();
+    grassLoaded_ = false;
     white_ = BGFX_INVALID_HANDLE;
     flatNrm_ = BGFX_INVALID_HANDLE;
     nrmSampler_ = BGFX_INVALID_HANDLE;

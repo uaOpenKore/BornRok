@@ -786,6 +786,10 @@ void RenderDevice::beginFrame() {
         bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
         bgfx::setViewOrder(0, UINT16_MAX, nullptr);
     }
+    // AO, Bloom and the grade all off (or the offscreen owned by HDR/FSR/God-Rays): the shared compose targets
+    // (two full-screen RTs + the ping and bloom chain) are freed instead of staying in video memory until a
+    // resize -- recreated lazily above when one of them is turned on again.
+    if (!composeWanted() && bgfx::isValid(composeFb_)) destroyComposeTargets();
     // Planar water reflection pass (#water): bind kReflectView to its own offscreen so the mirror
     // re-render of the terrain lands there (MapRenderer submits it), independent of whichever
     // offscreen the main scene is routed through above. Created lazily / resized here. The view runs

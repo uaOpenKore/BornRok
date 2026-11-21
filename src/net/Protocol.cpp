@@ -2698,6 +2698,25 @@ const char* loginErrorText(u8 code) {
     }
 }
 
+const char* loginErrorKey(u8 code) {
+    static const char* const kKeys[] = {"net.login.0", "net.login.1", "net.login.2", "net.login.3",
+                                        "net.login.4", "net.login.5", "net.login.6", "net.login.7",
+                                        "net.login.8", "net.login.9", "net.login.10"};
+    return code <= 10 ? kKeys[code] : "net.login.unknown";
+}
+
+const char* banErrorKey(u8 code) {
+    switch (code) {
+        case 0:
+        case 1:  return "net.ban.closed";
+        case 2:  return "net.ban.2";
+        case 3:  return "net.ban.3";
+        case 8:  return "net.ban.8";
+        case 10: return "net.ban.playlimit";
+        default: return "net.ban.unknown";
+    }
+}
+
 const char* banErrorText(u8 code) {
     switch (code) {
         case 0:  return "Server closed";

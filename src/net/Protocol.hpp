@@ -1136,5 +1136,8 @@ usize decodeClassChange(const u8* p, usize n, u32& gid, u32& class_);
 // ---- human-readable error text --------------------------------------------
 const char* loginErrorText(u8 code);  // for AC_REFUSE_LOGIN (0x6a)
 const char* banErrorText(u8 code);    // for SC_NOTIFY_BAN (0x81)
+// The same reasons as texts/*.cfg keys, for what the player sees (tr()); the *Text ones stay English for logs.
+const char* loginErrorKey(u8 code);
+const char* banErrorKey(u8 code);
 
 } // namespace uaro::net

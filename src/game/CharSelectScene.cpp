@@ -131,10 +131,10 @@ void CharSelectScene::onEnter(Application& app) {
     app.audio().playBgm(app.vfs(), titleBgmPath(app.vfs()));  // keep the title theme on char-select (#103)
     for (auto& a : actors_) a.destroy();
     actors_.clear();
-    status_ = "Connecting to char-server ...";
+    status_ = tr("st.connecting_char");
     if (s.charHost.empty() || s.charPort == 0) {
         phase_ = Phase::Failed;
-        status_ = "No char-server address";
+        status_ = tr("st.no_char_addr");
         return;
     }
     conn_.connect(s.charHost, s.charPort);
@@ -204,7 +204,7 @@ void CharSelectScene::pumpList(Application& app) {
             conn_.consume(c);
             phase_ = Phase::Select;
             restoreSelection(app);  // highlight the last-used char (or the first)
-            status_ = std::to_string(chars_.size()) + " character(s)";
+            status_ = trf("st.char_count", {std::to_string(chars_.size())});
             log::info("charselect: {} character(s) received", chars_.size());
             // Compose each character's sprite (body + head) from the GRF.
             const u8 sex = app.session().sex;
@@ -222,7 +222,7 @@ void CharSelectScene::pumpList(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = "Char-server rejected the connection";
+            status_ = tr("st.char_rejected");
             return;
         }
         if (id == net::PKT_SC_NOTIFY_BAN) {
@@ -231,7 +231,7 @@ void CharSelectScene::pumpList(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = net::banErrorText(code);
+            status_ = tr(net::banErrorKey(code));
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x}", id);
@@ -266,7 +266,7 @@ void CharSelectScene::pumpZone(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = "Character selection rejected";
+            status_ = tr("st.select_rejected");
             return;
         }
         if (id == net::PKT_SC_NOTIFY_BAN) {
@@ -275,7 +275,7 @@ void CharSelectScene::pumpZone(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = net::banErrorText(code);
+            status_ = tr(net::banErrorKey(code));
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x} while entering", id);
@@ -306,7 +306,7 @@ void CharSelectScene::pumpDelete(Application& app) {
             restoreSelection(app);  // re-highlight the last-used char after the list shrank
             delIdx_ = -1;
             phase_ = Phase::Select;
-            status_ = "Character deleted";
+            status_ = tr("st.char_deleted");
             return;
         }
         if (id == net::PKT_HC_DELETE_REFUSE) {
@@ -316,7 +316,7 @@ void CharSelectScene::pumpDelete(Application& app) {
             conn_.consume(c);
             delIdx_ = -1;
             phase_ = Phase::Select;
-            status_ = "Deletion refused (incorrect email)";
+            status_ = tr("st.delete_refused");
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x} during delete", id);
@@ -364,7 +364,7 @@ void CharSelectScene::selectSlot(Application& app, const net::CharInfo& c) {
     conn_.send(net::buildCharSelect(static_cast<u8>(c.slot)));
     sentSelect_ = true;
     phase_ = Phase::WaitZone;
-    status_ = "Entering game as " + c.name + " ...";
+    status_ = trf("st.entering_game", {c.name});
     log::info("charselect: selecting slot {} ({})", c.slot, c.name);
 }
 
@@ -408,7 +408,7 @@ void CharSelectScene::update(Application& app, double dt) {
                         (in.mousePressed && in.hit(d.noX, d.btnY, d.bw, d.bh));
         if (yes) {
             conn_.send(net::buildCharDelete(chars_[delIdx_].charId, deleteEmail_.value));
-            status_ = "Deleting " + chars_[delIdx_].name + " ...";
+            status_ = trf("st.deleting", {chars_[delIdx_].name});
             phase_ = Phase::WaitDelete;
             confirmDelete_ = false;  // fall through to the WaitDelete pump below
         } else {
@@ -449,7 +449,7 @@ void CharSelectScene::update(Application& app, double dt) {
                                           makeStats_[2], makeStats_[3], makeStats_[4], makeStats_[5],
                                           static_cast<u8>(makeSlot_), /*hairStyle=*/1,
                                           /*hairColor=*/0));
-            status_ = "Creating " + makeName_.value + " ...";
+            status_ = trf("st.creating", {makeName_.value});
             creating_ = false;
             phase_ = Phase::WaitMake;
         }
@@ -574,34 +574,34 @@ void CharSelectScene::update(Application& app, double dt) {
                                          static_cast<u16>(s.clientType)));
             sentEnter_ = true;
             phase_ = Phase::WaitList;
-            status_ = "Loading characters ...";
+            status_ = tr("st.loading_chars");
         } else if (conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Cannot reach the char-server";
+            status_ = tr("st.char_unreachable");
         }
     } else if (phase_ == Phase::WaitList) {
         pumpList(app);
         if (phase_ == Phase::WaitList && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Char-server closed the connection";
+            status_ = tr("st.char_closed");
         }
     } else if (phase_ == Phase::WaitZone) {
         pumpZone(app);
         if (phase_ == Phase::WaitZone && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Disconnected while entering game";
+            status_ = tr("st.dc_entering");
         }
     } else if (phase_ == Phase::WaitDelete) {
         pumpDelete(app);
         if (phase_ == Phase::WaitDelete && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Disconnected during deletion";
+            status_ = tr("st.dc_deleting");
         }
     } else if (phase_ == Phase::WaitMake) {
         pumpMake(app);
         if (phase_ == Phase::WaitMake && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Disconnected during character creation";
+            status_ = tr("st.dc_creating");
         }
     }
 }
@@ -806,7 +806,7 @@ void CharSelectScene::pumpMake(Application& app) {
             selIdx_ = static_cast<int>(chars_.size()) - 1;
             page_ = chars_.back().slot / 3;
             phase_ = Phase::Select;
-            status_ = "Created " + nc.name;
+            status_ = trf("st.created", {nc.name});
             return;
         }
         if (id == net::PKT_HC_REFUSE_MAKECHAR) {
@@ -815,9 +815,9 @@ void CharSelectScene::pumpMake(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Select;
-            status_ = (code == 0x00)   ? "Name already taken"
-                      : (code == 0x01) ? "Creation denied (underaged)"
-                                       : "Character creation denied";
+            status_ = tr((code == 0x00)   ? "st.name_taken"
+                         : (code == 0x01) ? "st.create_underaged"
+                                          : "st.create_denied");
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x} during make", id);

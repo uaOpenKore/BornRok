@@ -95,12 +95,12 @@ void LoginScene::submit(Application& app) {
     const auto& conns = app.clientInfo().connections;
     if (conns.empty()) {
         phase_ = Phase::Failed;
-        status_ = "No server configured (sclientinfo.xml)";
+        status_ = tr("st.no_server");
         return;
     }
     if (user_.value.empty() || pass_.value.empty()) {
         phase_ = Phase::Failed;
-        status_ = "Enter account and password";
+        status_ = tr("st.enter_account");
         return;
     }
     if (activeServer_ >= conns.size()) activeServer_ = 0;
@@ -116,14 +116,14 @@ void LoginScene::submit(Application& app) {
     conn_.connect(c.address, c.port);
     sentLogin_ = false;
     phase_ = Phase::Connecting;
-    status_ = "Connecting to " + (c.display.empty() ? c.address : c.display) + " ...";
+    status_ = trf("st.connecting_to", {c.display.empty() ? c.address : c.display});
     log::info("login: connecting to {}:{} (version {})", c.address, c.port, c.version);
 }
 
 void LoginScene::onAccept(Application& app, const net::AcceptLogin& a) {
     if (a.servers.empty()) {
         phase_ = Phase::Failed;
-        status_ = "Login OK, but no char-server is online";
+        status_ = tr("st.no_char_online");
         conn_.disconnect();
         return;
     }
@@ -162,7 +162,7 @@ void LoginScene::pumpReplies(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = net::loginErrorText(code);
+            status_ = tr(net::loginErrorKey(code));
             if (code == 6 && !ban.empty()) status_ += " (" + ban + ")";
             conn_.disconnect();
             return;
@@ -173,14 +173,14 @@ void LoginScene::pumpReplies(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = net::banErrorText(code);
+            status_ = tr(net::banErrorKey(code));
             conn_.disconnect();
             return;
         }
         log::warn("login: unexpected packet 0x{:04x}", id);
         conn_.disconnect();
         phase_ = Phase::Failed;
-        status_ = "Unexpected response from server";
+        status_ = tr("st.unexpected");
         return;
     }
 }
@@ -299,16 +299,16 @@ void LoginScene::update(Application& app, double dt) {
             conn_.send(blob);
             sentLogin_ = true;
             phase_ = Phase::WaitReply;
-            status_ = "Authenticating ...";
+            status_ = tr("st.authenticating");
         } else if (conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Cannot reach the login server";
+            status_ = tr("st.login_unreachable");
         }
     } else if (phase_ == Phase::WaitReply) {
         pumpReplies(app);
         if (phase_ == Phase::WaitReply && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Connection closed by server";
+            status_ = tr("st.login_closed");
         }
     }
 }

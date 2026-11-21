@@ -2101,7 +2101,7 @@ void GameScene::onEnter(Application& app) {
     azimuth_ = kPi;        // direction snaps to default south->north on (re)entry
     pitch_ = s.camPitch;   // but zoom + pitch carry over from the last scene/session, so a
     zoom_ = s.camZoom;     // relogin keeps the view the player set (S.: "зум и угол остаются")
-    status_ = "Connecting to map-server ...";
+    status_ = tr("st.connecting_map");
     chatInput_.maxLen = 100;  // chat lines are longer than the 23-char account fields
     chatWhisperField_.maxLen = 23;  // whisper-target name field (NAME_LENGTH-1)
     // Smaller text in the chat input fields (S.: "в полях ввода уменьшить шрифт на 4 размера"):
@@ -2136,7 +2136,7 @@ void GameScene::onEnter(Application& app) {
 
     if (s.mapHost.empty() || s.mapPort == 0) {
         phase_ = Phase::Failed;
-        status_ = "No map-server address";
+        status_ = tr("st.no_map_addr");
         return;
     }
     conn_.connect(s.mapHost, s.mapPort);
@@ -3604,7 +3604,7 @@ void GameScene::pumpAuth(Application& app) {
             // flicker down on cross-server transition.)
             statSettleUntil_ = time_ + 6.0;
             lastPing_ = time_;
-            status_ = "In game: " + app.session().charName;
+            status_ = trf("st.in_game", {app.session().charName});
             log::info("game: authok, entered map '{}'", mapBase_);
             // Prefetch the RoM effect-texture index now (once, behind the load) so the first skill
             // cast doesn't hitch mid-combat. No-op after the first map (guarded).
@@ -3618,8 +3618,7 @@ void GameScene::pumpAuth(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = (code == 5) ? "Map-server refused the client version"
-                                  : std::string(net::loginErrorText(code));
+            status_ = tr((code == 5) ? "st.map_version" : net::loginErrorKey(code));
             return;
         }
         if (id == net::PKT_SC_NOTIFY_BAN) {
@@ -3628,7 +3627,7 @@ void GameScene::pumpAuth(Application& app) {
             if (c == 0) break;
             conn_.consume(c);
             phase_ = Phase::Failed;
-            status_ = code == 10 ? tr("net.ban.playlimit") : std::string(net::banErrorText(code));
+            status_ = tr(net::banErrorKey(code));
             return;
         }
         break;  // unknown packet before auth: wait for more / let it settle
@@ -3835,7 +3834,7 @@ void GameScene::pumpStream(Application& app) {
                       time_ - mapEnterT_, mapBase_, code, net::banErrorText(code));
             phase_ = Phase::Failed;
             // 10 = the server's daily play-time limit: its reason in the player's language
-            status_ = code == 10 ? tr("net.ban.playlimit") : std::string(net::banErrorText(code));
+            status_ = tr(net::banErrorKey(code));
             return;
         }
         switch (fi.id) {
@@ -5640,11 +5639,9 @@ void GameScene::pumpStream(Application& app) {
                 if (rx.size() >= 6) {
                     const u32 aid = static_cast<u32>(rx[2]) | (static_cast<u32>(rx[3]) << 8) |
                                     (static_cast<u32>(rx[4]) << 16) | (static_cast<u32>(rx[5]) << 24);
-                    std::string who = "Someone";
-                    if (aid == app.session().accountId) who = "You";
-                    else if (auto it = names_.find(aid); it != names_.end()) who = it->second;
-                    chatLog_.push_back({who + (aid == app.session().accountId ? " are the MVP!"
-                                                                             : " is the MVP!"),
+                    std::string who = tr("msg.someone");
+                    if (auto it = names_.find(aid); it != names_.end()) who = it->second;
+                    chatLog_.push_back({aid == app.session().accountId ? tr("msg.mvp_you") : trf("msg.mvp_other", {who}),
                                         kChatServer});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                     // MVP banner effect (S.): data/texture/effect/mvp pops over the winner and grows.
@@ -5671,7 +5668,7 @@ void GameScene::pumpStream(Application& app) {
             case 0x010a: {  // ZC_MVP_GETTING_ITEM: the MVP reward item id
                 if (rx.size() >= 4) {
                     const u32 nid = static_cast<u32>(rx[2]) | (static_cast<u32>(rx[3]) << 8);
-                    chatLog_.push_back({"MVP reward: " + app.itemDb().name(nid), kChatServer});
+                    chatLog_.push_back({trf("msg.mvp_reward", {app.itemDb().name(nid)}), kChatServer});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 }
                 break;
@@ -5752,9 +5749,7 @@ void GameScene::pumpStream(Application& app) {
             }
             case 0x011e: {  // ZC_ACK_REMEMBER_WARPPOINT: reply to /memo (0x11d). type.B @2 (0 = saved).
                 if (rx.size() >= 3) {
-                    chatLog_.push_back({rx[2] == 0 ? "Memo point saved."
-                                                   : "Cannot memo here (learn Warp Portal first).",
-                                        kChatServer});
+                    chatLog_.push_back({tr(rx[2] == 0 ? "msg.memo_saved" : "msg.memo_denied"), kChatServer});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 }
                 break;
@@ -5787,7 +5782,7 @@ void GameScene::pumpStream(Application& app) {
             case 0x017d: {  // ZC_ACK_ITEMCOMPOSITION: card-insert result. equip(2)@2 card(2)@4 flag(1)@6.
                 if (rx.size() >= 7) {
                     const bool ok = rx[6] == 0;
-                    chatLog_.push_back({ok ? "Card inserted." : "Card insertion failed.", kChatServer});
+                    chatLog_.push_back({tr(ok ? "msg.card_ok" : "msg.card_fail"), kChatServer});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 }
                 cardOpen_ = false;  // close on any ack; the server pushes fresh 0x1ee/0xa4 inventory rows
@@ -5834,10 +5829,10 @@ void GameScene::pumpStream(Application& app) {
             case net::PKT_ZC_ACK_WHISPER: {  // 0x98: result of a whisper we sent -> note any failure
                 u8 result = 0;
                 if (net::decodeWhisperAck(rx.data(), rx.size(), result) != 0 && result != 0) {
-                    const char* why = result == 1   ? "recipient is offline"
-                                      : result == 2 ? "recipient is ignoring you"
-                                                    : "not delivered";
-                    chatLog_.push_back({std::string("Whisper: ") + why, kChatError});
+                    const char* why = result == 1   ? "msg.whisper_offline"
+                                      : result == 2 ? "msg.whisper_ignored"
+                                                    : "msg.whisper_fail";
+                    chatLog_.push_back({tr(why), kChatError});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 }
                 break;
@@ -6057,9 +6052,9 @@ void GameScene::pumpStream(Application& app) {
                             f.online = true;
                             friends_.push_back(std::move(f));
                         }
-                        chatLog_.push_back({name + " is now your friend", kChatServer});
+                        chatLog_.push_back({trf("msg.friend_added", {name}), kChatServer});
                     } else {
-                        chatLog_.push_back({name + " declined the friend request", kChatServer});
+                        chatLog_.push_back({trf("msg.friend_declined", {name}), kChatServer});
                     }
                 }
                 break;
@@ -6080,7 +6075,7 @@ void GameScene::pumpStream(Application& app) {
                 u8 fail = 0;
                 if (net::decodePartyOrganizeResult(rx.data(), rx.size(), fail))
                     chatLog_.push_back(
-                        {fail == 0 ? "Party created" : "Could not create the party", kChatServer});
+                        {tr(fail == 0 ? "msg.party_created" : "msg.party_fail"), kChatServer});
                 break;
             }
             case net::PKT_ZC_PARTY_LIST: {  // 0xfb: full member list (on join / login)
@@ -6257,8 +6252,7 @@ void GameScene::pumpStream(Application& app) {
                     for (auto& e : rentItems_)
                         if (e.first == nid) { e.second = time_ + secs; found = true; break; }
                     if (!found) rentItems_.push_back({nid, time_ + static_cast<double>(secs)});
-                    chatLog_.push_back({"'" + app.itemDb().name(nid) + "' expires in " +
-                                            std::to_string(secs / 60) + " min",
+                    chatLog_.push_back({trf("msg.rent_expires", {app.itemDb().name(nid), std::to_string(secs / 60)}),
                                         kChatServer});
                 }
                 break;
@@ -6272,7 +6266,7 @@ void GameScene::pumpStream(Application& app) {
                                                         return e.first == nid;
                                                     }),
                                      rentItems_.end());
-                    chatLog_.push_back({"'" + app.itemDb().name(nid) + "' has expired", kChatServer});
+                    chatLog_.push_back({trf("msg.rent_expired", {app.itemDb().name(nid)}), kChatServer});
                 }
                 break;
             }
@@ -6348,11 +6342,9 @@ void GameScene::pumpStream(Application& app) {
             case net::PKT_ZC_CHATROOM_JOIN_ACK: {  // 0xda: join result
                 u8 type = 0;
                 if (net::decodeChatJoinResult(rx.data(), rx.size(), type) && type != 0) {
-                    static const char* const kWhy[] = {"", "Room is full", "Wrong password",
-                                                       "You are banned"};
-                    chatLog_.push_back(
-                        {std::string("Chat room: ") + (type < 4 ? kWhy[type] : "cannot join"),
-                         kChatError});
+                    static const char* const kWhy[] = {"", "msg.room_full", "msg.room_password",
+                                                       "msg.room_banned"};
+                    chatLog_.push_back({tr(type < 4 ? kWhy[type] : "msg.room_fail"), kChatError});
                 }
                 break;
             }
@@ -6429,10 +6421,10 @@ void GameScene::pumpStream(Application& app) {
                             tradeRequestFrom_.clear();
                         }
                     } else {
-                        const char* why = r == 0   ? "too far away"
-                                          : r == 1 ? "character not found"
-                                                   : "cannot start trade";
-                        chatLog_.push_back({std::string("Trade: ") + why, kChatError});
+                        const char* why = r == 0   ? "msg.trade_far"
+                                          : r == 1 ? "msg.trade_notfound"
+                                                   : "msg.trade_cannot";
+                        chatLog_.push_back({tr(why), kChatError});
                         if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                         tradeRequestFrom_.clear();
                     }
@@ -6462,9 +6454,7 @@ void GameScene::pumpStream(Application& app) {
                                 break;
                             }
                     }
-                    chatLog_.push_back({std::string("Trade: ") +
-                                            (fail == 1 ? "overweight" : "cannot add item"),
-                                        kChatError});
+                    chatLog_.push_back({tr(fail == 1 ? "msg.trade_overweight" : "msg.trade_add_fail"), kChatError});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 }
                 break;
@@ -6488,7 +6478,7 @@ void GameScene::pumpStream(Application& app) {
                 u8 fail = 0;
                 net::decodeTradeDone(rx.data(), rx.size(), fail);
                 tradeOpen_ = false;
-                chatLog_.push_back({fail == 0 ? "Deal successfully completed." : "Trade failed.",
+                chatLog_.push_back({tr(fail == 0 ? "msg.deal_done" : "msg.trade_failed"),
                                     fail == 0 ? kChatServer : kChatError});
                 if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                 break;
@@ -6497,14 +6487,14 @@ void GameScene::pumpStream(Application& app) {
                 u16 skillId = 0;
                 u8 cause = 0;
                 if (net::decodeSkillFail(rx.data(), rx.size(), skillId, cause) != 0) {
-                    const char* why = cause == 1   ? "not enough SP"
-                                      : cause == 2 ? "not enough HP"
-                                      : cause == 3 ? "missing item"
-                                      : cause == 4 ? "skill on cooldown"
-                                      : cause == 5 ? "not enough Zeny"
-                                      : cause == 9 ? "overweight"
-                                                   : "failed";
-                    chatLog_.push_back({std::string("Skill failed: ") + why, kChatError});
+                    const char* why = cause == 1   ? "msg.skill_sp"
+                                      : cause == 2 ? "msg.skill_hp"
+                                      : cause == 3 ? "msg.skill_item"
+                                      : cause == 4 ? "msg.skill_cooldown"
+                                      : cause == 5 ? "msg.skill_zeny"
+                                      : cause == 9 ? "msg.skill_weight"
+                                                   : "msg.skill_fail";
+                    chatLog_.push_back({tr(why), kChatError});
                     if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
                     // The cast/swing animation is played OPTIMISTICALLY when the player sends a skill, so a
                     // server rejection must cancel it -- else the char keeps swinging on a failed skill
@@ -6535,9 +6525,7 @@ void GameScene::pumpStream(Application& app) {
                     skillFx_.push_back({playerPos_, time_, win ? "tamingsuccess" : "tamingfailed"});
                 }
                 if (rx.size() >= 3)
-                    chatLog_.push_back({win ? std::string("Taming succeeded!")
-                                            : std::string("Taming failed."),
-                                        kChatServer});
+                    chatLog_.push_back({tr(win ? "msg.taming_ok" : "msg.taming_fail"), kChatServer});
                 break;
             }
             case net::PKT_ZC_PET_INFO: {  // 0x1a2: pet status -> fill the Pet window (#131)
@@ -6558,7 +6546,7 @@ void GameScene::pumpStream(Application& app) {
             case net::PKT_ZC_PET_FOOD: {  // 0x1a3: feed result
                 if (rx.size() >= 6 && pet_.have) {
                     if (rx[2])
-                        chatLog_.push_back({pet_.name + " fed", kChatServer});
+                        chatLog_.push_back({trf("msg.pet_fed", {pet_.name}), kChatServer});
                     else
                         chatLog_.push_back({tr("msg.no_pet_food"), kChatServer});
                 }
@@ -7871,7 +7859,7 @@ void GameScene::changeMap(Application& app, const net::MapChange& mc) {
         connectStartT_ = time_;  // watchdog: fail (not freeze) if the handshake never completes
         phase_ = Phase::Connecting;
         sentEnter_ = aidConsumed_ = haveAuth_ = false;
-        status_ = "Changing map-server ...";
+        status_ = tr("st.changing_map");
     } else {
         // Same server: adopt the new spawn cell and tell the server we have loaded.
         auth_.x = mc.x;
@@ -7879,7 +7867,7 @@ void GameScene::changeMap(Application& app, const net::MapChange& mc) {
         haveAuth_ = true;
         computePlayerPos();
         conn_.send(net::buildLoadEndAck());
-        status_ = "In game: " + s.charName;
+        status_ = trf("st.in_game", {s.charName});
     }
 }
 
@@ -12353,16 +12341,16 @@ void GameScene::update(Application& app, double dt) {
                                                   clientTick(time_), s.sex));
             sentEnter_ = true;
             phase_ = Phase::WaitAuth;
-            status_ = "Entering map ...";
+            status_ = tr("st.entering_map");
         } else if (conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Cannot reach the map-server";
+            status_ = tr("st.map_unreachable");
         }
     } else if (phase_ == Phase::WaitAuth) {
         pumpAuth(app);
         if (phase_ == Phase::WaitAuth && conn_.closed()) {
             phase_ = Phase::Failed;
-            status_ = "Map-server closed the connection";
+            status_ = tr("st.map_closed");
         }
     }
     // Handshake watchdog: a stuck Connecting/WaitAuth (unreachable subnet-translated ip, lost 0x73,
@@ -12372,7 +12360,7 @@ void GameScene::update(Application& app, double dt) {
         log::warn("game: map-server handshake timed out after 20s (phase {})",
                   phase_ == Phase::Connecting ? "Connecting" : "WaitAuth");
         phase_ = Phase::Failed;
-        status_ = "Map-server handshake timed out";
+        status_ = tr("st.map_timeout");
         connectStartT_ = 0.0;
     }
     if (phase_ == Phase::InGame) {
@@ -12931,7 +12919,7 @@ void GameScene::update(Application& app, double dt) {
                               : "socket error -- network drop or peer reset");
             log::warn("net: last {} server opcodes before close: [ {}]", recentRecv_.size(), tail);
             phase_ = Phase::Failed;
-            status_ = "Disconnected from map-server";
+            status_ = tr("st.map_dc");
         }
     }
 

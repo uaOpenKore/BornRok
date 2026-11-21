@@ -1,4 +1,5 @@
 #pragma once
+#include <initializer_list>
 #include <string>
 #include <unordered_map>
 
@@ -66,5 +67,17 @@ private:
 
 // Shorthand used at call sites.
 inline std::string tr(const std::string& key) { return Lang::instance().tr(key); }
+
+// tr() of a template: {0}, {1}, ... in the localized text are replaced by args (word order differs per language).
+inline std::string trf(const std::string& key, std::initializer_list<std::string> args) {
+    std::string s = tr(key);
+    usize i = 0;
+    for (const std::string& a : args) {
+        const std::string tag = "{" + std::to_string(i++) + "}";
+        for (usize at = s.find(tag); at != std::string::npos; at = s.find(tag, at + a.size()))
+            s.replace(at, tag.size(), a);
+    }
+    return s;
+}
 
 }  // namespace uaro

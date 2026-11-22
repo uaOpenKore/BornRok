@@ -16201,10 +16201,11 @@ void GameScene::render(Application& app) {
                 font.draw(sb, lpx + 6.0f, ry + isz - 6.0f, 0.85f, ui::color::kWinText,
                           std::to_string(vit.amount));
             const std::string nm = (vit.refine > 0 ? "+" + std::to_string(vit.refine) + " " : "") +
-                                   app.itemDb().name(vit.nameid);
+                                   itemTitle(app, vit.nameid, vit.cards);
             // Two lines per item (S.): name on top, price below, pinned to the right edge.
             font.draw(sb, lpx + 6.0f + isz + 6.0f, ry + 3.0f, 1.0f,
                       vit.identify ? ui::color::kWinText : ui::color::kWinTextDim, nm);
+            drawMakerSuffix(sb, font, lpx + 6.0f + isz + 6.0f + font.width(nm, 1.0f), ry + 3.0f, 1.0f, vit.cards);
             const std::string pz = std::to_string(vit.price) + " z";
             font.draw(sb, lpx + paneW - font.width(pz, 0.95f) - 8.0f, ry + 16.0f, 0.95f,
                       ui::color::kZeny, pz);
@@ -16630,9 +16631,10 @@ void GameScene::render(Application& app) {
                 if (it.amount > 1)
                     drawCountBW(sb, font, bx + 6.0f, ry + isz - 6.0f, 0.85f, std::to_string(it.amount));
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
-                                           app.itemDb().nameWithCards(it.nameid, it.cards);
+                                           itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
                           it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);  // grey if unidentified
+                drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 1;  // bag -> drag onto equip = wear, onto storage = store, onto map = drop
                     dragIndex_ = it.index;
@@ -16793,9 +16795,10 @@ void GameScene::render(Application& app) {
                 if (it.amount > 1)
                     drawCountBW(sb, font, bx + 6.0f, ry + isz - 6.0f, 0.85f, std::to_string(it.amount));
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
-                                           app.itemDb().nameWithCards(it.nameid, it.cards);
+                                           itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
                           it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);  // grey if unidentified
+                drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 3;  // storage -> drag onto the bag to retrieve
                     dragIndex_ = it.index;
@@ -16898,9 +16901,10 @@ void GameScene::render(Application& app) {
                 if (it.amount > 1)
                     drawCountBW(sb, font, bx + 6.0f, ry + isz - 6.0f, 0.85f, std::to_string(it.amount));
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
-                                           app.itemDb().nameWithCards(it.nameid, it.cards);
+                                           itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
                           it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);
+                drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 4;  // cart -> drag onto the bag to take out
                     dragIndex_ = it.index;
@@ -17167,7 +17171,7 @@ void GameScene::render(Application& app) {
                     // left column reads icon->name, the right column name<-icon (right-aligned).
                     const std::string full =
                         (worn->refine > 0 ? "+" + std::to_string(worn->refine) + " " : "") +
-                        app.itemDb().nameWithCards(worn->nameid, worn->cards);
+                        itemTitle(app, worn->nameid, worn->cards);
                     const std::string lbl = fitLabel(full, 64.0f * S);
                     const float ly = ry - 5.0f * S;  // label rides with the icon (rowExtra applied via ry)
                     if (s.cx < 140.0f)
@@ -17635,22 +17639,15 @@ void GameScene::render(Application& app) {
                 // asked from the server once (0x00a2 -> 0x194) and shown in blue (S. 22.11: "подпись синим").
                 std::string maker;
                 if (descCards_[0] == 0x00FF || descCards_[0] == 0x00FE) {
-                    const u32 mcid = static_cast<u32>(descCards_[2]) | (static_cast<u32>(descCards_[3]) << 16);
-                    if (mcid != 0) {
-                        if (auto mn = charNames_.find(mcid); mn != charNames_.end()) {
-                            maker = trf("item.made_by", {mn->second});
-                        } else {
-                            maker = trf("item.made_by", {"..."});
-                            if (charNameAsked_.insert(mcid).second) conn_.send(net::buildSolveCharName(mcid));
-                        }
-                    }
+                    const std::string mn = makerName(descCards_);
+                    maker = mn.empty() ? std::string("...") : mn + "'s";  // blue, like the list rows (S.)
                 }
                 const float makerH = maker.empty() ? 0.0f : lh + 2.0f;
                 const float dh =
                     ui::kTitleBarH + picBlock + makerH + static_cast<float>(lines.size()) * lh + pad + 4.0f + cardH;
                 float dx = 24.0f, dy = std::max(70.0f, (static_cast<float>(uiH) - dh) * 0.5f);
                 float ty = popupWindow(POPUP_ITEM_DESC, dx, dy, dw, dh,
-                                       app.itemDb().nameWithCards(descItemId_, descCards_));
+                                       itemTitle(app, descItemId_, descCards_));
                 if (picH > 0.0f) {  // centred illustration at the top of the body
                     ui::imageScaled(sb, *pic, dx + (dw - picW) * 0.5f, ty, picW, picH);
                     ty += picH + 6.0f;
@@ -19844,6 +19841,24 @@ void GameScene::render(Application& app) {
         ui::oskRender(sb, app.font(), static_cast<float>(uiW), static_cast<float>(uiH));
 
     sb.end();
+}
+
+std::string GameScene::makerName(const u16 cards[4]) {
+    if (!cards || (cards[0] != 0x00FF && cards[0] != 0x00FE)) return {};
+    const u32 cid = static_cast<u32>(cards[2]) | (static_cast<u32>(cards[3]) << 16);
+    if (cid == 0) return {};
+    if (auto it = charNames_.find(cid); it != charNames_.end()) return it->second;
+    if (charNameAsked_.insert(cid).second) conn_.send(net::buildSolveCharName(cid));
+    return {};
+}
+
+std::string GameScene::itemTitle(Application& app, u16 nameid, const u16 cards[4]) {
+    return app.itemDb().nameWithCards(nameid, cards);
+}
+
+void GameScene::drawMakerSuffix(SpriteBatch& sb, const Font& font, float x, float y, float scale, const u16 cards[4]) {
+    const std::string mk = makerName(cards);
+    if (!mk.empty()) font.draw(sb, x, y, scale, ui::rgba(90, 150, 255, 255), " " + mk + "'s");
 }
 
 int GameScene::fitByWeight(u16 nameid, int amount, bool toCart) const {

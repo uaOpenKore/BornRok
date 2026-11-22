@@ -998,6 +998,13 @@ private:
     // How many of `amount` (item `nameid`) the free weight of the bag (or the cart) carries; `amount` when the
     // weight or the limit is unknown.
     int fitByWeight(u16 nameid, int amount, bool toCart) const;
+    // The maker of a forged (card0 0x00FF) / brewed (0x00FE) item, "" when it has none or the name is not known
+    // yet (then it is asked from the server once: 0x00a2 -> 0x194).
+    std::string makerName(const u16 cards[4]);
+    // An item's list/title name with the card/forge words (the maker is drawn after it, in blue: drawMakerSuffix).
+    std::string itemTitle(Application& app, u16 nameid, const u16 cards[4]);
+    // " <maker>'s" in blue right after an item name drawn at x (S. 22.11: "предмет Имя's", the name blue with 's).
+    void drawMakerSuffix(SpriteBatch& sb, const Font& font, float x, float y, float scale, const u16 cards[4]);
     // A dialog that takes typed input over everything else (quantity, NPC input(), vending add): the
     // inventory/storage filters give up their focus while one is open, so the keys go to one field only.
     bool textDialogOpen() const {

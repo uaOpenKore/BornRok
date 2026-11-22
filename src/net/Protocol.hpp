@@ -183,8 +183,9 @@ enum : u16 {
     PKT_ZC_CART_CLEAR            = 0x012b,  // M->C  cart emptied, 2B
     PKT_CZ_MOVE_ITEM_BODY_TO_CART  = 0x0126, // C->M  inventory -> cart (index + amount), 8B
     PKT_CZ_MOVE_ITEM_CART_TO_BODY  = 0x0127, // C->M  cart -> inventory, 8B
-    PKT_CZ_MOVE_ITEM_CART_TO_STORE = 0x0128, // C->M  cart -> storage, 8B
-    PKT_CZ_MOVE_ITEM_STORE_TO_CART = 0x0129, // C->M  storage -> cart, 8B
+    // (were swapped: the server's packet_db has 0x0128 movefromkafratocart, 0x0129 movetokafrafromcart)
+    PKT_CZ_MOVE_ITEM_STORE_TO_CART = 0x0128, // C->M  storage -> cart (storage index + amount), 8B
+    PKT_CZ_MOVE_ITEM_CART_TO_STORE = 0x0129, // C->M  cart -> storage (cart index + amount), 8B
 
     // Public chat: send a line, hear others, and get our own line echoed back.
     PKT_CZ_REQUEST_CHAT      = 0x008c,  // C->M  send public chat ("Name : text\0")
@@ -569,8 +570,8 @@ std::vector<u8> buildStorageClose();                               // CZ_CLOSE_S
 // list/add/remove packets reuse decodeInventoryList / decodeStorageAdd / decodeStorageRemove.
 std::vector<u8> buildCartAdd(u16 invIndex, u32 amount);       // CZ_MOVE_ITEM_FROM_BODY_TO_CART (0x126)
 std::vector<u8> buildCartGet(u16 cartIndex, u32 amount);      // CZ_MOVE_ITEM_FROM_CART_TO_BODY (0x127)
-std::vector<u8> buildCartToStore(u16 cartIndex, u32 amount);  // CZ_MOVE_ITEM_FROM_CART_TO_STORE (0x128)
-std::vector<u8> buildStoreToCart(u16 storeIndex, u32 amount); // CZ_MOVE_ITEM_FROM_STORE_TO_CART (0x129)
+std::vector<u8> buildCartToStore(u16 cartIndex, u32 amount);  // CZ_MOVE_ITEM_FROM_CART_TO_STORE (0x129)
+std::vector<u8> buildStoreToCart(u16 storeIndex, u32 amount); // CZ_MOVE_ITEM_FROM_STORE_TO_CART (0x128)
 
 // Public chat. The wire message must be "CharName : text" — the server validates the
 // "<name> : " prefix (and a NUL terminator) and force-disconnects if it is wrong, so

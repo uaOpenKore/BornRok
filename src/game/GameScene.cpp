@@ -12845,6 +12845,12 @@ void GameScene::update(Application& app, double dt) {
                     } else if (dragSrc_ == 3 && over(invRect_)) {  // storage -> bag: retrieve it
                         if (dragAmount_ > 1) openQty(2, dragIndex_, dragAmount_);
                         else conn_.send(net::buildStorageRetrieve(dragIndex_, 1));
+                    } else if (dragSrc_ == 3 && cartOpen_ && over(cartRect_)) {  // storage -> cart (S. 22.11)
+                        if (dragAmount_ > 1) openQty(11, dragIndex_, dragAmount_);
+                        else conn_.send(net::buildStoreToCart(dragIndex_, 1));
+                    } else if (dragSrc_ == 4 && storageOpen_ && over(storageRect_)) {  // cart -> storage
+                        if (dragAmount_ > 1) openQty(12, dragIndex_, dragAmount_);
+                        else conn_.send(net::buildCartToStore(dragIndex_, 1));
                     } else if (dragSrc_ == 1 && over(cartRect_)) {  // bag -> cart: load it
                         if (dragAmount_ > 1) openQty(5, dragIndex_, dragAmount_);
                         else conn_.send(net::buildCartAdd(dragIndex_, 1));
@@ -16563,6 +16569,7 @@ void GameScene::render(Application& app) {
                 const float sortW = 92.0f, pad = 6.0f;
                 const float ffx = bx + pad, ffy = cy + 2.0f, ffw = bw - sortW - pad * 3.0f, ffh = 20.0f;
                 if (uin.mousePressed) invFilterFocus_ = app.input().hit(ffx, ffy, ffw, ffh);  // in=focus, out=blur
+                if (textDialogOpen()) invFilterFocus_ = false;  // a quantity/input dialog has the keyboard (S.: typed digits doubled into the filter)
                 invFilter_.fontScale = 1.2f;
                 invFilter_.maxLen = 24;
                 invFilter_.update(uin, invFilterFocus_);
@@ -16718,6 +16725,7 @@ void GameScene::render(Application& app) {
                 const float sortW = 92.0f, pad = 6.0f;
                 const float ffx = bx + pad, ffy = cy + 2.0f, ffw = bw - sortW - pad * 3.0f, ffh = 20.0f;
                 if (uin.mousePressed) storageFilterFocus_ = app.input().hit(ffx, ffy, ffw, ffh);
+                if (textDialogOpen()) storageFilterFocus_ = false;  // the dialog has the keyboard
                 storageFilter_.fontScale = 1.2f;
                 storageFilter_.maxLen = 24;
                 storageFilter_.update(uin, storageFilterFocus_);
@@ -19499,8 +19507,12 @@ void GameScene::render(Application& app) {
         } else {
             ui::panel(sb, dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f, ui::rgba(20, 20, 26, 240));
             ui::panel(sb, dx, dy, dw, dh, ui::color::kWinBody);
+            // the item comes from the container the action moves it OUT of (storage/cart actions named the
+            // inventory item with the same index before)
+            const auto& from = (dropAction_ == 2 || dropAction_ == 11) ? storage_
+                             : (dropAction_ == 6 || dropAction_ == 12) ? cart_ : inventory_;
             const net::InvItem* it = nullptr;
-            for (const auto& [i, iv] : inventory_) {
+            for (const auto& [i, iv] : from) {
                 (void)i;
                 if (iv.index == dropIndex_) { it = &iv; break; }
             }
@@ -19519,6 +19531,8 @@ void GameScene::render(Application& app) {
                 case 8:  dTitle = "Trade zeny"; break;
                 case 9:  dTitle = "Auto HP: use below %"; break;
                 case 10: dTitle = "Auto SP: use below %"; break;
+                case 11: dTitle = "To cart: " + nm; break;     // storage -> cart
+                case 12: dTitle = "Store " + nm; break;        // cart -> storage
                 default: dTitle = "Drop " + nm; break;         // bag -> map
             }
             font.draw(sb, dx + 10.0f, dy + 8.0f, 1.2f, ui::color::kWinText, dTitle);
@@ -19580,6 +19594,10 @@ void GameScene::render(Application& app) {
                     conn_.send(net::buildCartAdd(dropIndex_, static_cast<u32>(dropQty_)));
                 else if (dropAction_ == 6)  // pushcart -> bag
                     conn_.send(net::buildCartGet(dropIndex_, static_cast<u32>(dropQty_)));
+                else if (dropAction_ == 11)  // Kafra storage -> pushcart
+                    conn_.send(net::buildStoreToCart(dropIndex_, static_cast<u32>(dropQty_)));
+                else if (dropAction_ == 12)  // pushcart -> Kafra storage
+                    conn_.send(net::buildCartToStore(dropIndex_, static_cast<u32>(dropQty_)));
                 else if (dropAction_ == 7) {  // bag -> trade offer (#77)
                     conn_.send(net::buildTradeAdd(static_cast<u16>(dropIndex_), static_cast<u32>(dropQty_)));
                     if (auto iv = inventory_.find(dropIndex_); iv != inventory_.end()) {

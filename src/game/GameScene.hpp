@@ -992,9 +992,16 @@ private:
     // Drop-quantity dialog: opened when a stack is dragged onto the map; default = the whole stack,
     // Enter/OK confirms (CZ_ITEM_THROW), a click outside cancels (S. spec).
     bool dropDialogOpen_ = false;
+    // A dialog that takes typed input over everything else (quantity, NPC input(), vending add): the
+    // inventory/storage filters give up their focus while one is open, so the keys go to one field only.
+    bool textDialogOpen() const {
+        return dropDialogOpen_ || vendAddOpen_ ||
+               (dialogOpen_ && (dialogMode_ == DialogMode::Input || dialogMode_ == DialogMode::InputStr));
+    }
     u16 dropIndex_ = 0;
     int dropQty_ = 1, dropMax_ = 1;
-    int dropAction_ = 0;  // OK: 0 drop, 1 store, 2 retrieve, 3 shop qty, 4 vending qty, 5 to-cart, 6 from-cart
+    int dropAction_ = 0;  // OK: 0 drop, 1 store, 2 retrieve, 3 shop qty, 4 vending qty, 5 to-cart, 6 from-cart,
+                          // ..., 11 storage -> cart, 12 cart -> storage
     int dropShopIdx_ = -1;  // shop-list row the qty dialog is editing (dropAction_ == 3)
     ui::TextField dropQtyField_;  // typeable quantity (S.: a real input field, not "1/17")
 

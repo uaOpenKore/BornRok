@@ -1828,10 +1828,11 @@ TEST_CASE(protocol_cart) {
     CHECK_EQ(static_cast<u16>(add[2] | (add[3] << 8)), 9);
     CHECK_EQ(add[4], 50);  // amount low byte (50 < 256)
     CHECK_EQ(net::peekId(net::buildCartGet(7, 1)), 0x0127);
-    CHECK_EQ(net::peekId(net::buildCartToStore(7, 1)), 0x0128);
+    // the server's packet_db: 0x0128 movefromkafratocart (storage -> cart), 0x0129 movetokafrafromcart
+    CHECK_EQ(net::peekId(net::buildCartToStore(7, 1)), 0x0129);
     const B s2c = net::buildStoreToCart(3, 1);
     CHECK_EQ(s2c.size(), 8u);
-    CHECK_EQ(net::peekId(s2c), 0x0129);
+    CHECK_EQ(net::peekId(s2c), 0x0128);
     // The cart list/add/remove packets reuse the storage/inventory decoders (covered by
     // protocol_storage): 0x1ef/0x122 -> decodeInventoryList, 0x124 -> decodeStorageAdd,
     // 0x125 -> decodeStorageRemove.

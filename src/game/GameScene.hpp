@@ -992,6 +992,9 @@ private:
     // Drop-quantity dialog: opened when a stack is dragged onto the map; default = the whole stack,
     // Enter/OK confirms (CZ_ITEM_THROW), a click outside cancels (S. spec).
     bool dropDialogOpen_ = false;
+    // How many of `amount` (item `nameid`) the free weight of the bag (or the cart) carries; `amount` when the
+    // weight or the limit is unknown.
+    int fitByWeight(u16 nameid, int amount, bool toCart) const;
     // A dialog that takes typed input over everything else (quantity, NPC input(), vending add): the
     // inventory/storage filters give up their focus while one is open, so the keys go to one field only.
     bool textDialogOpen() const {

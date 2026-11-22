@@ -60,6 +60,7 @@ if(ZLIB_FOUND)
     resource/ContentRoute.cpp
     resource/ItemDb.cpp
     resource/EmbeddedQuestTitles.cpp
+    resource/EmbeddedItemWeights.cpp
     resource/LuaTables.cpp
     resource/GrfData.cpp
     resource/CardIllust.cpp

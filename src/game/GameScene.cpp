@@ -52,6 +52,7 @@ namespace uaro {
 // Baked quest id->title table (resource/EmbeddedQuestTitles.cpp). Declared at namespace scope (a
 // block-scope extern would bind ::embedded_quest_titles in the GLOBAL namespace and fail to link).
 extern const std::string& embedded_quest_titles();
+int embedded_item_weight(std::uint32_t nameid);  // resource/EmbeddedItemWeights.cpp (server item_db)
 
 namespace {
 std::string stripExt(const std::string& s) {
@@ -12816,6 +12817,16 @@ void GameScene::update(Application& app, double dt) {
                     // A stackable transfer opens the quantity dialog (default = the whole stack); a
                     // single item moves at once. dropAction_ tells the dialog's OK what packet to send.
                     auto openQty = [&](int action, u16 index, int maxn) {
+                        // Into the bag (2 storage, 6 cart) or the cart (5 bag, 11 storage): at most what the
+                        // free weight carries (S. 22.11); nothing fits -> say so instead of a dialog.
+                        if (action == 2 || action == 6 || action == 5 || action == 11) {
+                            const int fit = fitByWeight(dragNameid_, maxn, action == 5 || action == 11);
+                            if (fit <= 0) {
+                                chatLog_.push_back({tr("msg.too_heavy"), kChatServer});
+                                return;
+                            }
+                            maxn = fit;
+                        }
                         dropDialogOpen_ = true;
                         dropAction_ = action;
                         dropIndex_ = index;
@@ -19811,6 +19822,16 @@ void GameScene::render(Application& app) {
         ui::oskRender(sb, app.font(), static_cast<float>(uiW), static_cast<float>(uiH));
 
     sb.end();
+}
+
+int GameScene::fitByWeight(u16 nameid, int amount, bool toCart) const {
+    const int w = embedded_item_weight(nameid);
+    const long long limit = toCart ? static_cast<long long>(cartMaxWeight_) : static_cast<long long>(maxWeight_);
+    const long long used = toCart ? static_cast<long long>(cartWeight_) : static_cast<long long>(weight_);
+    if (w <= 0 || limit <= 0)
+        return amount;  // a weightless item, or the server has not told the limit yet
+    const long long fit = (limit - used) / w;
+    return static_cast<int>(std::clamp<long long>(fit, 0, amount));
 }
 
 } // namespace uaro

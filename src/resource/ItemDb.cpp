@@ -187,6 +187,21 @@ std::string ItemDb::nameWithCards(u32 id, const u16 cards[4]) const {
         prefix += mult(n);  // "" for a single card
         prefix += w;
     }
+    // A forged weapon (card[0] 0x00FF): card[1] = (star crumbs * 5) << 8 | element, as uOK's itemName reads it
+    // (S. 22.11). "Very Strong" per crumb, then the element.
+    if (cards && cards[0] == 0x00FF) {
+        const int stars = (cards[1] >> 8) / 5;
+        static const char* const kForgeElem[] = {"", "Water", "Earth", "Fire", "Wind"};
+        const int elem = (cards[1] & 0xFF) % 10;
+        std::string forged;
+        for (int i = 0; i < stars && i < 3; ++i) forged += "Very ";
+        if (stars > 0) forged += "Strong";
+        if (elem >= 1 && elem <= 4) {
+            if (!forged.empty()) forged += ' ';
+            forged += kForgeElem[elem];
+        }
+        prefix = forged;
+    }
     std::string out;
     if (!prefix.empty()) out = prefix + " ";
     out += raw;

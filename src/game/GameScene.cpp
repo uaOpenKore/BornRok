@@ -6837,7 +6837,10 @@ void GameScene::pumpStream(Application& app) {
                 if (rx.size() >= 30) {
                     const u32 cid = net::pktU32(rx.data(), 2);
                     const std::string nm = net::pktName(rx.data(), rx.size(), 6, 24);
-                    if (cid && !nm.empty()) names_[cid] = nm;
+                    if (cid && !nm.empty()) {
+                        names_[cid] = nm;
+                        charNames_[cid] = nm;  // the maker of a forged / brewed item (description window)
+                    }
                 }
                 break;
             }
@@ -17628,14 +17631,33 @@ void GameScene::render(Application& app) {
                     if (picW > maxW) { const float s = maxW / picW; picW *= s; picH *= s; }
                 }
                 const float picBlock = picH > 0.0f ? picH + 6.0f : 0.0f;
+                // Forged (card0 0x00FF) / brewed (0x00FE) item: cards[2..3] = the maker's char id; its name is
+                // asked from the server once (0x00a2 -> 0x194) and shown in blue (S. 22.11: "подпись синим").
+                std::string maker;
+                if (descCards_[0] == 0x00FF || descCards_[0] == 0x00FE) {
+                    const u32 mcid = static_cast<u32>(descCards_[2]) | (static_cast<u32>(descCards_[3]) << 16);
+                    if (mcid != 0) {
+                        if (auto mn = charNames_.find(mcid); mn != charNames_.end()) {
+                            maker = trf("item.made_by", {mn->second});
+                        } else {
+                            maker = trf("item.made_by", {"..."});
+                            if (charNameAsked_.insert(mcid).second) conn_.send(net::buildSolveCharName(mcid));
+                        }
+                    }
+                }
+                const float makerH = maker.empty() ? 0.0f : lh + 2.0f;
                 const float dh =
-                    ui::kTitleBarH + picBlock + static_cast<float>(lines.size()) * lh + pad + 4.0f + cardH;
+                    ui::kTitleBarH + picBlock + makerH + static_cast<float>(lines.size()) * lh + pad + 4.0f + cardH;
                 float dx = 24.0f, dy = std::max(70.0f, (static_cast<float>(uiH) - dh) * 0.5f);
                 float ty = popupWindow(POPUP_ITEM_DESC, dx, dy, dw, dh,
                                        app.itemDb().nameWithCards(descItemId_, descCards_));
                 if (picH > 0.0f) {  // centred illustration at the top of the body
                     ui::imageScaled(sb, *pic, dx + (dw - picW) * 0.5f, ty, picW, picH);
                     ty += picH + 6.0f;
+                }
+                if (!maker.empty()) {
+                    font.draw(sb, dx + pad, ty, sc, ui::rgba(90, 150, 255, 255), maker);
+                    ty += makerH;
                 }
                 for (const auto& ln : lines) {
                     font.draw(sb, dx + pad, ty, sc, ui::color::kWinText, ln);

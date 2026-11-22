@@ -396,6 +396,16 @@ std::vector<u8> buildStorageRetrieve(u16 storeIndex, u32 amount) {
     return w.data();
 }
 
+std::vector<u8> buildSolveCharName(u32 charId) {
+    // S 00a2 -- ServerType8 (uaRO) solvecharname (packet_db v22: 15 bytes, char id @11): the server answers
+    // 0x194 with the name of the character (the forger / brewer of an item, cards[2..3]).
+    ByteWriter w;
+    w.u16le(0x00a2);
+    for (int i = 0; i < 9; ++i) w.u8v(0x00);
+    w.u32le(charId);
+    return w.data();
+}
+
 std::vector<u8> buildStorageClose() {
     // S 0193 — ServerType8 (uaRO) storage close (uOK210 sendStorageClose), 2 bytes: 9301.
     ByteWriter w;
@@ -2351,6 +2361,7 @@ usize decodeMyVendingList(const u8* p, usize n, u32& vendorAid, std::vector<Vend
         it.nameid = rd16(p, o + 9);
         it.identify = p[o + 11];
         it.refine = p[o + 13];
+        for (int c = 0; c < 4; ++c) it.cards[c] = rd16(p, o + 14 + 2 * c);  // cards / forger @14
         out.push_back(it);
     }
     return len;
@@ -2372,6 +2383,8 @@ usize decodeInventoryList(const u8* p, usize n, std::vector<InvItem>& out, usize
         it.amount = (entrySize == 18) ? rd16(p, o + 6) : 1;
         // The equippable (20B) entry carries the equippable-slots mask @6 and the
         // currently-worn position @8 (clif_item_sub: WBUFW n+6 = i->equip). 0 = carried.
+        if (entrySize == 18)  // the stackable entry's cards @10: a brewed potion's creator (card0 0xFE) lives there
+            for (int k = 0; k < 4; ++k) it.cards[k] = rd16(p, o + 10 + 2 * k);
         if (entrySize >= 20) {
             it.equipMask = rd16(p, o + 6);  // slots it can go in -> wearLocation for equip-from-bag
             it.equipPos = rd16(p, o + 8);   // slot it is currently worn in (0 = carried)
@@ -2420,6 +2433,8 @@ usize decodeItemAdd(const u8* p, usize n, InvItem& out, u8& fail) {
     out.amount = rd16(p, 4);
     out.nameid = rd16(p, 6);
     out.identified = p[8];  // identify flag @8
+    out.refine = p[10];     // attribute@9 refine@10 cards@11 (8B)
+    for (int k = 0; k < 4; ++k) out.cards[k] = rd16(p, 11 + 2 * k);
     out.equipMask = rd16(p, 19);  // equippable slots (so a picked-up equip can be worn from the bag)
     out.type = p[21];
     out.equipPos = 0;  // freshly added -> carried, not worn
@@ -2444,6 +2459,7 @@ usize decodeStorageAdd(const u8* p, usize n, InvItem& out) {
     out.nameid = rd16(p, 8);
     out.identified = p[10];  // identify flag @10
     out.refine = p[12];
+    for (int k = 0; k < 4; ++k) out.cards[k] = rd16(p, 13 + 2 * k);  // cards / forger @13
     out.equipPos = 0;  // in storage, never "worn"
     return 21;
 }

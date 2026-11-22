@@ -561,6 +561,7 @@ std::vector<u8> buildSellList(const std::vector<ShopSellEntry>& items);  // CZ_P
 
 // Kafra storage (client -> server). index is the raw wire index we received: inventory uses slot+2
 // (server subtracts 2), storage uses slot+1 (server subtracts 1); amount is a 4-byte count.
+std::vector<u8> buildSolveCharName(u32 charId);  // CZ solvecharname 0x00a2 (15B): -> ZC 0x194 name
 std::vector<u8> buildStorageStore(u16 invIndex, u32 amount);       // CZ_MOVE_ITEM_FROM_BODY_TO_STORE (0xf3)
 std::vector<u8> buildStorageRetrieve(u16 storeIndex, u32 amount);  // CZ_MOVE_ITEM_FROM_STORE_TO_BODY (0xf5)
 std::vector<u8> buildStorageClose();                               // CZ_CLOSE_STORE (0xf7)

@@ -4,6 +4,7 @@
 #include <string>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "app/Scene.hpp"
@@ -499,6 +500,8 @@ private:
     struct MapStrFx { Vec3 pos; const char* name; };   // RSW .str effects (looped in place), #32
     std::vector<MapStrFx> mapStrFx_;
     std::unordered_map<u32, std::string> names_;       // gid -> name (from ZC_ACK_REQNAME)
+    std::unordered_map<u32, std::string> charNames_;   // char id -> name (0x194): forgers / brewers of items
+    std::unordered_set<u32> charNameAsked_;            // char ids already asked for (0x00a2), once each
     std::unordered_map<u32, std::string> guildNames_;  // gid -> guild name (from 0x195 @54)
     std::unordered_map<u32, std::string> vendingNames_;  // gid -> vend shop title (ZC_STORE_ENTRY)
     std::unordered_map<u32, net::ChatRoomInfo> chatRooms_;  // ownerGid -> chat room over that unit (#78)

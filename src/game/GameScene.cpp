@@ -11653,7 +11653,8 @@ void GameScene::update(Application& app, double dt) {
     // not reach the menu or gameplay; Enter (unfocused) opens it, Enter (focused) sends
     // via CZ_REQUEST_CHAT, Esc closes it. The server echoes our line back (0x8e).
     bool chatConsumedKey = false;
-    if (!menuOpen_ && !dead_ && !dialogOpen_ && shopMode_ == ShopMode::None) {
+    // (a quantity / price / input dialog owns the keyboard: Enter is its OK, not the chat -- S. 2026-11-23)
+    if (!menuOpen_ && !dead_ && !dialogOpen_ && !textDialogOpen() && shopMode_ == ShopMode::None) {
         if (chatFocused_) {
             chatConsumedKey = true;
             if (in.escape) {
@@ -14514,6 +14515,28 @@ void GameScene::render(Application& app) {
     const int uiW = static_cast<int>(W / uiS), uiH = static_cast<int>(H / uiS);
     sb.begin(W, H, RenderDevice::kUiView, uiW, uiH);
 
+    // [modal] A quantity / price dialog or the connection-lost box is on top of everything: the windows drawn
+    // before it must not take its clicks (S. 2026-11-23). Their mouse buttons and wheel are withheld until the
+    // modal draws (modalUnmask), and given back at the end of the pass.
+    const bool modalUp = dropDialogOpen_ || vendAddOpen_ || phase_ == Phase::Failed;
+    struct { bool down, pressed, dbl, released, right; float wheel; } modalSaved{
+        uin.mouseDown, uin.mousePressed, uin.mouseDoubleClick, uin.mouseReleased, uin.rightDown, uin.wheel};
+    bool modalMasked = false;
+    auto modalMask = [&]() {
+        if (!modalUp || modalMasked) return;
+        uin.mouseDown = uin.mousePressed = uin.mouseDoubleClick = uin.mouseReleased = uin.rightDown = false;
+        uin.wheel = 0.0f;
+        modalMasked = true;
+    };
+    auto modalUnmask = [&]() {
+        if (!modalMasked) return;
+        uin.mouseDown = modalSaved.down; uin.mousePressed = modalSaved.pressed;
+        uin.mouseDoubleClick = modalSaved.dbl; uin.mouseReleased = modalSaved.released;
+        uin.rightDown = modalSaved.right; uin.wheel = modalSaved.wheel;
+        modalMasked = false;
+    };
+    modalMask();
+
     // NPC cutin illust (ZC_SHOW_IMAGE 0x1b3, S. packet audit): a portrait bitmap the NPC pushes, drawn
     // BEHIND the windows at the bottom of the screen (type 0 left / 1 centre / 2 right). Lazy-decoded
     // from data/texture/illust/<name>.bmp, magenta-keyed; a missing/bad image clears itself (no retry).
@@ -14543,6 +14566,9 @@ void GameScene::render(Application& app) {
     // Movable-window bookkeeping. Rebuild the click-block list each frame as panels draw
     // (read by next frame's update() to suppress world clicks under a window); continue or
     // finish an in-progress titlebar drag so the grabbed window follows the cursor.
+    winRectsPrev_.clear();  // last frame's windows / panels (the plaques below test against them)
+    for (const auto& r : uiBlockRects_)
+        if (!r.plaque) winRectsPrev_.push_back(r);
     uiBlockRects_.clear();
     if (draggingWin_ >= 0) {
         if (uin.mouseDown) {
@@ -14773,7 +14799,7 @@ void GameScene::render(Application& app) {
             for (const auto& ln : lines) tw = std::max(tw, font.width(ln, vsc));
             const float bx0 = ax - tw * 0.5f - 9.0f, by0 = ay - 5.0f;
             const float bw0 = tw + 18.0f, bh0 = static_cast<float>(lines.size() - 1) * lineStep + 28.0f;
-            const bool hov = uin.hit(bx0, by0, bw0, bh0);
+            const bool hov = uin.hit(bx0, by0, bw0, bh0) && !overWindowPrev(uin.mouseX, uin.mouseY);
             sb.draw(bx0, by0, bw0, bh0,
                     hov ? ui::rgba(255, 244, 205, 245) : ui::rgba(248, 248, 248, 235));  // white подложка
             ui::border(sb, bx0, by0, bw0, bh0, ui::rgba(70, 60, 45, 235));  // dark frame (reads on white)
@@ -14781,9 +14807,9 @@ void GameScene::render(Application& app) {
                 font.draw(sb, ax - font.width(lines[li], vsc) * 0.5f,
                           ay + static_cast<float>(li) * lineStep, vsc, ui::rgba(40, 30, 15, 255),
                           lines[li]);  // dark text, centered per line
-            // The подложка is the click hotspot: it swallows the world click (winBlock) and,
-            // when clicked, opens the vendor's shop (CZ_REQ_BUY_FROMMC) — gid is the vendor AID.
-            winBlock(bx0, by0, bw0, bh0);
+            // The подложка is the click hotspot: it swallows the world click and, when clicked, opens the
+            // vendor's shop (CZ_REQ_BUY_FROMMC) — gid is the vendor AID. Not when a window lies over it.
+            uiBlockRects_.push_back({bx0, by0, bw0, bh0, true});
             if (hov && uin.mousePressed && !vendingOpen_ && shopMode_ == ShopMode::None &&
                 !dialogOpen_ && !dead_)
                 conn_.send(net::buildVendingOpen(gid));
@@ -14803,13 +14829,13 @@ void GameScene::render(Application& app) {
             const float tw = font.width(label, vsc);
             const float bx0 = ax - tw * 0.5f - 8.0f, by0 = ay - 4.0f;
             const float bw0 = tw + 16.0f, bh0 = font.lineHeight(vsc) + 8.0f;
-            const bool hov = uin.hit(bx0, by0, bw0, bh0);
+            const bool hov = uin.hit(bx0, by0, bw0, bh0) && !overWindowPrev(uin.mouseX, uin.mouseY);
             const u32 barCol = hov ? ui::rgba(255, 105, 205, 255)   // bright pink, like the vending plaque (S.)
                                    : ui::rgba(235, 60, 175, 240);
             sb.draw(bx0, by0, bw0, bh0, barCol);
             ui::border(sb, bx0, by0, bw0, bh0, ui::rgba(30, 40, 80, 235));
             font.draw(sb, ax - tw * 0.5f, ay, vsc, ui::rgba(255, 255, 255, 255), label);
-            winBlock(bx0, by0, bw0, bh0);
+            uiBlockRects_.push_back({bx0, by0, bw0, bh0, true});
             if (hov && uin.mousePressed && shopMode_ == ShopMode::None && !dialogOpen_ && !dead_ &&
                 gid != app.session().accountId)
                 conn_.send(net::buildJoinChatRoom(room.id, ""));  // public rooms join with no password
@@ -15345,26 +15371,6 @@ void GameScene::render(Application& app) {
     // readout is removed — it was clutter on the HUD (S.: "эти надписи нужно убрать").
     if (!status_.empty() && phase_ != Phase::InGame && phase_ != Phase::Failed) {
         font.draw(sb, 16, 30.0f, 1.3f, ui::color::kTextDim, status_);
-    }
-    // Disconnect / connection-failure modal (S.): a centered window + a Relogin button that drops the
-    // socket and returns to the login screen (pop char-select + login, same as ESC -> Log out).
-    if (phase_ == Phase::Failed) {
-        const float dw = 340.0f, dh = 128.0f;
-        const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
-        const float dy = (static_cast<float>(uiH) - dh) * 0.5f;
-        ui::panel(sb, dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f, ui::rgba(20, 20, 26, 245));
-        ui::panel(sb, dx, dy, dw, dh, ui::color::kWinBody);
-        const char* title = "Connection lost";
-        font.draw(sb, dx + (dw - font.width(title, 1.3f)) * 0.5f, dy + 14.0f, 1.3f, ui::color::kError, title);
-        font.draw(sb, dx + (dw - font.width(status_, 1.0f)) * 0.5f, dy + 46.0f, 1.0f,
-                  ui::color::kWinTextDim, status_);
-        if (ui::button(sb, font, uin, dx + (dw - 150.0f) * 0.5f, dy + dh - 42.0f, 150.0f, 32.0f,
-                       "Relogin", 1.4f)) {
-            conn_.disconnect();
-            app.scenes().requestPop();  // char-select
-            app.scenes().requestPop();  // login
-        }
-        uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});  // block clicks under it
     }
 
     // Chat: recent lines stacked above a bottom-left input box (in place of the old
@@ -16441,6 +16447,7 @@ void GameScene::render(Application& app) {
         if (time_ < shopMsgUntil_ && !shopMsg_.empty())  // the warning, above the buttons
             font.draw(sb, bx + pad, by + bh - 58.0f, 1.1f, ui::color::kError, shopMsg_);
         // Add-a-ware modal: pick the qty + unit price for the clicked cart item.
+        if (vendAddOpen_) modalUnmask();
         if (vendAddOpen_) {
             const float dw = 250.0f, dh = 128.0f;
             const float dx = (fW - dw) * 0.5f, dy = (fH - dh) * 0.5f;
@@ -16478,6 +16485,7 @@ void GameScene::render(Application& app) {
             if (cancelb) vendAddOpen_ = false;
             uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});
         }
+        modalMask();  // the windows after it (inventory, cart...) stay deaf while it is up
     }
 
     // My own open shop: a small panel listing each ware + its remaining quantity (0x136; 0x137
@@ -19520,6 +19528,7 @@ void GameScene::render(Application& app) {
             uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});
         }
     }
+    if (dropDialogOpen_) modalUnmask();
     if (dropDialogOpen_) {
         const float dw = 210.0f, dh = 104.0f;
         const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
@@ -19839,10 +19848,33 @@ void GameScene::render(Application& app) {
         }
     }
 
+    // Disconnect / connection-failure modal (S.; drawn LAST, over every window -- S. 2026-11-23): a centered window + a Relogin button that drops the
+    // socket and returns to the login screen (pop char-select + login, same as ESC -> Log out).
+    if (phase_ == Phase::Failed) {
+        modalUnmask();  // its button gets the click the windows below did not
+        const float dw = 340.0f, dh = 128.0f;
+        const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
+        const float dy = (static_cast<float>(uiH) - dh) * 0.5f;
+        ui::panel(sb, dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f, ui::rgba(20, 20, 26, 245));
+        ui::panel(sb, dx, dy, dw, dh, ui::color::kWinBody);
+        const char* title = "Connection lost";
+        font.draw(sb, dx + (dw - font.width(title, 1.3f)) * 0.5f, dy + 14.0f, 1.3f, ui::color::kError, title);
+        font.draw(sb, dx + (dw - font.width(status_, 1.0f)) * 0.5f, dy + 46.0f, 1.0f,
+                  ui::color::kWinTextDim, status_);
+        if (ui::button(sb, font, uin, dx + (dw - 150.0f) * 0.5f, dy + dh - 42.0f, 150.0f, 32.0f,
+                       "Relogin", 1.4f)) {
+            conn_.disconnect();
+            app.scenes().requestPop();  // char-select
+            app.scenes().requestPop();  // login
+        }
+        uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});  // block clicks under it
+    }
+
     // Gamepad on-screen keyboard, drawn last so it sits over the chat + HUD (#102/#115).
     if (ui::osk().active)
         ui::oskRender(sb, app.font(), static_cast<float>(uiW), static_cast<float>(uiH));
 
+    modalUnmask();  // the next frame's input starts from the real buttons
     sb.end();
 }
 

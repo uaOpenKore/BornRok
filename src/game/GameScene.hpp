@@ -1073,8 +1073,17 @@ private:
     // we reply with ZC-select (0x1ce). Held open until a pick or close.
     bool autospellOpen_ = false;
     std::vector<u16> autospellIds_;
-    struct UiBlockRect { float x, y, w, h; };
+    struct UiBlockRect { float x, y, w, h; bool plaque = false; };  // plaque: a vending / chat-room title over a player
     std::vector<UiBlockRect> uiBlockRects_;      // filled in render(), read by next-frame update()
+    // Last frame's block rects without the plaques (= the windows and HUD panels): a plaque is drawn before
+    // the windows, so it must not take a click that lands on a window above it (S. 2026-11-23: clicking in
+    // the own vending window opened another player's shop under it).
+    std::vector<UiBlockRect> winRectsPrev_;
+    bool overWindowPrev(int x, int y) const {
+        for (const auto& r : winRectsPrev_)
+            if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return true;
+        return false;
+    }
     int invTab_ = 0;                             // inventory tab: 0 usable, 1 equip, 2 etc
     ui::TextField invFilter_;                    // name-substring filter box (between titlebar and tabs)
     bool invFilterFocus_ = false;

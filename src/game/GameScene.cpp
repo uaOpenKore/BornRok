@@ -3636,6 +3636,7 @@ void GameScene::pumpAuth(Application& app) {
             // flicker down on cross-server transition.)
             statSettleUntil_ = time_ + 6.0;
             lastPing_ = time_;
+            inGameSince_ = time_;  // the auto-reconnect tries count resets after 2 minutes in game
             status_ = trf("st.in_game", {app.session().charName});
             log::info("game: authok, entered map '{}'", mapBase_);
             // Prefetch the RoM effect-texture index now (once, behind the load) so the first skill
@@ -13011,6 +13012,10 @@ void GameScene::update(Application& app, double dt) {
         // whole receive buffer length against 26, so a tick pipelined right behind the login (on a map
         // change, where the scene clock is already > 4s) made the buffer 26+N bytes and the server
         // rejected it as "unknown packet version" and dropped the link (S.: DC on map-server entry).
+        if (phase_ == Phase::InGame && inGameSince_ > 0.0 && time_ - inGameSince_ > 120.0) {
+            app.autoRelogTries = 0;
+            inGameSince_ = 0.0;
+        }
         if (phase_ == Phase::InGame && time_ - lastPing_ > 4.0) {
             conn_.send(net::buildTickSend(clientTick(time_)));
             lastPing_ = time_;
@@ -13053,6 +13058,14 @@ void GameScene::update(Application& app, double dt) {
             log::warn("net: last {} server opcodes before close: [ {}]", recentRecv_.size(), tail);
             phase_ = Phase::Failed;
             status_ = tr("st.map_dc");
+            // The reason under the message (S. 2026-11-23, from uaRO HD), and a network drop (no kick reason from
+            // the server) reconnects by itself after a few seconds, up to 3 times in a row.
+            dcReason_ = serverClosed ? "The server closed the connection."
+                                     : "Network error (code " + std::to_string(conn_.sockError()) + ").";
+            if (lastBanCode_ < 0 && app.autoRelogTries < 3 && app.session().charId != 0) {
+                autoRelogAt_ = time_ + 5.0;
+                log::info("net: auto-reconnect in 5 s (try {} of 3)", app.autoRelogTries + 1);
+            }
         }
     }
 
@@ -20021,7 +20034,21 @@ void GameScene::render(Application& app) {
     // socket and returns to the login screen (pop char-select + login, same as ESC -> Log out).
     if (phase_ == Phase::Failed) {
         ScopedLayer layerModal(*this, sb, uin, kLayerModal, true);  // over every window, its button takes the click
-        const float dw = 340.0f, dh = 128.0f;
+        const float dw = 380.0f, dh = 150.0f;
+        const bool autoRel = autoRelogAt_ > 0.0;
+        auto relogin = [&](bool automatic) {
+            if (automatic) {
+                app.autoRelogChar = app.session().charId;
+                ++app.autoRelogTries;
+            } else {
+                app.autoRelogChar = 0;
+            }
+            autoRelogAt_ = 0.0;
+            conn_.disconnect();
+            app.scenes().requestPop();  // char-select
+            app.scenes().requestPop();  // login
+        };
+        if (autoRel && time_ >= autoRelogAt_) relogin(true);
         const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
         const float dy = (static_cast<float>(uiH) - dh) * 0.5f;
         ui::panel(sb, dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f, ui::rgba(20, 20, 26, 245));
@@ -20030,11 +20057,20 @@ void GameScene::render(Application& app) {
         font.draw(sb, dx + (dw - font.width(title, 1.3f)) * 0.5f, dy + 14.0f, 1.3f, ui::color::kError, title);
         font.draw(sb, dx + (dw - font.width(status_, 1.0f)) * 0.5f, dy + 46.0f, 1.0f,
                   ui::color::kWinTextDim, status_);
-        if (ui::button(sb, font, uin, dx + (dw - 150.0f) * 0.5f, dy + dh - 42.0f, 150.0f, 32.0f,
-                       "Relogin", 1.4f)) {
-            conn_.disconnect();
-            app.scenes().requestPop();  // char-select
-            app.scenes().requestPop();  // login
+        if (!dcReason_.empty())
+            font.draw(sb, dx + (dw - font.width(dcReason_, 0.95f)) * 0.5f, dy + 66.0f, 0.95f,
+                      ui::color::kWinTextDim, dcReason_);
+        if (autoRel) {
+            const int left = std::max(0, static_cast<int>(std::ceil(autoRelogAt_ - time_)));
+            const std::string t = "Reconnecting in " + std::to_string(left) + " s...";
+            font.draw(sb, dx + (dw - font.width(t, 1.0f)) * 0.5f, dy + 86.0f, 1.0f, ui::color::kWinText, t);
+            if (ui::button(sb, font, uin, dx + dw * 0.5f - 160.0f, dy + dh - 42.0f, 150.0f, 32.0f, "Cancel", 1.4f))
+                autoRelogAt_ = 0.0;
+            if (ui::button(sb, font, uin, dx + dw * 0.5f + 10.0f, dy + dh - 42.0f, 150.0f, 32.0f, "Now", 1.4f))
+                relogin(true);
+        } else if (ui::button(sb, font, uin, dx + (dw - 150.0f) * 0.5f, dy + dh - 42.0f, 150.0f, 32.0f,
+                              "Relogin", 1.4f)) {
+            relogin(false);
         }
         uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});  // block clicks under it
     }

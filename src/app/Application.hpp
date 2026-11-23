@@ -274,6 +274,10 @@ public:
     // settings/game.cfg.
     const std::string& lastLogin() const { return lastLogin_; }
     void setLastLogin(const std::string& login);
+    // Auto-reconnect after a network drop (S. 2026-11-23, from uaRO HD): the char to enter again once the login
+    // and char-select scenes are back (0 = none) and how many tries in a row (reset after a while in game).
+    u32 autoRelogChar = 0;
+    int autoRelogTries = 0;
 
     // Content quality (#71 rework): "1k" | "4k" | "" (= platform default). Read by the patcher to pick
     // <q>/texture.zip and <q>/sprite.zip; a change applies on the NEXT client start (re-download +

@@ -206,6 +206,16 @@ void CharSelectScene::pumpList(Application& app) {
             restoreSelection(app);  // highlight the last-used char (or the first)
             status_ = trf("st.char_count", {std::to_string(chars_.size())});
             log::info("charselect: {} character(s) received", chars_.size());
+            if (app.autoRelogChar != 0) {  // auto-reconnect: straight back into the same character
+                const u32 want = app.autoRelogChar;
+                app.autoRelogChar = 0;
+                for (const auto& ch : chars_)
+                    if (ch.charId == want) {
+                        log::info("charselect: auto-reconnect into '{}'", ch.name);
+                        selectSlot(app, ch);
+                        break;
+                    }
+            }
             // Compose each character's sprite (body + head) from the GRF.
             const u8 sex = app.session().sex;
             actors_.clear();
@@ -223,6 +233,7 @@ void CharSelectScene::pumpList(Application& app) {
             conn_.consume(c);
             phase_ = Phase::Failed;
             status_ = tr("st.char_rejected");
+            app.autoRelogChar = 0;
             return;
         }
         if (id == net::PKT_SC_NOTIFY_BAN) {
@@ -232,6 +243,7 @@ void CharSelectScene::pumpList(Application& app) {
             conn_.consume(c);
             phase_ = Phase::Failed;
             status_ = tr(net::banErrorKey(code));
+            app.autoRelogChar = 0;
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x}", id);
@@ -276,6 +288,7 @@ void CharSelectScene::pumpZone(Application& app) {
             conn_.consume(c);
             phase_ = Phase::Failed;
             status_ = tr(net::banErrorKey(code));
+            app.autoRelogChar = 0;
             return;
         }
         log::warn("charselect: unexpected packet 0x{:04x} while entering", id);

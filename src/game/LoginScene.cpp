@@ -51,7 +51,16 @@ void LoginScene::onResume(Application& app) {
     uiState_ = UiState::Service;
     phase_ = Phase::Input;
     status_.clear();
-    (void)app;
+    // Auto-reconnect: the game dropped off the network -> log in again with what is still typed here.
+    if (app.autoRelogChar != 0) {
+        if (!user_.value.empty() && !pass_.value.empty()) {
+            uiState_ = UiState::Login;
+            log::info("login: auto-reconnect (try {})", app.autoRelogTries);
+            submit(app);
+        } else {
+            app.autoRelogChar = 0;
+        }
+    }
 }
 
 LoginScene::Layout LoginScene::layout(Application& app) const {
@@ -187,6 +196,7 @@ void LoginScene::pumpReplies(Application& app) {
 
 void LoginScene::update(Application& app, double dt) {
     time_ += dt;
+    if (phase_ == Phase::Failed) app.autoRelogChar = 0;  // the auto-reconnect login failed: the player takes over
     InputState in = app.input();  // logical-space copy: all login UI scales with the UI-scale (#134),
     if (app.uiScale() > 1.001f) {  // and login has no 3D world-pick, so nothing needs physical coords
         in.mouseX = static_cast<int>(in.mouseX / app.uiScale());

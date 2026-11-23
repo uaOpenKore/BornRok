@@ -97,6 +97,8 @@ std::unordered_map<u32, std::string> ItemDb::parseDescTable(const std::vector<u8
     return out;
 }
 
+static const uaro::ref::Item* serverItem(uaro::u32 id);
+
 void ItemDb::load(const Vfs& vfs) {
     // Display NAMES: prefer the English table too (this GRF ships data/english/, data/french/,
     // data/german/… and the root table can be a non-English locale -> S. saw Italian/Spanish item
@@ -155,6 +157,25 @@ void ItemDb::load(const Vfs& vfs) {
 
     log::info("ItemDb: {} item names, {} icon resnames, {} descriptions, {} slotted, {} card prefixes",
               names_.size(), res_.size(), desc_.size(), slots_.size(), cardPrefix_.size());
+    // What the NPC shops sell that this content does not know (S. 2026-11-23: the Advanced Potion Merchant):
+    // the ids with no display name or no icon in the GRF tables, with the server's name and a shop selling them.
+    if (!names_.empty()) {
+        std::size_t n = 0;
+        const ref::ShopItem* shop = ref::shopItems(n);
+        int noName = 0, noIcon = 0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const u32 id = shop[i].item;
+            const bool hasName = names_.count(id) != 0, hasIcon = res_.count(id) != 0;
+            if (hasName && hasIcon) continue;
+            noName += hasName ? 0 : 1;
+            noIcon += hasIcon ? 0 : 1;
+            const ref::Item* si = serverItem(id);
+            log::info("ItemDb: shop item {} '{}' lacks {}{}{} in the content -- sold by {}", id, si ? si->name : "?",
+                      hasName ? "" : "a name", (!hasName && !hasIcon) ? " and " : "", hasIcon ? "" : "an icon",
+                      shop[i].where);
+        }
+        log::info("ItemDb: {} of {} NPC shop items lack a name, {} an icon in the content", noName, n, noIcon);
+    }
 }
 
 // The server's own item (resource/EmbeddedReference.cpp) for one the client's content does not know -- a renewal

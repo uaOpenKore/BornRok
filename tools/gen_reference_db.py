@@ -62,6 +62,7 @@ for name in ("db/item_db.txt", "db/item_db2.txt"):
 spawns = {}  # mob -> {map: [count, delay]}
 npcs = []     # (map, name, x, y, kind 0 npc / 1 shop)
 warps = []    # (map, x, y, to, tx, ty)
+shop_items = {}  # item id -> "npc name (map x,y)" of the first shop selling it
 def npc_name(n):
     n = n.split("::")[0]
     return n.split("#")[0].strip()
@@ -93,6 +94,11 @@ def load_npc(path):
         if len(parts) >= 4 and (parts[1] in ("script", "shop", "cashshop") or parts[1].startswith("duplicate(")):
             a = parts[0].split(",")
             spr = parts[3].split(",")[0].strip()
+            if parts[1] in ("shop", "cashshop"):
+                for tok in parts[3].split(",")[1:]:
+                    iid = tok.split(":")[0].strip()
+                    if iid.isdigit() and int(iid) not in shop_items:
+                        shop_items[int(iid)] = "%s (%s %s,%s)" % (npc_name(parts[2]), a[0].replace(".gat", "").strip(), a[1].strip() if len(a) > 1 else "", a[2].strip() if len(a) > 2 else "")
             if len(a) >= 3 and a[0] != "-" and spr.lstrip("-").isdigit() and int(spr) not in (-1, 111, 139):
                 nm = npc_name(parts[2])
                 if nm:
@@ -168,6 +174,11 @@ with open(OUT, "w", encoding="utf-8") as o:
     for i in range(0, 400, 20):
         o.write("    " + ", ".join(str(v) for v in attr[i:i + 20]) + ",\n")
     o.write("};\n\n")
+    o.write("static const ShopItem kShopItems[] = {\n")
+    for iid in sorted(shop_items):
+        o.write("    {%d, %s},\n" % (iid, cstr(shop_items[iid])))
+    o.write('    {0, ""}};\n')
+    o.write("const ShopItem* shopItems(std::size_t& n) { n = sizeof(kShopItems) / sizeof(kShopItems[0]) - 1; return kShopItems; }\n")
     o.write("const Npc* npcs(std::size_t& n) { n = sizeof(kNpcs) / sizeof(kNpcs[0]) - 1; return kNpcs; }\n")
     o.write("const Warp* warps(std::size_t& n) { n = sizeof(kWarps) / sizeof(kWarps[0]) - 1; return kWarps; }\n")
     o.write("int attrFix(int level, int atk, int def) { return kAttr[((level - 1) * 10 + atk) * 10 + def]; }\n")
@@ -175,4 +186,4 @@ with open(OUT, "w", encoding="utf-8") as o:
     o.write("const Item* items(std::size_t& n) { n = sizeof(kItems) / sizeof(kItems[0]); return kItems; }\n")
     o.write("const Drop* drops() { return kDrops; }\n")
     o.write("const Spawn* spawns() { return kSpawns; }\n\n}  // namespace uaro::ref\n")
-print("%s: %d monsters, %d spawned, %d items, %d npcs, %d warps, attr %s" % (OUT, len(mob_ids), len(spawns), len(item_ids), len(npcs), len(warps), attr[:10]))
+print("%s: %d monsters, %d spawned, %d items, %d npcs, %d warps, %d shop items" % (OUT, len(mob_ids), len(spawns), len(item_ids), len(npcs), len(warps), len(shop_items)))

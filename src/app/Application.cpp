@@ -505,20 +505,8 @@ void Application::mountGameData() {
         if (stdfs::exists(cd + "/data", ec)) { vfs_.mountDir(cd + "/data"); ++mounted; }  // loose override
         if (mounted) log::info("data: {} content pack(s) mounted from '{}'", mounted, cd);
     }
-    // 2k/4k sprites are WebP (no palette indices): the patcher keeps the 1k pack beside them as the dye
-    // guide (kDyeGuideDest, not a .zip so the loop above never mounts it); hair/clothes dyes read the
-    // indices from its .spr. 1k sprites dye through their own .spr -> no guide.
-    std::string guide;
-    if (spriteQuality_ == "2k" || spriteQuality_ == "4k")
-        for (const std::string& cd : contentDirs)
-            if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guide = cd + "/" + kDyeGuideDest; break; }
-    // say why dyes do not show on WebP sprites (S. 2026-11-23: 2k, every stylist palette, no change, nothing logged)
-    if (guide.empty())
-        log::info("dye: sprite quality '{}'{}", spriteQuality_,
-                  (spriteQuality_ == "2k" || spriteQuality_ == "4k")
-                      ? std::string(" but no dye guide (content/") + kDyeGuideDest + ") -- hair/clothes dyes cannot show"
-                      : std::string(" -> dyes from the sprites' own .spr palettes"));
-    CharacterActor::setDyeGuide(guide);
+    contentDirs_ = contentDirs;
+    if (configLoaded_) applyDyeGuide();  // the first mount runs before loadConfig(), which applies it then
     for (usize c = 0; c < kContentCategories; ++c)
         vfs_.setContentMode(static_cast<ContentCategory>(c), contentModes_[c]);
     // Say plainly whether .webp overrides can be decoded at all -- a content maker's .webp only loads
@@ -559,6 +547,29 @@ bool Application::reloadClientInfo() {
     if (!clientInfo_.connections.empty())
         log::info("clientinfo: {} server connection(s) loaded", clientInfo_.connections.size());
     return !clientInfo_.connections.empty();
+}
+
+// 2k/4k sprites are WebP (no palette indices): the patcher keeps the 1k pack beside them as the dye guide
+// (kDyeGuideDest, not a .zip so the content mount never mounts it); hair/clothes dyes read the indices from
+// its .spr. 1k sprites dye through their own .spr -> no guide. Called on every content mount AND after the
+// config is read: the first mount runs before settings/game.cfg is parsed, so sprquality was still empty
+// there and a 2k client never got its guide (S. 2026-11-23: no stylist colour changed anything on 2k).
+void Application::applyDyeGuide() {
+    namespace stdfs = std::filesystem;
+    std::error_code ec;
+    std::string guide;
+    if (spriteQuality_ == "2k" || spriteQuality_ == "4k")
+        for (const std::string& cd : contentDirs_)
+            if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guide = cd + "/" + kDyeGuideDest; break; }
+    if (guide == dyeGuideApplied_ && dyeGuideDone_) return;
+    dyeGuideApplied_ = guide;
+    dyeGuideDone_ = true;
+    if (guide.empty())
+        log::info("dye: sprite quality '{}'{}", spriteQuality_,
+                  (spriteQuality_ == "2k" || spriteQuality_ == "4k")
+                      ? std::string(" but no dye guide (content/") + kDyeGuideDest + ") -- hair/clothes dyes cannot show"
+                      : std::string(" -> dyes from the sprites' own .spr palettes"));
+    CharacterActor::setDyeGuide(guide);
 }
 
 void Application::loadConfig() {
@@ -774,6 +785,8 @@ void Application::loadConfig() {
     applyVolumes();
     applyVideo();
     loadLanguage();
+    configLoaded_ = true;
+    applyDyeGuide();  // sprquality is known only now (the first content mount ran before this)
 }
 
 // All UI text tables are baked into the exe (EmbeddedTexts.cpp) so every language works from a bare

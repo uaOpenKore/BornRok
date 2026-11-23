@@ -129,6 +129,11 @@ public:
     // and whether the sampled UV must be Y-flipped (render-target origin). Valid only when a mirror
     // pass actually ran this frame (reflectActive()).
     bgfx::TextureHandle reflectTexture() const;
+    // Whether the reflection texture may be SAMPLED yet: it has been rendered into by a completed frame. A fresh
+    // target is still in its initial layout, and the water (view 0) samples it before the mirror pass (view 4)
+    // first draws it -- bgfx's Vulkan backend then records a layout barrier inside view 0's render pass and the AMD
+    // driver crashes in getDescriptorSet (S. 2026-11-23: Vulkan crash on entering a map, gone with Water Reflect off).
+    bool reflectSampleable() const { return reflectFrames_ >= 2; }
     bool reflectFlipY() const;
     // True while a planar mirror pass is live this frame (mode >= 2, in the 3D world, FB valid). The
     // scene tells MapRenderer to render the mirror pass + feed the texture to the water only then.
@@ -238,6 +243,7 @@ private:
     float aoNear_ = 1.0f, aoFar_ = 4000.0f;  // in-game camera near/far (matches GameScene perspective)
     int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
     int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)
+    int reflectFrames_ = 0;            // frames completed since reflectFb_ was (re)created
     bgfx::ProgramHandle tonemapProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle easuProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle rcasProg_ = BGFX_INVALID_HANDLE;

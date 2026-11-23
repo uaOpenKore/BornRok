@@ -13395,6 +13395,7 @@ void GameScene::render(Application& app) {
                 refl.proj = proj;
                 refl.view = RenderDevice::kReflectView;
                 refl.reflectTex = app.render().reflectTexture();
+                refl.reflectReady = app.render().reflectSampleable();
                 refl.flipY = app.render().reflectFlipY() ? 1 : 0;
             }
             // S. tuning: reflection 50%, water transparency 50%, ripple ~5% of the original strength.

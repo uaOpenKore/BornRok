@@ -222,7 +222,7 @@ void WaterRenderer::render(double time, const ReflectionParams& refl) const {
         // The reflection sampler (slot 1) must ALWAYS be bound (DX11 requires every declared sampler
         // set); in modes 0/1 the shader ignores it. Use the reflection texture when a mirror pass ran
         // this frame (modes 2/3 with a valid target), else a water frame as a harmless stand-in.
-        const bool haveRefl = refl.mode >= 2 && bgfx::isValid(refl.reflectTex);
+        const bool haveRefl = refl.mode >= 2 && bgfx::isValid(refl.reflectTex) && refl.reflectReady;
         bgfx::setTexture(1, reflSampler_, haveRefl ? refl.reflectTex : frames_[frame]);
         const int shaderMode = haveRefl ? refl.mode : (refl.mode == 1 ? 1 : 0);  // drop to Light/Off if no RT
         const float rp[4] = {static_cast<float>(shaderMode), refl.reflectivity,

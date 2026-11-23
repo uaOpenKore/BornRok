@@ -555,6 +555,7 @@ void RenderDevice::createReflectTarget() {
                                                   BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle a[2] = {c, d};
     reflectFb_ = bgfx::createFrameBuffer(2, a, true);
+    reflectFrames_ = 0;  // not sampleable until the mirror pass has drawn into it (reflectSampleable)
     if (!bgfx::isValid(reflectFb_)) log::error("render: water reflection framebuffer failed");
 }
 
@@ -829,6 +830,7 @@ void RenderDevice::beginFrame() {
 }
 
 void RenderDevice::endFrame() {
+    if (bgfx::isValid(reflectFb_) && reflectFrames_ < 1000) ++reflectFrames_;
     auto blit = [&](bgfx::ViewId view, bgfx::FrameBufferHandle target, bgfx::TextureHandle src,
                     int w, int h, bgfx::ProgramHandle prog, bgfx::UniformHandle u, const float p[4]) {
         bgfx::setViewFrameBuffer(view, target);

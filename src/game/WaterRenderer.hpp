@@ -21,6 +21,7 @@ struct ReflectionParams {
     Mat4 mirror;            // mirror-camera view matrix (reflected across the water plane)
     Mat4 proj;              // projection (same as the main camera)
     bgfx::TextureHandle reflectTex = BGFX_INVALID_HANDLE;
+    bool reflectReady = false;  // reflectTex has been rendered into: the water may sample it (RenderDevice::reflectSampleable)
     int flipY = 0;              // 1 => flip the reflection UV's Y (render-target origin)
     float sky[3] = {0.45f, 0.58f, 0.78f};  // sky/ambient reflection colour (Light tier)
     float reflectivity = 0.5f;  // 0 = water only, 1 = full reflection

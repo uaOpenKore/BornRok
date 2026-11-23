@@ -362,12 +362,22 @@ int Application::run(const AppConfig& cfg) {
         if (const double ovSec = std::chrono::duration<double>(workEnd - ovT0).count(); ovSec >= 1.0) {
             const double cpu = readProcessCpuSeconds();
             const i64 rss = readProcessRssBytes();
-            char t[96];
-            int n = std::snprintf(t, sizeof(t), "FPS %.0f", ovFrames / ovSec);
-            if (rss >= 0 && n > 0 && n < (int)sizeof(t))
-                n += std::snprintf(t + n, sizeof(t) - n, "  RAM %.0f MB", static_cast<double>(rss) / 1048576.0);
-            if (cpu >= 0.0 && ovCpu0 >= 0.0 && n > 0 && n < (int)sizeof(t))  // like Task Manager: % of all cores
-                std::snprintf(t + n, sizeof(t) - n, "  CPU %.0f%%", (cpu - ovCpu0) / (ovSec * ovCores) * 100.0);
+            // FPS / CPU (% of all cores, like Task Manager) + temperature / RAM / GPU load (its time per frame x fps)
+            // + temperature / the game's video memory (S. 2026-11-23); unknown parts are left out.
+            const double fps = ovFrames / ovSec;
+            double gpuMs = -1.0, vramMb = -1.0;
+            render_.gpuStats(gpuMs, vramMb);
+            const double cpuT = readCpuTempC(), gpuT = readGpuTempC();
+            std::string t;
+            char b[48];
+            auto add = [&](const char* fmt, double v) { std::snprintf(b, sizeof(b), fmt, v); t += b; };
+            add("FPS %.0f", fps);
+            if (cpu >= 0.0 && ovCpu0 >= 0.0) add("  CPU %.0f%%", (cpu - ovCpu0) / (ovSec * ovCores) * 100.0);
+            if (cpuT >= 0.0) add(" %.0f\xC2\xB0C", cpuT);
+            if (rss >= 0) add("  RAM %.0f MB", static_cast<double>(rss) / 1048576.0);
+            if (gpuMs >= 0.0) add("  GPU %.0f%%", std::min(100.0, gpuMs * fps / 10.0));
+            if (gpuT >= 0.0) add(" %.0f\xC2\xB0C", gpuT);
+            if (vramMb >= 0.0) add("  VRAM %.2f GB", vramMb / 1024.0);
             perfOverlayText_ = t;
             ovT0 = workEnd;
             ovFrames = 0;

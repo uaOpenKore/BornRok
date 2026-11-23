@@ -43,6 +43,8 @@ public:
     bool init(const NativeWindow& nw, const RenderConfig& cfg);
     // The renderer choice codes of RenderConfig::renderer: whether this build/OS offers one, and its name.
     static bool rendererAvailable(int code);
+    // The last frame's GPU time (ms, -1 unknown) and the game's video memory (MB: textures + render targets).
+    void gpuStats(double& gpuMs, double& vramMb) const;
     static const char* rendererLabel(int code);
     void shutdown();
 

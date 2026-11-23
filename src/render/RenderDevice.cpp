@@ -762,6 +762,19 @@ void RenderDevice::setMsaa(int samples) {
     log::info("render: MSAA x{}", msaaResetFlag(msaa_) ? msaa_ : 0);
 }
 
+void RenderDevice::gpuStats(double& gpuMs, double& vramMb) const {
+    gpuMs = -1.0;
+    vramMb = -1.0;
+    if (!inited_) return;
+    const bgfx::Stats* st = bgfx::getStats();
+    if (!st) return;
+    if (st->gpuTimerFreq > 0 && st->gpuTimeEnd > st->gpuTimeBegin)
+        gpuMs = static_cast<double>(st->gpuTimeEnd - st->gpuTimeBegin) * 1000.0 / static_cast<double>(st->gpuTimerFreq);
+    const double tex = st->textureMemoryUsed > 0 ? static_cast<double>(st->textureMemoryUsed) : 0.0;
+    const double rt = st->rtMemoryUsed > 0 ? static_cast<double>(st->rtMemoryUsed) : 0.0;
+    if (tex + rt > 0.0) vramMb = (tex + rt) / 1048576.0;
+}
+
 std::string RenderDevice::statsLine() const {
     if (!inited_) return {};
     const bgfx::Stats* st = bgfx::getStats();

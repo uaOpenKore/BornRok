@@ -2,6 +2,10 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
+#if defined(__linux__)
+#include <filesystem>
+#endif
 
 #if defined(__linux__) || defined(__APPLE__)
 #include <unistd.h>
@@ -108,6 +112,72 @@ double readProcessCpuSeconds() {
         return static_cast<double>((static_cast<unsigned long long>(f.dwHighDateTime) << 32) | f.dwLowDateTime) / 1e7;
     };
     return t(k) + t(u);
+#else
+    return -1.0;
+#endif
+}
+
+#if defined(__linux__)
+namespace {
+// The first hwmon sensor whose driver name is in `names`: its temp1_input (millidegrees) in degrees C.
+double hwmonTemp(std::initializer_list<const char*> names) {
+    namespace fsys = std::filesystem;
+    std::error_code ec;
+    for (const auto& e : fsys::directory_iterator("/sys/class/hwmon", ec)) {
+        std::string nm = slurp((e.path() / "name").string().c_str());
+        while (!nm.empty() && (nm.back() == '\n' || nm.back() == ' ')) nm.pop_back();
+        for (const char* want : names)
+            if (nm == want) {
+                const std::string t = slurp((e.path() / "temp1_input").string().c_str());
+                if (!t.empty()) return std::atof(t.c_str()) / 1000.0;
+            }
+    }
+    return -1.0;
+}
+}  // namespace
+#endif
+
+#if defined(_WIN32) && defined(UARO_WIN_DESKTOP)
+namespace {
+// NVIDIA's NVML ships with the driver (nvml.dll in System32): GPU 0's core temperature.
+double nvmlGpuTemp() {
+    using InitFn = int (*)();
+    using HandleFn = int (*)(unsigned, void**);
+    using TempFn = int (*)(void*, int, unsigned*);
+    static HMODULE dll = nullptr;
+    static void* dev = nullptr;
+    static TempFn temp = nullptr;
+    static bool tried = false;
+    if (!tried) {
+        tried = true;
+        dll = LoadLibraryA("nvml.dll");
+        if (dll) {
+            auto init = reinterpret_cast<InitFn>(GetProcAddress(dll, "nvmlInit_v2"));
+            auto handle = reinterpret_cast<HandleFn>(GetProcAddress(dll, "nvmlDeviceGetHandleByIndex_v2"));
+            temp = reinterpret_cast<TempFn>(GetProcAddress(dll, "nvmlDeviceGetTemperature"));
+            if (!init || !handle || !temp || init() != 0 || handle(0, &dev) != 0) temp = nullptr;
+        }
+    }
+    unsigned t = 0;
+    if (temp && dev && temp(dev, 0 /*NVML_TEMPERATURE_GPU*/, &t) == 0) return static_cast<double>(t);
+    return -1.0;
+}
+}  // namespace
+#endif
+
+double readCpuTempC() {
+#if defined(__linux__)
+    return hwmonTemp({"k10temp", "zenpower", "coretemp", "cpu_thermal", "soc_thermal", "acpitz"});
+#else
+    return -1.0;
+#endif
+}
+
+double readGpuTempC() {
+#if defined(__linux__)
+    return hwmonTemp({"amdgpu", "radeon", "nouveau"});
+#elif defined(_WIN32) && defined(UARO_WIN_DESKTOP)
+    return nvmlGpuTemp();
 #else
     return -1.0;
 #endif

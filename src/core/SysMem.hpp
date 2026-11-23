@@ -22,5 +22,10 @@ i64 readProcessRssBytes();   // resident memory: /proc/self/statm (Linux), the w
 // CPU time this process has used so far (user + system, all threads), in seconds; -1 = unknown. Two readings
 // over a wall-clock interval give the CPU load (the on-screen perf counter, S. 2026-11-23).
 double readProcessCpuSeconds();
+// Temperatures for the on-screen counter (S. 2026-11-23), degrees C; -1 = unknown. Linux: hwmon (k10temp /
+// coretemp / zenpower / cpu_thermal; amdgpu / radeon / nouveau). Windows: GPU only for NVIDIA (nvml.dll from the
+// driver); the CPU and AMD/Intel GPUs expose no temperature without a vendor SDK or admin rights there.
+double readCpuTempC();
+double readGpuTempC();
 
 }  // namespace uaro

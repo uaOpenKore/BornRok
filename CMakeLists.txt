@@ -70,6 +70,11 @@ if(MSVC)
   # silences its own with a local pragma.
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
   add_compile_options(/wd4244 /wd4267 /wd4125 /wd4127)
+  # Release builds write a .pdb next to the .exe (S. 2026-11-23: a crash dump needs it to name our
+  # functions). /Zi = debug info in the .pdb only (the exe's code is unchanged); /DEBUG makes the linker emit
+  # it, /OPT:REF,ICF keep the release-size optimisations that /DEBUG would otherwise turn off.
+  add_compile_options($<$<CONFIG:Release>:/Zi>)
+  add_link_options($<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
 else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()

@@ -2674,6 +2674,60 @@ void GameScene::playSkillCastSfx(Application& app, u16 skillId, const Vec3& at) 
 // Record the overhead skill-name "shout" (S.: "когда чар кастит скилл, над головой выкрик названия на
 // 1,5 секунды"). Keyed by caster gid, so a fresh cast refreshes it. skillConstList() (server skill_db,
 // id->display name) is our numeric-id name source; an unknown id (no name) shows nothing.
+void GameScene::eqSetSave(Application& app, int n) {
+    eqSets_[n].clear();
+    for (const auto& [idx, it] : inventory_) {
+        (void)idx;
+        if (it.equipPos == 0 || it.nameid == 0) continue;
+        if (it.equipPos & (net::EQP_AMMO)) continue;  // arrows are not part of a set
+        EqSetItem e;
+        e.pos = it.equipPos;
+        e.nameid = it.nameid;
+        e.refine = it.refine;
+        for (int k = 0; k < 4; ++k) e.cards[k] = it.cards[k];
+        eqSets_[n].push_back(e);
+    }
+    saveHotbar(app);
+    chatLog_.push_back({"Equipment set " + std::to_string(n + 1) + " saved (" + std::to_string(eqSets_[n].size()) + " items).",
+                        kChatServer});
+}
+
+void GameScene::eqSetWear(Application& app, int n) {
+    (void)app;
+    if (eqSets_[n].empty()) {
+        chatLog_.push_back({"Equipment set " + std::to_string(n + 1) + " is empty: Shift+click it to save what you wear.",
+                            kChatServer});
+        return;
+    }
+    auto same = [](const net::InvItem& it, const EqSetItem& e) {
+        if (it.nameid != e.nameid || it.refine != e.refine) return false;
+        for (int k = 0; k < 4; ++k)
+            if (it.cards[k] != e.cards[k]) return false;
+        return true;
+    };
+    int sent = 0, missing = 0;
+    std::vector<u16> used;
+    for (const EqSetItem& e : eqSets_[n]) {
+        bool worn = false;
+        for (const auto& [idx, it] : inventory_)
+            if ((it.equipPos & e.pos) && same(it, e)) { worn = true; used.push_back(idx); break; }
+        if (worn) continue;
+        bool found = false;
+        for (const auto& [idx, it] : inventory_) {
+            if (it.equipPos != 0 || !same(it, e) || std::find(used.begin(), used.end(), idx) != used.end()) continue;
+            conn_.send(net::buildWearEquip(idx, e.pos));
+            used.push_back(idx);
+            ++sent;
+            found = true;
+            break;
+        }
+        if (!found) ++missing;
+    }
+    std::string msg = "Equipment set " + std::to_string(n + 1) + ": " + std::to_string(sent) + " put on";
+    if (missing) msg += ", " + std::to_string(missing) + " not in the bag";
+    chatLog_.push_back({msg + ".", kChatServer});
+}
+
 void GameScene::noteTakenHit(u32 src, u16 skill, i32 dmg) {
     TakenHit h;
     h.t = time_;
@@ -10210,6 +10264,10 @@ void GameScene::writeHotbar(Application& app) {
     // Auto-attack settings (#76) live in the same per-char cfg.
     out << "auto " << (autoAttackOn_ ? 1 : 0) << " " << autoHpPct_ << " " << autoSpPct_ << "\n";
     out << "cam " << zoom_ << " " << pitch_ << "\n";  // per-char camera zoom + tilt (S.)
+    for (int n = 0; n < 3; ++n)  // equipment sets 1 2 3
+        for (const EqSetItem& e : eqSets_[n])
+            out << "eqset " << n << " " << e.pos << " " << e.nameid << " " << static_cast<int>(e.refine) << " "
+                << e.cards[0] << " " << e.cards[1] << " " << e.cards[2] << " " << e.cards[3] << "\n";
     // Auto-attack filter is per-map (#76): mirror the active set back into the table, then write one
     // line per non-empty map ("moboffmap <map> <cls...>").
     if (!mapBase_.empty()) autoMobOffMaps_[mapBase_] = autoMobOff_;
@@ -10303,6 +10361,17 @@ void GameScene::loadHotbar(Application& app) {
                 autoAttackOn_ = (a != 0);
                 autoHpPct_ = std::clamp(hp, 1, 100);
                 autoSpPct_ = std::clamp(sp, 1, 100);
+            }
+        } else if (key == "eqset") {  // equipment set item: set pos nameid refine card0..3
+            int n = 0, pos = 0, nid = 0, rf = 0, c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+            if ((ls >> n >> pos >> nid >> rf >> c0 >> c1 >> c2 >> c3) && n >= 0 && n < 3) {
+                EqSetItem e;
+                e.pos = static_cast<u16>(pos);
+                e.nameid = static_cast<u16>(nid);
+                e.refine = static_cast<u8>(rf);
+                e.cards[0] = static_cast<u16>(c0); e.cards[1] = static_cast<u16>(c1);
+                e.cards[2] = static_cast<u16>(c2); e.cards[3] = static_cast<u16>(c3);
+                eqSets_[n].push_back(e);
             }
         } else if (key == "cam") {  // per-char camera zoom + tilt (S.)
             float z = 1.0f, p = 0.0f;
@@ -17352,7 +17421,37 @@ void GameScene::render(Application& app) {
                                      clHov ? stq::withOpacity(stq::kDanger, 0.90f)
                                            : stq::withOpacity(stq::kTile, 0.90f));
                     font.draw(sb, clX + 4.5f * S, clY + 2.0f * S, 0.70f * S, stq::kText, "x");
-                    if (clHov && uin.mousePressed) { ui::markButtonClicked(); equipOpen_ = false; }
+                    // Sets 1 2 3: click = wear, Shift+click = save what is worn now (S. 2026-11-23, from uaRO HD)
+                    bool setHit = false;
+                    for (int n = 0; n < 3; ++n) {
+                        const float sx0 = clX - (3 - n) * (clSz + 4.0f * S) - 6.0f * S;
+                        const bool h = uin.hit(sx0, clY, clSz, clSz);
+                        const bool has = !eqSets_[n].empty();
+                        stq::roundedFill(sb, sx0, clY, clSz, clSz, 4.0f * S,
+                                         h ? stq::withOpacity(stq::kGold, 0.85f)
+                                           : stq::withOpacity(stq::kTile, has ? 0.95f : 0.45f));
+                        font.draw(sb, sx0 + 4.5f * S, clY + 2.0f * S, 0.70f * S, has ? stq::kGold2 : stq::kText,
+                                  std::to_string(n + 1));
+                        if (h) {
+                            setHit = true;
+                            const std::string tip = has ? "Set " + std::to_string(n + 1) + ": click to wear, Shift+click to save"
+                                                        : "Set " + std::to_string(n + 1) + ": Shift+click to save what you wear";
+                            const float tw = font.width(tip, 0.9f) + 12.0f;
+                            ui::panel(sb, sx0, clY - 22.0f, tw, 18.0f, ui::rgba(0, 0, 0, 210));
+                            font.draw(sb, sx0 + 6.0f, clY - 20.0f, 0.9f, ui::color::kWinText, tip);
+                            if (uin.mousePressed) {
+                                ui::markButtonClicked();
+                                if (uin.shift) eqSetSave(app, n);
+                                else eqSetWear(app, n);
+                            }
+                        }
+                    }
+                    if (setHit) {
+                        // a set button took the press: no close, no window drag
+                    } else if (clHov && uin.mousePressed) {
+                        ui::markButtonClicked();
+                        equipOpen_ = false;
+                    }
                     else if (draggingWin_ < 0 && uin.mousePressed &&
                              uin.hit(bx, wy, EW - clSz - 12.0f * S, kSkinTitleH)) {
                         draggingWin_ = WIN_EQUIP;

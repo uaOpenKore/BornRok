@@ -1356,6 +1356,11 @@ private:
     // The hits that killed us (S. 2026-11-23, from uaRO HD): the last ones taken, shown in the death window.
     struct TakenHit { double t = 0.0; u32 src = 0; u16 skill = 0; i32 dmg = 0; std::string who; };
     std::vector<TakenHit> takenHits_, deathHits_;
+    // Equipment sets 1 2 3 (S. 2026-11-23, from uaRO HD): Shift+click saves what is worn, a click puts it on. Per char.
+    struct EqSetItem { u16 pos = 0, nameid = 0; u8 refine = 0; u16 cards[4] = {0, 0, 0, 0}; };
+    std::vector<EqSetItem> eqSets_[3];
+    void eqSetSave(Application& app, int n);
+    void eqSetWear(Application& app, int n);
     std::unordered_set<u32> namesAskedHit_;  // attackers whose name we asked for (once each)
     void noteTakenHit(u32 src, u16 skill, i32 dmg);
     float zoom_ = 1.0f;     // camera distance multiplier (mouse wheel)

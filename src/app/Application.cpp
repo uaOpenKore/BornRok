@@ -293,6 +293,7 @@ int Application::run(const AppConfig& cfg) {
     auto ovT0 = perfT0;
     int ovFrames = 0;
     double ovCpu0 = readProcessCpuSeconds();
+    u64 ovRx0 = ~0ull, ovTx0 = 0;  // network byte totals at the last counter sample
     const unsigned ovCores = std::max(1u, std::thread::hardware_concurrency());
     while (platform_.pump(input_)) {
         const auto frameStart = std::chrono::steady_clock::now();
@@ -389,6 +390,17 @@ int Application::run(const AppConfig& cfg) {
             if (gpuMs >= 0.0) add("  GPU %.0f%%", std::min(100.0, gpuMs * fps / 10.0));
             if (gpuT >= 0.0) add(" %.0f\xC2\xB0" "C", gpuT);
             if (vramMb >= 0.0) add("  VRAM %.1f GB", vramMb / 1024.0);
+            {   // network: map-server round trip + traffic down/up (S. 2026-11-23)
+                const u64 rx = net::g_netBytesRecv.load(), tx = net::g_netBytesSent.load();
+                if (ovRx0 != ~0ull) {
+                    const int ping = net::g_netPingMs.load();
+                    if (ping >= 0) add("  PING %.0f ms", ping);
+                    add("  NET %.1f", (rx - ovRx0) / 1024.0 / ovSec);
+                    add("/%.1f KB/s", (tx - ovTx0) / 1024.0 / ovSec);
+                }
+                ovRx0 = rx;
+                ovTx0 = tx;
+            }
             perfOverlayText_ = t;
             ovT0 = workEnd;
             ovFrames = 0;

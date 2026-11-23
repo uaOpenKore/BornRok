@@ -165,7 +165,7 @@ int Socket::send(const u8* data, usize len) {
 #else
     ssize_t n = ::send(fd_, data, len, MSG_NOSIGNAL);
 #endif
-    if (n > 0) return static_cast<int>(n);
+    if (n > 0) { g_netBytesSent += static_cast<u64>(n); return static_cast<int>(n); }
     if (n == 0) return 0;
     if (would_block()) return 0;
     lastErr_ = os_err();
@@ -180,7 +180,7 @@ int Socket::recv(u8* dst, usize cap) {
 #else
     ssize_t n = ::recv(fd_, dst, cap, 0);
 #endif
-    if (n > 0) return static_cast<int>(n);
+    if (n > 0) { g_netBytesRecv += static_cast<u64>(n); return static_cast<int>(n); }
     if (n == 0) {  // orderly shutdown by peer (server sent FIN)
         lastErr_ = 0;
         state_ = State::Closed;

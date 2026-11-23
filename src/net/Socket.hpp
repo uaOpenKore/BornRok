@@ -1,9 +1,16 @@
 #pragma once
+#include <atomic>
 #include <string>
 
 #include "core/Types.hpp"
 
 namespace uaro::net {
+
+// Network totals for the info counter (S. 2026-11-23): bytes through every game socket, and the last
+// map-server round trip (the 0x7e tick -> 0x7f reply), -1 = none yet.
+inline std::atomic<u64> g_netBytesSent{0};
+inline std::atomic<u64> g_netBytesRecv{0};
+inline std::atomic<int> g_netPingMs{-1};
 
 // Cross-platform non-blocking TCP client socket (Winsock on Windows, BSD sockets
 // elsewhere). Thin RAII wrapper used by Connection; the DNS resolve in connect()

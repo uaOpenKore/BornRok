@@ -1314,6 +1314,7 @@ private:
     std::string status_;
     double time_ = 0.0;
     double lastPing_ = 0.0;
+    double pingSentAt_ = 0.0;  // when the pending tick went out (0 = none pending)
     float zoom_ = 1.0f;     // camera distance multiplier (mouse wheel)
     float azimuth_ = 0.0f;  // camera orbit angle (right-drag, horizontal)
     float pitch_ = 0.0f;    // camera elevation offset (shift+right-drag, vertical)

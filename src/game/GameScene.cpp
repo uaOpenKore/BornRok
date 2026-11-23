@@ -4049,6 +4049,12 @@ void GameScene::pumpStream(Application& app) {
                     identifyOpen_ = true;
                 break;
             }
+            case net::PKT_ZC_NOTIFY_TIME:  // 0x7f: the reply to our tick -> the round trip for the info counter
+                if (pingSentAt_ > 0.0) {
+                    net::g_netPingMs = static_cast<int>((time_ - pingSentAt_) * 1000.0 + 0.5);
+                    pingSentAt_ = 0.0;
+                }
+                break;
             case net::PKT_ZC_PLAYERMOVE: {  // our own walk was accepted -> glide
                 net::MoveData mv;
                 if (net::decodePlayerMove(rx.data(), rx.size(), mv) != 0) {
@@ -12925,6 +12931,7 @@ void GameScene::update(Application& app, double dt) {
         if (phase_ == Phase::InGame && time_ - lastPing_ > 4.0) {
             conn_.send(net::buildTickSend(clientTick(time_)));
             lastPing_ = time_;
+            pingSentAt_ = time_;  // its 0x7f reply measures the round trip (info counter)
         }
         if (conn_.closed()) {
             // Diagnostic (S. "run a minute then DC on any map", our client only, original stays connected):

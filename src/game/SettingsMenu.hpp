@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 26 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size + Character Dye. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 27 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size + Character Dye. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -730,6 +730,12 @@ public:
                 }
                 app.setRenderer(nx);
             }
+            // The info counter (FPS / CPU / RAM / GPU) in the top-left corner (S. 2026-11-23: "можно выключить").
+            const float pfy = rdy + 34.0f;
+            font.draw(sb, cx, pfy, 1.1f, ui::color::kWinText, "Info counter");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, pfy - 4.0f, 90.0f, 26.0f,
+                                           app.showPerf() ? tr("set.on") : tr("set.off"), 1.2f))
+                app.setShowPerf(!app.showPerf());
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

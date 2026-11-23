@@ -152,6 +152,8 @@ public:
     bool xbrUpscale() const { return xbr_ != 0; }
     bool charDye() const { return charDye_ != 0; }   // hair/clothes dyes on PCs (off on Android/Switch by default)
     void setCharDye(bool on);
+    bool showPerf() const { return showPerf_ != 0; }   // the FPS / CPU / RAM / GPU counter in the top-left corner
+    void setShowPerf(bool on) { showPerf_ = on ? 1 : 0; saveConfig(); }
     int renderer() const { return renderer_; }
     int rendererStarted() const { return rendererStarted_; }
     void setRenderer(int code);

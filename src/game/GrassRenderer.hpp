@@ -34,6 +34,7 @@ private:
         float x, z, groundY;  // world position (X already mirrored) + ground height
         u32 abgr;             // per-tuft tint = the cell tile's mean colour
         u8 model;             // which of the 5 tuft variants in the atlas (0..4)
+        u8 scale = 255;       // height share (edge of the field: tufts go down to nothing), /255
     };
     // A spatial block of tufts -> one index-buffer range, drawn only when within the LOD radius (#lod).
     struct Chunk {

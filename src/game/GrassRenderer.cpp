@@ -137,6 +137,47 @@ bool isGrassy(float ar, float ag, float ab) {
     const float greenExcess = ag - (ar + ab) * 0.5f;  // how much green stands out over the red/blue mean
     return ag > 45.0f && ag >= ar && greenExcess > 28.0f;
 }
+
+// Per-cell grass test, after uaRO HD's core/ground_cells (S. 2026-11-23): each cell looks at the part of its top's
+// texture it actually shows (its UVs, 8x8 points), not the whole tile's mean. Green by ratios, soft: green/red from
+// 0.96 (none) to 1.01 (all), green/blue from 1.08 to 1.16, not too dark -- olive meadows in, sand out, no flicker
+// at an edge. Pale grey stone (luma >= 0.55, saturation <= 0.22) marks paving: a paved cell grows grass only where
+// it is as green as a lawn (the moss in Prontera's / Hugel's joints is not).
+float greenOf(float r, float g, float b) {
+    const float a = std::min((g / std::max(r, 1e-4f) - 0.96f) / 0.05f, (g / std::max(b, 1e-4f) - 1.08f) / 0.08f);
+    return std::clamp(std::min(a, (g - 0.08f) / 0.04f), 0.0f, 1.0f);
+}
+float stoneOf(float r, float g, float b) {
+    const float luma = 0.30f * r + 0.59f * g + 0.11f * b;
+    const float top = std::max({r, g, b}), low = std::min({r, g, b});
+    const float sat = top > 1e-4f ? (top - low) / top : 0.0f;
+    return (luma >= 0.55f && sat <= 0.22f) ? 1.0f : 0.0f;
+}
+constexpr float kGrassyGreen = 0.12f, kPavingStone = 0.45f, kLawnGreen = 0.40f;
+// the cell's look: mean green and the share of pale stone over its shown part; green < 0 = no picture
+void cellLook(const Image& img, const GndSurface& s, float& green, float& stone) {
+    green = -1.0f;
+    stone = 0.0f;
+    if (!img.valid()) return;
+    const float u0 = std::min({s.u[0], s.u[1], s.u[2], s.u[3]}), u1 = std::max({s.u[0], s.u[1], s.u[2], s.u[3]});
+    const float v0 = std::min({s.v[0], s.v[1], s.v[2], s.v[3]}), v1 = std::max({s.v[0], s.v[1], s.v[2], s.v[3]});
+    constexpr int kAcross = 8;
+    float sum = 0.0f, st = 0.0f;
+    for (int j = 0; j < kAcross; ++j)
+        for (int k = 0; k < kAcross; ++k) {
+            const float u = u0 + (u1 - u0) * (k + 0.5f) / kAcross, v = v0 + (v1 - v0) * (j + 0.5f) / kAcross;
+            const int x = std::clamp(static_cast<int>(std::floor(u * img.width)), 0, static_cast<int>(img.width) - 1);
+            const int y = std::clamp(static_cast<int>(std::floor(v * img.height)), 0, static_cast<int>(img.height) - 1);
+            const u8* p = &img.rgba[(static_cast<usize>(y) * img.width + x) * 4];
+            const float r = p[0] / 255.0f, g = p[1] / 255.0f, b = p[2] / 255.0f;
+            sum += greenOf(r, g, b);
+            st += stoneOf(r, g, b);
+        }
+    green = sum / (kAcross * kAcross);
+    stone = st / (kAcross * kAcross);
+}
+// a hall's floor texture (a folder ...내부 = "interior", cp949): never grass (castle carpets, Payon's tiles)
+bool interiorTexture(const std::string& name) { return name.find("\xB3\xBB\xBA\xCE") != std::string::npos; }
 }  // namespace
 
 bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
@@ -171,10 +212,43 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
             log::info("Grass: tex[{}] avg rgb=({},{},{}) grassy={}", ti,
                       static_cast<int>(ar), static_cast<int>(ag), static_cast<int>(ab), gr ? 1 : 0);
     }
-    log::info("GrassRenderer: {}/{} ground textures flagged grassy", grassyTex, map.textures.size());
-    if (grassyTex == 0) {  // no grass on this map -> nothing to do (indoor/desert/etc.)
+    log::info("GrassRenderer: {}/{} ground textures green on the whole (the cells decide now)", grassyTex,
+              map.textures.size());
+    // Which cells grow grass: by the part of their texture they show (cellLook), interiors never.
+    const auto& texNames = g.textures();
+    std::vector<u8> cellGrass(static_cast<usize>(W) * H, 0);
+    u32 grassyCells = 0, pavedOut = 0;
+    for (u32 y = 0; y < H; ++y)
+        for (u32 x = 0; x < W; ++x) {
+            const GndCube& c = cubes[x + y * W];
+            if (c.tileUp < 0 || static_cast<usize>(c.tileUp) >= surfs.size()) continue;
+            const GndSurface& sf = surfs[c.tileUp];
+            const int tid = sf.textureId;
+            if (tid < 0 || static_cast<usize>(tid) >= map.textures.size() || !map.textures[tid]) continue;
+            if (static_cast<usize>(tid) < texNames.size() && interiorTexture(texNames[tid])) continue;
+            float green = 0.0f, stone = 0.0f;
+            cellLook(*map.textures[tid], sf, green, stone);
+            if (green < kGrassyGreen) continue;
+            if (stone >= kPavingStone && green < kLawnGreen) { ++pavedOut; continue; }
+            cellGrass[x + y * W] = 1;
+            ++grassyCells;
+        }
+    log::info("GrassRenderer: {} of {} cells grow grass ({} paved cells left out)", grassyCells, W * H, pavedOut);
+    if (grassyCells == 0) {  // no grass on this map -> nothing to do (indoor/desert/etc.)
         bgfx::destroy(program_); program_ = BGFX_INVALID_HANDLE; return false;
     }
+    // the share of grass cells round a point (itself and four points 0.8 of a cell off): a tuft's height goes
+    // down to nothing toward the field's edge (none under a quarter, whole from 0.85) instead of a wall along it
+    auto grassAt = [&](float fx, float fy) -> float {
+        const int cx = static_cast<int>(std::floor(fx)), cy = static_cast<int>(std::floor(fy));
+        if (cx < 0 || cy < 0 || cx >= static_cast<int>(W) || cy >= static_cast<int>(H)) return 0.0f;
+        return cellGrass[static_cast<usize>(cx) + static_cast<usize>(cy) * W] ? 1.0f : 0.0f;
+    };
+    auto edgeScale = [&](float fx, float fy) -> float {
+        const float share = (grassAt(fx, fy) + grassAt(fx + 0.8f, fy) + grassAt(fx - 0.8f, fy) +
+                             grassAt(fx, fy + 0.8f) + grassAt(fx, fy - 0.8f)) / 5.0f;
+        return std::clamp((share - 0.25f) / 0.6f, 0.0f, 1.0f);
+    };
 
     // Skip cells that are under water: use the SAME test as WaterRenderer (a corner above the
     // level-waveHeight threshold means the ground there is below the water surface), so grass never
@@ -191,7 +265,7 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
             const GndCube& c = cubes[x + y * W];
             if (c.tileUp < 0 || static_cast<usize>(c.tileUp) >= surfs.size()) continue;
             const int tid = surfs[c.tileUp].textureId;
-            if (tid < 0 || static_cast<usize>(tid) >= grassy.size() || !grassy[tid]) continue;
+            if (!cellGrass[x + y * W] || tid < 0 || static_cast<usize>(tid) >= texTint.size()) continue;
             // Under-water cell (any corner below the water surface) -> no grass. Only when the map
             // actually has water (else the water level is meaningless and would wrongly cull the field).
             if (hasWater && (c.height[0] > wthresh || c.height[1] > wthresh ||
@@ -215,7 +289,9 @@ bool GrassRenderer::load(Application& app, const MapData& map, bool hasWater) {
                 const float wz = static_cast<float>(y) + jz;
                 const int m = std::min(kNumModels - 1,
                                        static_cast<int>(hash01(x, y, 3u + k * 7u) * kNumModels));  // random model
-                clumps_.push_back({wx, wz, gy, tint, static_cast<u8>(m)});
+                const float es = edgeScale(static_cast<float>(x) + jx, static_cast<float>(y) + jz);
+                if (es < 0.05f) continue;  // the very edge of the field: no tuft
+                clumps_.push_back({wx, wz, gy, tint, static_cast<u8>(m), static_cast<u8>(es * 255.0f + 0.5f)});
             }
         }
     }
@@ -276,7 +352,7 @@ void GrassRenderer::buildMesh(float heightFrac) {
         }
         cMinX = std::min(cMinX, c.x); cMaxX = std::max(cMaxX, c.x);
         cMinZ = std::min(cMinZ, c.z); cMaxZ = std::max(cMaxZ, c.z);
-        const float by = c.groundY, ty = c.groundY + h;
+        const float by = c.groundY, ty = c.groundY + h * (c.scale / 255.0f);
         const u32 col = c.abgr;  // base (rooted) colour = the cell tile's mean grass green
         // Flower head (#grassflowers): a scattered subset gets a bright head colour on the TOP verts only.
         const u32 cellX = static_cast<u32>(c.x * 2.0f), cellZ = static_cast<u32>(c.z * 2.0f);

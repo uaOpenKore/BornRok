@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     // Build stamp so we can tell whether a running client actually includes the latest changes (S.: a
     // stale/incremental build silently kept old .obj -> fixes "не изменились"). __DATE__/__TIME__ are the
     // COMPILE time of this TU, which a real rebuild always bumps.
-    uaro::log::info("build: {} {}", __DATE__, __TIME__);
+    uaro::log::info("build: BornRok {} ({} {})", UARO_VERSION_STR, __DATE__, __TIME__);
     // Show the exe dir vs the writable data dir up front: under a packaged (MSIX/Flatpak) install
     // these DIFFER (exe dir read-only), and the writable one is where the patcher downloads + where
     // the VFS must mount from. Decisive first line for "патчер скачал, но подключить не смог".

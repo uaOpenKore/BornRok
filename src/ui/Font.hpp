@@ -58,6 +58,10 @@ private:
     // faces (Noto per-script) in order. Returns nullptr only if no TTF is loaded; a codepoint no face
     // has resolves to '?'. const because it only fills a cache.
     const Glyph* glyphFor(int cp) const;
+    // The glyph rasterized at exactly `px` physical pixels (S. 2026-11-23: crisp text -- the 16px bake scaled
+    // by the text scale x the UI scale was blurred over 2-3 px). Metrics in physical px. Cached per (cp, px).
+    const Glyph* glyphForSize(int cp, int px) const;
+    mutable std::unordered_map<unsigned long long, Glyph> sizedGlyphs_;
     int addFace(const unsigned char* ttf, std::size_t size);  // parse a face, append to faces_; -1 fail
     void addFallbackFont(const std::string& path);            // load an optional fallback .ttf if present
     int faceForCp(int cp) const;                              // index of the first face that has cp (-1 none)

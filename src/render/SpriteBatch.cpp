@@ -45,6 +45,7 @@ void SpriteBatch::begin(int screenW, int screenH, bgfx::ViewId viewId, int logic
     // Coordinate space the caller draws in (== screen unless UI scale shrinks it).
     screenW_ = logicalW > 0 ? logicalW : screenW;
     screenH_ = logicalH > 0 ? logicalH : screenH;
+    pixelScale_ = screenW_ > 0 ? static_cast<float>(screenW) / static_cast<float>(screenW_) : 1.0f;
     viewId_ = viewId;
     verts_.clear();
     indices_.clear();

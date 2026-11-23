@@ -1,6 +1,7 @@
 #include "ui/Font.hpp"
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <vector>
@@ -32,8 +33,8 @@ constexpr float kBakePxC = 16.0f;
 // Dynamic glyph atlas: glyphs are rasterized on demand (any script the loaded face covers), so it must
 // hold far more than the old ASCII+Cyrillic bake -- 1024x1024 fits every European + Greek + Cyrillic
 // glyph with room to spare. (CJK's thousands of glyphs need a bigger/fallback scheme -- future.)
-constexpr int kAtlasW = 1024;
-constexpr int kAtlasH = 1024;
+constexpr int kAtlasW = 2048;  // room for the exact-size glyphs of every text scale x UI scale in use
+constexpr int kAtlasH = 2048;
 constexpr int kAsciiFirst = 0x20, kAsciiLast = 0x7E;  // space..~ (warmed at load)
 constexpr int kCyrFirst = 0x400, kCyrLast = 0x45F;    // Ѐ..ѿ (covers А..я, Ё/ё) (warmed at load)
 
@@ -244,7 +245,7 @@ bool Font::packTtf(const unsigned char* ttf, std::size_t ttfSize) {
     // glyphs). Create empty, then clear it to fully transparent with one update. Bilinear so AA edges
     // stay smooth when the UI scales the 16px bake up (e.g. x1.5).
     atlasPixels_.assign(static_cast<std::size_t>(kAtlasW) * kAtlasH * 4, 0);
-    atlas_.createDynamic(static_cast<u16>(kAtlasW), static_cast<u16>(kAtlasH), true);
+    atlas_.createDynamic(static_cast<u16>(kAtlasW), static_cast<u16>(kAtlasH), false);  // 1:1 glyphs: point (crisp)
     if (atlas_.valid()) atlas_.update(0, 0, kAtlasW, kAtlasH, atlasPixels_.data());
     ttf_ = atlas_.valid();
     if (!ttf_) {
@@ -271,6 +272,60 @@ bool Font::packTtf(const unsigned char* ttf, std::size_t ttfSize) {
     auto cap = glyphs_.find('H');
     bakeCapPx_ = (cap != glyphs_.end() && cap->second.h > 0) ? cap->second.h : asc * scale0 * 0.72f;
     return true;
+}
+
+// A glyph at an exact physical pixel size, packed into the same atlas (sampled 1:1 -> crisp). Coverage is
+// sharpened instead of the bake's gamma boost: thin, 1-px-edged strokes (S. 2026-11-23: "чёткий шрифт в 1
+// пиксель линиями, текст уже").
+const Font::Glyph* Font::glyphForSize(int cp, int px) const {
+    const unsigned long long key = (static_cast<unsigned long long>(px) << 32) | static_cast<unsigned>(cp);
+    auto it = sizedGlyphs_.find(key);
+    if (it != sizedGlyphs_.end()) return &it->second;
+    if (faceInfo_.empty()) return nullptr;
+    int fi = -1;
+    for (std::size_t k2 = 0; k2 < faceInfo_.size(); ++k2)
+        if (stbtt_FindGlyphIndex(static_cast<stbtt_fontinfo*>(faceInfo_[k2]), cp) != 0) { fi = static_cast<int>(k2); break; }
+    if (fi < 0) return nullptr;
+    auto* info = static_cast<stbtt_fontinfo*>(faceInfo_[fi]);
+    const float sc = faceScale_[fi] * static_cast<float>(px) / kBakePx;
+    Glyph g;
+    int adv = 0, lsb = 0;
+    stbtt_GetCodepointHMetrics(info, cp, &adv, &lsb);
+    g.xadv = adv * sc;
+    int w = 0, h = 0, xoff = 0, yoff = 0;
+    unsigned char* bmp = stbtt_GetCodepointBitmap(info, sc, sc, cp, &w, &h, &xoff, &yoff);
+    if (bmp && w > 0 && h > 0) {
+        if (packX_ + w + 1 > kAtlasW) { packX_ = 1; packY_ += packRowH_ + 1; packRowH_ = 0; }
+        if (packY_ + h + 1 <= kAtlasH) {
+            const int ox = packX_, oy = packY_;
+            std::vector<u8> sub(static_cast<std::size_t>(w) * h * 4);
+            for (int yy = 0; yy < h; ++yy)
+                for (int xx = 0; xx < w; ++xx) {
+                    float c = static_cast<float>(bmp[yy * w + xx]) / 255.0f;
+                    c = std::clamp((c - 0.12f) / 0.70f, 0.0f, 1.0f);  // cut the faint fringe, full core
+                    const u8 a = static_cast<u8>(255.0f * c + 0.5f);
+                    const std::size_t si = (static_cast<std::size_t>(yy) * w + xx) * 4;
+                    sub[si + 0] = 255; sub[si + 1] = 255; sub[si + 2] = 255; sub[si + 3] = a;
+                    const std::size_t ai = ((static_cast<std::size_t>(oy + yy) * kAtlasW) + (ox + xx)) * 4;
+                    atlasPixels_[ai + 0] = 255; atlasPixels_[ai + 1] = 255;
+                    atlasPixels_[ai + 2] = 255; atlasPixels_[ai + 3] = a;
+                }
+            atlas_.update(ox, oy, w, h, sub.data());
+            g.u0 = static_cast<float>(ox) / kAtlasW;
+            g.v0 = static_cast<float>(oy) / kAtlasH;
+            g.u1 = static_cast<float>(ox + w) / kAtlasW;
+            g.v1 = static_cast<float>(oy + h) / kAtlasH;
+            g.w = static_cast<float>(w);
+            g.h = static_cast<float>(h);
+            g.xoff = static_cast<float>(xoff);
+            g.yoff = static_cast<float>(yoff);
+            packX_ += w + 1;
+            if (h > packRowH_) packRowH_ = h;
+        }
+    }
+    if (bmp) stbtt_FreeBitmap(bmp, nullptr);
+    auto res = sizedGlyphs_.emplace(key, g);
+    return &res.first->second;
 }
 
 // Rasterize + pack a single codepoint on demand (see header). Fills the glyph cache so subsequent
@@ -675,6 +730,8 @@ void Font::draw(SpriteBatch& sb, float x, float y, float scale, u32 abgr,
 
     const float f = (kRenderPx / kBakePx) * scale;
     const float lineStep = bakeLineAdvPx_ * f;
+    const float ps = sb.pixelScale() > 0.01f ? sb.pixelScale() : 1.0f;     // physical px per logical unit
+    const int px = static_cast<int>(std::lround(kBakePx * f * ps));         // the font's pixel height on screen
     // Cap top at y (matching the old bitmap font), nudged up ~1.5px per in-build review
     // so labels sit a touch higher in their boxes.
     float baseline = y + bakeCapPx_ * f - 1.5f;
@@ -686,7 +743,14 @@ void Font::draw(SpriteBatch& sb, float x, float y, float scale, u32 abgr,
         const Glyph* gp = glyphFor(cp);
         if (!gp) { penX += bakeSpaceAdvPx_ * f; continue; }
         const Glyph& g = *gp;
-        if (g.w > 0 && g.h > 0) {
+        // Draw the glyph rasterized at the exact physical size, snapped to the physical pixel grid (crisp);
+        // the pen still advances by the bake metrics, so every width()/layout stays as it was.
+        const Glyph* sp = (px >= 6 && px <= 96) ? glyphForSize(cp, px) : nullptr;
+        if (sp && sp->w > 0 && sp->h > 0) {
+            const float gx = (std::round(penX * ps) + sp->xoff) / ps;
+            const float gy = (std::round(baseline * ps) + sp->yoff) / ps;
+            sb.draw(gx, gy, sp->w / ps, sp->h / ps, sp->u0, sp->v0, sp->u1, sp->v1, abgr, atlas_);
+        } else if (g.w > 0 && g.h > 0) {  // no sized glyph (odd size / atlas full): the scaled bake
             sb.draw(penX + g.xoff * f, baseline + g.yoff * f, g.w * f, g.h * f,
                     g.u0, g.v0, g.u1, g.v1, abgr, atlas_);
         }

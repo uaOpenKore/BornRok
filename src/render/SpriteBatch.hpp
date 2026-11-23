@@ -41,6 +41,8 @@ public:
     void end();
 
     bool ready() const { return bgfx::isValid(program_); }
+    // Physical pixels per logical unit of the current begin() (the UI scale; 1 = no magnification).
+    float pixelScale() const { return pixelScale_; }
 
 private:
     void flush();
@@ -62,6 +64,7 @@ private:
 
     int screenW_ = 0;
     int screenH_ = 0;
+    float pixelScale_ = 1.0f;
     bgfx::ViewId viewId_ = 0;
 };
 

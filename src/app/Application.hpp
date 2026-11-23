@@ -347,6 +347,11 @@ private:
     int msaa_ = 4;                               // backbuffer MSAA samples 0/2/4 (0 on the Switch profile)
     int texMaxDim_ = 0;                          // texture size cap, 0 = full (512 on the Switch profile)
     int perfLogSec_ = 10;                        // perf log line period in seconds, 0 = off ("perflog")
+    // On-screen perf counter in the top-left corner: fps, the process's RAM and its CPU load (S. 2026-11-23).
+    // Refreshed once a second; "showperf 0" in settings/game.cfg hides it.
+    int showPerf_ = 1;
+    std::string perfOverlayText_;
+    void drawPerfOverlay();
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)
     bool uiScaleAuto_ = true;                     // derive uiScale from screen height (S.: default Auto)
     bool gamepadMode_ = false;                   // pad-driven control mode active (#102/#115)

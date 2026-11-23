@@ -18,6 +18,9 @@ MemInfo parseMeminfo(const std::string& meminfoText);
 i64 parseStatmRssPages(const std::string& statmText);  // 2nd field of /proc/self/statm
 
 MemInfo readMemInfo();       // /proc/meminfo
-i64 readProcessRssBytes();   // /proc/self/statm resident pages * page size
+i64 readProcessRssBytes();   // resident memory: /proc/self/statm (Linux), the working set (Windows), task_info (macOS)
+// CPU time this process has used so far (user + system, all threads), in seconds; -1 = unknown. Two readings
+// over a wall-clock interval give the CPU load (the on-screen perf counter, S. 2026-11-23).
+double readProcessCpuSeconds();
 
 }  // namespace uaro

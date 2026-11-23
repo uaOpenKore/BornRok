@@ -13575,7 +13575,8 @@ void GameScene::render(Application& app) {
                 // level 1 (S.: "нету карта", no 'cart:' log line -> lvl was 0, drawCart bailed early).
                 if (!lvl && hasCart) lvl = 1;
                 if (!lvl) return;
-                if (cartLoadedLevel_ != lvl) {  // (re)load the 손수레<N> body on a level change
+                CharacterActor& cartSprite_ = cartSprites_[lvl];
+                if (cartSpriteState_[lvl] == 0) {  // load each level's 손수레<N> body once
                     // The pushcart sprite is 손수레 ("handcart") in the effect folder -- NOT 수레
                     // (that lost the 손 prefix and never resolved). Verified in the GRF: the levelled
                     // carts are 손수레1..손수레8, with a bare 손수레 as the fallback. (S.)
@@ -13583,7 +13584,7 @@ void GameScene::render(Application& app) {
                     bool ok = cartSprite_.loadActor(app.vfs(), cart + std::to_string(lvl), -1);  // 손수레N
                     if (!ok) ok = cartSprite_.loadActor(app.vfs(), cart, -1);  // fall back to base 손수레
                     cartSprite_.setHoldIdle(true);  // wheels spin only while WALKING, static at rest (S.)
-                    cartLoadedLevel_ = lvl;
+                    cartSpriteState_[lvl] = ok ? 1 : 2;
                     log::info("cart: option={:#x} level={} -> sprite {}", option, lvl,
                               ok ? "loaded" : "MISSING");
                 }

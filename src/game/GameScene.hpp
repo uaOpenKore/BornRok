@@ -182,8 +182,12 @@ private:
     double blitzArrive_ = 0.0;     // time_ the falcon reaches the target (flight end = cast end); peck after
     double blitzStart_ = 0.0;      // dive start (Attack animStart)
     Vec3   blitzTarget_{};         // target cell the falcon dives to
-    CharacterActor cartSprite_;    // merchant pushcart (data/sprite/이펙트/수레<N>), drawn behind on OPTION_CART
-    u16 cartLoadedLevel_ = 0;      // which 수레<N> is currently loaded into cartSprite_ (0 = none loaded yet)
+    // Merchant pushcarts (data/sprite/이펙트/손수레<N>), drawn behind on OPTION_CART: one sprite PER LEVEL, each
+    // loaded once. A single shared sprite was reloaded from the GRF every time the next drawn merchant had another
+    // cart level -- with a few autotrade shops of mixed levels on screen that was several loads a frame
+    // (S. 2026-11-23: low fps in Prontera; 8,498 'cart: ... sprite loaded' lines in one log).
+    std::array<CharacterActor, 6> cartSprites_;
+    std::array<u8, 6> cartSpriteState_{};  // per level: 0 = not tried, 1 = loaded, 2 = missing
     CharacterActor arrow_;         // flying-arrow projectile sprite (data/sprite/npc/skel_archer_arrow)
     bool arrowLoaded_ = false;     // lazy-load guard for the arrow sprite
     CharacterActor boomerang_;     // CR_SHIELDBOOMERANG (251) flying shield (data/sprite/아이템/cr_shieldboomerang)

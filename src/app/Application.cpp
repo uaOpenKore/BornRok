@@ -1,6 +1,7 @@
 #include "app/Application.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -281,6 +282,11 @@ int Application::run(const AppConfig& cfg) {
     auto perfT0 = std::chrono::steady_clock::now();
     int perfFrames = 0;
     double perfWorkMs = 0.0, perfMaxMs = 0.0;
+    // the on-screen counter keeps its own one-second window (the log line's period is configurable)
+    auto ovT0 = perfT0;
+    int ovFrames = 0;
+    double ovCpu0 = readProcessCpuSeconds();
+    const unsigned ovCores = std::max(1u, std::thread::hardware_concurrency());
     while (platform_.pump(input_)) {
         const auto frameStart = std::chrono::steady_clock::now();
 
@@ -322,6 +328,7 @@ int Application::run(const AppConfig& cfg) {
 
         render_.beginFrame();
         scenes_.render(*this);
+        if (showPerf_) drawPerfOverlay();
         // UI click sound (S. sound audit): any ui::button / ui::imageButton activated this frame
         // flagged it; play the RO button chime once, non-positional. Works across all scenes.
         if (ui::takeButtonClicked())
@@ -349,6 +356,21 @@ int Application::run(const AppConfig& cfg) {
         const auto workEnd = std::chrono::steady_clock::now();
         const double workMs = std::chrono::duration<double, std::milli>(workEnd - frameStart).count();
         ++perfFrames;
+        ++ovFrames;
+        if (const double ovSec = std::chrono::duration<double>(workEnd - ovT0).count(); ovSec >= 1.0) {
+            const double cpu = readProcessCpuSeconds();
+            const i64 rss = readProcessRssBytes();
+            char t[96];
+            int n = std::snprintf(t, sizeof(t), "FPS %.0f", ovFrames / ovSec);
+            if (rss >= 0 && n > 0 && n < (int)sizeof(t))
+                n += std::snprintf(t + n, sizeof(t) - n, "  RAM %.0f MB", static_cast<double>(rss) / 1048576.0);
+            if (cpu >= 0.0 && ovCpu0 >= 0.0 && n > 0 && n < (int)sizeof(t))  // like Task Manager: % of all cores
+                std::snprintf(t + n, sizeof(t) - n, "  CPU %.0f%%", (cpu - ovCpu0) / (ovSec * ovCores) * 100.0);
+            perfOverlayText_ = t;
+            ovT0 = workEnd;
+            ovFrames = 0;
+            ovCpu0 = cpu;
+        }
         perfWorkMs += workMs;
         perfMaxMs = std::max(perfMaxMs, workMs);
         if (perfLogSec_ > 0) {
@@ -645,6 +667,7 @@ void Application::loadConfig() {
                 texMaxDim_ = px <= 0 ? 0 : px <= 256 ? 256 : px <= 512 ? 512 : px <= 1024 ? 1024
                            : px <= 2048 ? 2048 : 4096;
             }
+            else if (key == "showperf") showPerf_ = (v != 0.0f) ? 1 : 0;  // on-screen fps / RAM / CPU
             else if (key == "perflog") perfLogSec_ = std::clamp(static_cast<int>(v + 0.5f), 0, 600);  // 0 = off
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
             else if (key == "uiscaleauto") uiScaleAuto_ = (v != 0.0f);
@@ -851,6 +874,7 @@ void Application::saveConfig() const {
     out << "msaa " << msaa_ << "\n";
     out << "texmaxdim " << texMaxDim_ << "\n";
     out << "perflog " << perfLogSec_ << "\n";
+    out << "showperf " << showPerf_ << "\n";
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -1016,4 +1040,18 @@ void Application::setLastLogin(const std::string& login) {
     saveConfig();
 }
 
+// The on-screen perf counter (S. 2026-11-23): one line in the top-left corner over everything, on its own view
+// above the UI so no scene's 2D pass can cover it.
+void Application::drawPerfOverlay() {
+    if (perfOverlayText_.empty() || !sprites_.ready()) return;
+    const int W = render_.width(), H = render_.height();
+    const float scale = std::max(1.0f, uiScale_);
+    const float w = font_.width(perfOverlayText_, scale) + 8.0f, h = font_.lineHeight(scale) + 4.0f;
+    sprites_.begin(W, H, RenderDevice::kUiView + 1, W, H);
+    sprites_.draw(2.0f, 2.0f, w, h, ui::rgba(0, 0, 0, 150));
+    font_.draw(sprites_, 6.0f, 4.0f, scale, ui::rgba(120, 255, 120, 255), perfOverlayText_);
+    sprites_.end();
+}
+
 } // namespace uaro
+

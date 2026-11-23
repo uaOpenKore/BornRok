@@ -378,10 +378,10 @@ int Application::run(const AppConfig& cfg) {
             auto add = [&](const char* fmt, double v) { std::snprintf(b, sizeof(b), fmt, v); t += b; };
             add("FPS %.0f", fps);
             if (cpu >= 0.0 && ovCpu0 >= 0.0) add("  CPU %.0f%%", (cpu - ovCpu0) / (ovSec * ovCores) * 100.0);
-            if (cpuT >= 0.0) add(" %.0f\xC2\xB0C", cpuT);
+            if (cpuT >= 0.0) add(" %.0f\xC2\xB0" "C", cpuT);
             if (rss >= 0) add("  RAM %.0f MB", static_cast<double>(rss) / 1048576.0);
             if (gpuMs >= 0.0) add("  GPU %.0f%%", std::min(100.0, gpuMs * fps / 10.0));
-            if (gpuT >= 0.0) add(" %.0f\xC2\xB0C", gpuT);
+            if (gpuT >= 0.0) add(" %.0f\xC2\xB0" "C", gpuT);
             if (vramMb >= 0.0) add("  VRAM %.2f GB", vramMb / 1024.0);
             perfOverlayText_ = t;
             ovT0 = workEnd;

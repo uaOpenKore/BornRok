@@ -1,6 +1,8 @@
 #include "game/CharSelectScene.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -858,6 +860,49 @@ void CharSelectScene::renderCreateDialog(Application& app) {
               "Name (slot " + std::to_string(makeSlot_) + ")");
     makeName_.draw(sb, font, d.fieldX, d.fieldY, d.fieldW, d.fieldH, /*focused=*/true, time_,
                    "character name");
+
+    // The stats on a hexagon, as in the old client (S. 2026-11-23, from uaRO HD): opposite corners are the
+    // pairs that share 10 points (STR-INT, AGI-LUK, VIT-DEX); the gold shape is the current split, out of 9.
+    {
+        const float hcx = d.x + d.w - 66.0f, hcy = d.statY + d.statRowH * 3.0f, R = 46.0f;
+        static const int kOrder[6] = {0, 1, 2, 3, 5, 4};  // STR AGI VIT INT LUK DEX clockwise from the top
+        auto corner = [&](int k, float frac, float& px, float& py) {
+            const float a = static_cast<float>(k) * 1.0471976f - 1.5707963f;  // 60 deg steps, top first
+            px = hcx + std::cos(a) * R * frac;
+            py = hcy + std::sin(a) * R * frac;
+        };
+        auto line = [&](float x0, float y0, float x1, float y1, u32 c, float t) {
+            const float dx = x1 - x0, dy = y1 - y0;
+            const int n = std::max(1, static_cast<int>(std::sqrt(dx * dx + dy * dy)));
+            for (int i = 0; i <= n; ++i) {
+                const float f = static_cast<float>(i) / static_cast<float>(n);
+                sb.draw(x0 + dx * f - t * 0.5f, y0 + dy * f - t * 0.5f, t, t, c);
+            }
+        };
+        const u32 grid = ui::rgba(255, 255, 255, 50), axis = ui::rgba(255, 255, 255, 35);
+        for (int ring = 1; ring <= 3; ++ring)  // 3, 6, 9
+            for (int k = 0; k < 6; ++k) {
+                float ax, ay, bx2, by2;
+                corner(k, ring / 3.0f, ax, ay);
+                corner((k + 1) % 6, ring / 3.0f, bx2, by2);
+                line(ax, ay, bx2, by2, grid, 1.0f);
+            }
+        for (int k = 0; k < 6; ++k) {
+            float ax, ay;
+            corner(k, 1.0f, ax, ay);
+            line(hcx, hcy, ax, ay, axis, 1.0f);
+            const char* lb = kStatLabels[kOrder[k]];
+            float lx, ly;
+            corner(k, 1.27f, lx, ly);
+            font.draw(sb, lx - font.width(lb, 0.85f) * 0.5f, ly - 6.0f, 0.85f, ui::color::kWinTextDim, lb);
+        }
+        for (int k = 0; k < 6; ++k) {
+            float ax, ay, bx2, by2;
+            corner(k, makeStats_[kOrder[k]] / 9.0f, ax, ay);
+            corner((k + 1) % 6, makeStats_[kOrder[(k + 1) % 6]] / 9.0f, bx2, by2);
+            line(ax, ay, bx2, by2, ui::rgba(243, 198, 83, 255), 2.0f);
+        }
+    }
 
     // Six stat rows: LABEL [-] value [+]. The buttons reuse ui::button so they share the
     // skin's hover/press feedback; render-only state must match update()'s gating exactly.

@@ -1043,6 +1043,34 @@ private:
     float winRect_[WIN_COUNT][4] = {};           // last-frame full bounds (x,y,w,h) per window
     bool winShown_[WIN_COUNT] = {};              // was this window drawn last frame
     int clickWin_ = -1;                          // top-most window under the cursor; only it takes clicks
+    // [layers] Window stacking (S. 2026-11-23: "a click brings the window to the top; only the top window takes
+    // the click"). Every window (the WIN_* ones: key = its id; popups: 100 + POPUP_*; the NPC dialog: 300) has a
+    // z; a press on the top window under the cursor raises it. Each window draws on its own bgfx view in z order
+    // (kLayerView0 + its rank), so a raised window really covers the others; the HUD draws below them
+    // (kLayerBaseView) and the modal dialogs (quantity, price, connection lost, ESC menu) above (kLayerModalView).
+    // Pointer events reach only the top window under the cursor (last frame's rects); the HUD only when no
+    // window is under it; everything but a modal while one is up.
+    static constexpr u16 kLayerOverlayView = 205, kLayerBaseView = 206, kLayerView0 = 207, kLayerViews = 40,
+                         kLayerModalView = 247, kLayerTopView = 248;
+    static constexpr int kLayerNpcDialog = 300, kLayerModal = 400;
+    struct LayerRec { int key; float x, y, w, h; };
+    std::unordered_map<int, u32> layerZ_;
+    u32 layerTop_ = 0;
+    std::vector<LayerRec> layersNow_, layersPrev_;  // popups + the NPC dialog (WIN_* use winRect_/winShown_)
+    std::vector<int> layerOpenPrev_;                // every layered window shown last frame
+    struct PointerEv { bool p = false, d = false, r = false, rd = false; float wh = 0.0f; };
+    PointerEv layerRealEv_;                         // this frame's real pointer events
+    bool layerModalUp_ = false;
+    u16 layerView_ = kLayerBaseView;
+    int layerW_ = 0, layerH_ = 0, layerUiW_ = 0, layerUiH_ = 0;
+    struct ScopedLayer {
+        GameScene& g; SpriteBatch& sb; InputState& in; PointerEv prev; u16 prevView;
+        ScopedLayer(GameScene& gs, SpriteBatch& b, InputState& i, int key, bool modal);
+        ~ScopedLayer();
+        ScopedLayer(const ScopedLayer&) = delete;
+        ScopedLayer& operator=(const ScopedLayer&) = delete;
+    };
+    void layerSwitchView(SpriteBatch& sb, u16 view);
     // Standalone dialog windows (drawn with ui::window, not the WIN_* skinned system) are ALSO
     // draggable + click-blocking (S.: "все окна должны двигаться за заголовок и не пропускать клик").
     // popupWindow() stores each one's position by id here; the main chat is the deliberate exception.

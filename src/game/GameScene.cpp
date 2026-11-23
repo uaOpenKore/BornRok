@@ -10952,7 +10952,7 @@ void GameScene::drawLoadingOverlay(Application& app) {
     // it only covers the scaled offscreen -> the standalone overlay frame showed at ~1/4 screen (S.:
     // "сплеш ... рисуется всего на 1/4 экрана"). kUiView is never rerouted and defaults to the native
     // backbuffer, exactly like the HUD (:13064), so the overlay fills the whole screen.
-    sb.begin(static_cast<int>(W), static_cast<int>(H), RenderDevice::kUiView, static_cast<int>(W),
+    sb.begin(static_cast<int>(W), static_cast<int>(H), kLayerOverlayView, static_cast<int>(W),
              static_cast<int>(H));
     sb.draw(0.0f, 0.0f, W, H, 0xff1a120cu);  // dark backdrop (ABGR)
 
@@ -14513,29 +14513,14 @@ void GameScene::render(Application& app) {
     auto& uin = app.inputMutable();
     const float uiS = app.uiScale();
     const int uiW = static_cast<int>(W / uiS), uiH = static_cast<int>(H / uiS);
-    sb.begin(W, H, RenderDevice::kUiView, uiW, uiH);
+    sb.begin(W, H, kLayerBaseView, uiW, uiH);  // [layers] the HUD; the windows draw above it, each on its own view
+    layerView_ = kLayerBaseView;
+    layerW_ = W; layerH_ = H; layerUiW_ = uiW; layerUiH_ = uiH;
 
-    // [modal] A quantity / price dialog or the connection-lost box is on top of everything: the windows drawn
-    // before it must not take its clicks (S. 2026-11-23). Their mouse buttons and wheel are withheld until the
-    // modal draws (modalUnmask), and given back at the end of the pass.
-    const bool modalUp = dropDialogOpen_ || vendAddOpen_ || phase_ == Phase::Failed;
-    struct { bool down, pressed, dbl, released, right; float wheel; } modalSaved{
-        uin.mouseDown, uin.mousePressed, uin.mouseDoubleClick, uin.mouseReleased, uin.rightDown, uin.wheel};
-    bool modalMasked = false;
-    auto modalMask = [&]() {
-        if (!modalUp || modalMasked) return;
-        uin.mouseDown = uin.mousePressed = uin.mouseDoubleClick = uin.mouseReleased = uin.rightDown = false;
-        uin.wheel = 0.0f;
-        modalMasked = true;
-    };
-    auto modalUnmask = [&]() {
-        if (!modalMasked) return;
-        uin.mouseDown = modalSaved.down; uin.mousePressed = modalSaved.pressed;
-        uin.mouseDoubleClick = modalSaved.dbl; uin.mouseReleased = modalSaved.released;
-        uin.rightDown = modalSaved.right; uin.wheel = modalSaved.wheel;
-        modalMasked = false;
-    };
-    modalMask();
+    // [modal] A quantity / price dialog, the connection-lost box or the ESC menu is on top of everything: the
+    // windows and the HUD get no pointer events while one is up (S. 2026-11-23); see [layers] below.
+    layerModalUp_ = dropDialogOpen_ || vendAddOpen_ || phase_ == Phase::Failed || menuOpen_ || cardOpen_ ||
+                    emblemPickerOpen_ || homunRenameOpen_ || identifyOpen_ || slotOpen_ || warpOpen_ || whisperSelectOpen_;
 
     // NPC cutin illust (ZC_SHOW_IMAGE 0x1b3, S. packet audit): a portrait bitmap the NPC pushes, drawn
     // BEHIND the windows at the bottom of the screen (type 0 left / 1 centre / 2 right). Lazy-decoded
@@ -14652,6 +14637,7 @@ void GameScene::render(Application& app) {
             popupGrabY_ = static_cast<float>(uin.mouseY) - pp.y;
         }
         uiBlockRects_.push_back({x, y, w, h});  // whole dialog blocks the world (no click-through)
+        layersNow_.push_back({100 + id, x, y, w, h});
         return cy;
     };
     // A height-resize grip at a list window's bottom-right corner (S.: "растягивать по высоте за
@@ -14680,44 +14666,37 @@ void GameScene::render(Application& app) {
         }
     };
 
-    // --- Window Z-order click capture (S.: two overlapping windows must not both take a click) ---
-    // From LAST frame's recorded bounds, pick the TOP-MOST (latest in draw order) movable window
-    // under the cursor. Only that window reacts this frame; the ones below it go "deaf". draw order
-    // matches the code order the windows render in below (menu first/back ... skills last/front).
+    // --- [layers] Window Z-order (S.: two overlapping windows must not both take a click; a click raises the
+    // window). From LAST frame's bounds, the window under the cursor with the highest z owns the pointer this
+    // frame; the others and the HUD go deaf (ScopedLayer). The real events are kept for the owner.
     {
-        static const int kDrawOrder[WIN_COUNT] = {WIN_MENU, WIN_INVENTORY, WIN_STORAGE,
-                                                  WIN_CART, WIN_STATUS, WIN_EQUIP, WIN_SKILLS};
-        clickWin_ = -1;
-        for (int k = 0; k < WIN_COUNT; ++k) {
-            const int id = kDrawOrder[k];
-            if (winShown_[id] &&
-                uin.hit(winRect_[id][0], winRect_[id][1], winRect_[id][2], winRect_[id][3]))
-                clickWin_ = id;  // later in draw order = drawn on top = wins the pointer
-        }
+        layersPrev_.swap(layersNow_);
+        layersNow_.clear();
+        layerOpenPrev_.clear();
+        layerRealEv_ = {uin.mousePressed, uin.mouseDoubleClick, uin.mouseReleased, uin.rightDown, uin.wheel};
+        auto zOf = [&](int key) -> u32 {
+            auto it = layerZ_.find(key);
+            if (it == layerZ_.end()) it = layerZ_.emplace(key, ++layerTop_).first;  // first seen: on top
+            return it->second;
+        };
+        int best = -1;
+        u32 bestZ = 0;
+        auto consider = [&](int key, float x, float y, float w, float h) {
+            layerOpenPrev_.push_back(key);
+            const u32 z = zOf(key);
+            if (uin.hit(x, y, w, h) && (best < 0 || z > bestZ)) { best = key; bestZ = z; }
+        };
+        for (int id = 0; id < WIN_COUNT; ++id)
+            if (winShown_[id]) consider(id, winRect_[id][0], winRect_[id][1], winRect_[id][2], winRect_[id][3]);
+        for (const auto& l : layersPrev_) consider(l.key, l.x, l.y, l.w, l.h);
+        clickWin_ = best;  // -1 = no window under the cursor
         for (int i = 0; i < WIN_COUNT; ++i) winShown_[i] = false;  // re-recorded as each window draws
+        // the HUD (drawn on the base layer) hears nothing when a window is under the cursor or a modal is up
+        if (clickWin_ >= 0 || layerModalUp_) {
+            uin.mousePressed = uin.mouseDoubleClick = uin.mouseReleased = uin.rightDown = false;
+            uin.wheel = 0.0f;
+        }
     }
-    // RAII guard placed at the top of each window's block: if a higher window owns the pointer this
-    // frame, mute the per-frame pointer EVENTS (press/double/release/right/wheel) so the covered
-    // window can't act -- the held button + cursor position stay intact, and all is restored on exit.
-    // This also fixes title-bar drag: a deaf window sees mousePressed==false and never grabs the drag,
-    // so the top-most window's winTitlebar (running later, still draggingWin_<0) grabs it instead.
-    struct ScopedDeaf {
-        InputState& in; bool deaf = false, p = false, d = false, r = false, rd = false; float wh = 0.0f;
-        ScopedDeaf(InputState& i, int owner, int self) : in(i), deaf(owner >= 0 && owner != self) {
-            if (!deaf) return;
-            p = in.mousePressed; d = in.mouseDoubleClick; r = in.mouseReleased;
-            rd = in.rightDown;   wh = in.wheel;
-            in.mousePressed = in.mouseDoubleClick = in.mouseReleased = in.rightDown = false;
-            in.wheel = 0.0f;
-        }
-        ~ScopedDeaf() {
-            if (!deaf) return;
-            in.mousePressed = p; in.mouseDoubleClick = d; in.mouseReleased = r;
-            in.rightDown = rd;   in.wheel = wh;
-        }
-        ScopedDeaf(const ScopedDeaf&) = delete;
-        ScopedDeaf& operator=(const ScopedDeaf&) = delete;
-    };
 
     // Day/night: SERVER-driven (Sergio: "сервер управляет этим"). The map server sends
     // clif_status_load(SI_NIGHT, 1/0) at dusk/dawn, but only on nightenabled maps — so
@@ -15205,6 +15184,7 @@ void GameScene::render(Application& app) {
             const float fh = ui::kTitleBarH + 14.0f * rh + 10.0f;  // name + 6 stat lines + header + 5 ele rows
             float fx = (static_cast<float>(uiW) - fw) * 0.5f;
             float fy = (static_cast<float>(uiH) - fh) * 0.5f;
+            ScopedLayer layerPopup1(*this, sb, uin, 100 + (POPUP_SENSE), false);
             float ty = popupWindow(POPUP_SENSE, fx, fy, fw, fh, "Monster Property");
             // Close via a ui::button (X) so it's reachable with the gamepad too (S.: окна на геймпаде).
             if (ui::button(sb, font, uin, fx + fw - 20.0f, fy + 2.0f, 16.0f, 14.0f, "x", 1.1f)) senseOpen_ = false;
@@ -15257,6 +15237,7 @@ void GameScene::render(Application& app) {
             const float fh = ui::kTitleBarH + static_cast<float>(n) * rh + 12.0f;
             float fx = (static_cast<float>(uiW) - fw) * 0.5f;
             float fy = (static_cast<float>(uiH) - fh) * 0.5f;
+            ScopedLayer layerPopup2(*this, sb, uin, 100 + (POPUP_AUTOSPELL), false);
             float ty = popupWindow(POPUP_AUTOSPELL, fx, fy, fw, fh, "Auto Spell");
             // Controls are ui::button so they auto-register for gamepad focus-nav (S.: окна на геймпаде).
             // Closing must cancel the SA_AUTOSPELL menuskill on the server (else the char freezes waiting
@@ -15286,6 +15267,7 @@ void GameScene::render(Application& app) {
             const float fh = ui::kTitleBarH + static_cast<float>(vis) * rh + 8.0f;
             float fx = static_cast<float>(uiW) - fw - 132.0f;
             float fy = std::max(40.0f, static_cast<float>(uiH) - fh - 40.0f);
+            ScopedLayer layerPopup3(*this, sb, uin, 100 + (POPUP_AUTOATTACK), false);
             float ty = popupWindow(POPUP_AUTOATTACK, fx, fy, fw, fh, tr("auto.filter_title"));
             if (kinds.empty())
                 font.draw(sb, fx + 10.0f, ty + 4.0f, 1.0f, ui::color::kWinTextDim, "(no mobs in view)");
@@ -15321,6 +15303,7 @@ void GameScene::render(Application& app) {
             }
             const float fw = 184.0f, fh = ui::kTitleBarH + 160.0f;
             float fx = static_cast<float>(uiW) - fw - 132.0f;  // default spot; popupWindow makes it movable
+            ScopedLayer layerPopup4(*this, sb, uin, 100 + (popupId), false);
             const float wty = popupWindow(popupId, fx, wy, fw, fh, title);
             const std::string tl = std::string("Use below ") + std::to_string(pct) + "%";
             // "Use below %" is now 3x taller (S.) -- the main, easy-to-tap control of the window.
@@ -15616,6 +15599,7 @@ void GameScene::render(Application& app) {
                 chatCollapsed_ = true;
             // Recent-PM-partner dropdown above the bar; click a name to fill the whisper field.
             if (whisperSelectOpen_ && !whisperNames_.empty()) {
+                ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
                 const float dw = std::max(120.0f, whisperW + selW), rh = 18.0f;
                 const float dh = static_cast<float>(whisperNames_.size()) * rh + 4.0f;
                 const float dx = cbx, dy = cby - dh - 2.0f;
@@ -15643,6 +15627,7 @@ void GameScene::render(Application& app) {
 
     // In-game ESC menu, drawn last over the HUD with the world dimmed behind it.
     if (menuOpen_) {
+        ScopedLayer layerModal(*this, sb, uin, kLayerModal, true);
         const float fW = static_cast<float>(uiW), fH = static_cast<float>(uiH);
         // The shared ESC menu -- the SAME SettingsMenu component as the login screen (S.: "нужно
         // чтобы было одно и то же меню"). Context buttons: Resume / Log out on top, Exit at the
@@ -15788,6 +15773,8 @@ void GameScene::render(Application& app) {
         const float bx = (fW - bw) * 0.5f, by = fH - bh - 24.0f;
         std::string title;  // the NPC name sits in the window's title bar
         if (const auto nit = names_.find(dialogNpc_); nit != names_.end()) title = nit->second;
+        ScopedLayer layerNpc(*this, sb, uin, kLayerNpcDialog, false);
+        layersNow_.push_back({kLayerNpcDialog, bx, by, bw, bh});
         float y = skinWindow(app, bx, by, bw, bh, title);
         // Block the world under the dialog so a click on it (esp. the Close/Next button) can't also
         // walk: without this the dialog only gated the world via dialogOpen_, so clicking Close (which
@@ -15905,6 +15892,7 @@ void GameScene::render(Application& app) {
         if (shopMode_ == ShopMode::Choose) {
             const float bw = 260.0f, bh = 156.0f;
             float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
+            ScopedLayer layerPopup5(*this, sb, uin, 100 + (POPUP_SHOP), false);
             const float cy = popupWindow(POPUP_SHOP, bx, by, bw, bh, tr("shop.title"));
             winBlock(bx, by, bw, bh);  // swallow world clicks/hover under the window (S.: "курсор просвечивает окно")
             if (ui::button(sb, font, app.input(), bx + pad, cy, bw - pad * 2.0f, rowH, tr("shop.buy"), 1.5f))
@@ -15954,6 +15942,7 @@ void GameScene::render(Application& app) {
             const float bw = paneW * 2.0f + gap + pad * 2.0f;
             const float bh = headH + static_cast<float>(visRows) * rh + 44.0f + (buy ? 0.0f : 22.0f);
             float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
+            ScopedLayer layerPopup6(*this, sb, uin, 100 + (POPUP_BUYSELL), false);
             popupWindow(POPUP_BUYSELL, bx, by, bw, bh, buy ? tr("shop.buy") : tr("shop.sell"));
             winBlock(bx, by, bw, bh);  // swallow world clicks/hover so a double-click adds to the cart
                                        // instead of walking the char off the NPC (which closes the shop)
@@ -16177,6 +16166,7 @@ void GameScene::render(Application& app) {
         const float bw = paneW * 2.0f + gap + pad * 2.0f;
         const float bh = headH + static_cast<float>(visRows) * rh + 44.0f;
         float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
+        ScopedLayer layerPopup7(*this, sb, uin, 100 + (POPUP_VENDING), false);
         popupWindow(POPUP_VENDING, bx, by, bw, bh, tr("win.vending"));
         ui::panel(sb, bx + 3.0f, by + ui::kTitleBarH, bw - 6.0f, bh - ui::kTitleBarH - 3.0f,
                   ui::rgba(248, 248, 252, 255));  // white backing (S.: "белую подложку")
@@ -16324,6 +16314,7 @@ void GameScene::render(Application& app) {
         const float bw = paneW * 2.0f + gap + pad * 2.0f;
         const float bh = headH + static_cast<float>(visRows) * rh + 44.0f;
         float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
+        ScopedLayer layerPopup8(*this, sb, uin, 100 + (POPUP_VEND_SETUP), false);
         popupWindow(POPUP_VEND_SETUP, bx, by, bw, bh, tr("vend.setup_title"));
         winBlock(bx, by, bw, bh);
         font.draw(sb, bx + pad, by + ui::kTitleBarH + 3.0f, 1.1f, ui::color::kWinTextDim, tr("vend.name"));
@@ -16447,8 +16438,8 @@ void GameScene::render(Application& app) {
         if (time_ < shopMsgUntil_ && !shopMsg_.empty())  // the warning, above the buttons
             font.draw(sb, bx + pad, by + bh - 58.0f, 1.1f, ui::color::kError, shopMsg_);
         // Add-a-ware modal: pick the qty + unit price for the clicked cart item.
-        if (vendAddOpen_) modalUnmask();
         if (vendAddOpen_) {
+            ScopedLayer layerModal(*this, sb, uin, kLayerModal, true);
             const float dw = 250.0f, dh = 128.0f;
             const float dx = (fW - dw) * 0.5f, dy = (fH - dh) * 0.5f;
             const auto& din = app.input();
@@ -16485,7 +16476,6 @@ void GameScene::render(Application& app) {
             if (cancelb) vendAddOpen_ = false;
             uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});
         }
-        modalMask();  // the windows after it (inventory, cart...) stay deaf while it is up
     }
 
     // My own open shop: a small panel listing each ware + its remaining quantity (0x136; 0x137
@@ -16496,6 +16486,7 @@ void GameScene::render(Application& app) {
         const int visRows = std::clamp(n, 1, 12);
         const float bh = ui::kTitleBarH + static_cast<float>(visRows) * rh + 48.0f;
         float bx = 24.0f, by = 80.0f;
+        ScopedLayer layerPopup9(*this, sb, uin, 100 + (POPUP_MY_SHOP), false);
         const float cy = popupWindow(POPUP_MY_SHOP, bx, by, bw, bh, tr("vend.my_shop"));
         winBlock(bx, by, bw, bh);
         for (int i = 0; i < n && i < visRows; ++i) {
@@ -16524,6 +16515,7 @@ void GameScene::render(Application& app) {
         sb.draw(0.0f, 0.0f, fW, fH, ui::rgba(0, 0, 0, 140));
         const float bw = 320.0f, bh = 150.0f + ui::kTitleBarH;
         float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
+        ScopedLayer layerPopup10(*this, sb, uin, 100 + (POPUP_DEAD), false);
         const float cy = popupWindow(POPUP_DEAD, bx, by, bw, bh, tr("death.title"), ui::color::kError);
         font.draw(sb, bx + 24.0f, cy + 6.0f, 2.0f, ui::color::kError, tr("death.died"));
         font.draw(sb, bx + 24.0f, cy + 38.0f, 1.5f, ui::color::kWinTextDim, tr("death.prompt"));
@@ -16583,7 +16575,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_INVENTORY].x, by = winPos_[WIN_INVENTORY].y;
             winRect_[WIN_INVENTORY][0] = bx; winRect_[WIN_INVENTORY][1] = by;
             winRect_[WIN_INVENTORY][2] = bw; winRect_[WIN_INVENTORY][3] = bh; winShown_[WIN_INVENTORY] = true;
-            ScopedDeaf deafInv(uin, clickWin_, WIN_INVENTORY);
+            ScopedLayer deafInv(*this, sb, uin, WIN_INVENTORY, false);
             const bool invClosed = winTitlebar(WIN_INVENTORY, bw, tr("win.inventory"));
             ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
             winBlock(bx, by, bw, bh);
@@ -16740,7 +16732,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_STORAGE].x, by = winPos_[WIN_STORAGE].y;
             winRect_[WIN_STORAGE][0] = bx; winRect_[WIN_STORAGE][1] = by;
             winRect_[WIN_STORAGE][2] = bw; winRect_[WIN_STORAGE][3] = bh; winShown_[WIN_STORAGE] = true;
-            ScopedDeaf deafStorage(uin, clickWin_, WIN_STORAGE);
+            ScopedLayer deafStorage(*this, sb, uin, WIN_STORAGE, false);
             const bool stClosed = winTitlebar(WIN_STORAGE, bw, tr("win.storage"));
             ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
             winBlock(bx, by, bw, bh);
@@ -16857,7 +16849,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_CART].x, by = winPos_[WIN_CART].y;
             winRect_[WIN_CART][0] = bx; winRect_[WIN_CART][1] = by;
             winRect_[WIN_CART][2] = bw; winRect_[WIN_CART][3] = bh; winShown_[WIN_CART] = true;
-            ScopedDeaf deafCart(uin, clickWin_, WIN_CART);
+            ScopedLayer deafCart(*this, sb, uin, WIN_CART, false);
             const bool ctClosed = winTitlebar(WIN_CART, bw, tr("win.cart"));
             ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
             winBlock(bx, by, bw, bh);
@@ -16964,7 +16956,7 @@ void GameScene::render(Application& app) {
             winRect_[WIN_STATUS][0] = bx; winRect_[WIN_STATUS][1] = wy;
             winRect_[WIN_STATUS][2] = W;  winRect_[WIN_STATUS][3] = H;
             winShown_[WIN_STATUS] = true;
-            ScopedDeaf deafStatus(uin, clickWin_, WIN_STATUS);
+            ScopedLayer deafStatus(*this, sb, uin, WIN_STATUS, false);
 
             // Panel chrome (shadow + ground + gold ring).
             st::windowFrame(sb, bx, wy, W, H, st::kWindowRadius, S);
@@ -17091,7 +17083,7 @@ void GameScene::render(Application& app) {
                 const float bx = winPos_[WIN_EQUIP].x, wy = winPos_[WIN_EQUIP].y;
                 winRect_[WIN_EQUIP][0] = bx; winRect_[WIN_EQUIP][1] = wy; winRect_[WIN_EQUIP][2] = EW;
                 winRect_[WIN_EQUIP][3] = kSkinTitleH + EBH; winShown_[WIN_EQUIP] = true;
-                ScopedDeaf deafEquip(uin, clickWin_, WIN_EQUIP);
+                ScopedLayer deafEquip(*this, sb, uin, WIN_EQUIP, false);
                 // uaRO-HD "style A" chrome instead of the equipwin_bg bitmap + skin titlebar: a dark
                 // translucent rounded panel with shadow + gold ring, our own gold title + close, and a
                 // rounded slot plate behind each slot. All slot geometry + drag/drop below is unchanged.
@@ -17288,6 +17280,7 @@ void GameScene::render(Application& app) {
                 };
                 const float bw = 300.0f, bh = 360.0f;
                 float bx = (fW - bw) * 0.5f, by = 72.0f;
+                ScopedLayer layerPopup11(*this, sb, uin, 100 + (POPUP_EQUIP_ALT), false);
                 const float cy = popupWindow(POPUP_EQUIP_ALT, bx, by, bw, bh, tr("win.equip"));
                 float y = cy + 2.0f;
                 for (const auto& s : kSlots) {
@@ -17369,7 +17362,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_SKILLS].x, by = winPos_[WIN_SKILLS].y;
             winRect_[WIN_SKILLS][0] = bx; winRect_[WIN_SKILLS][1] = by;
             winRect_[WIN_SKILLS][2] = bw; winRect_[WIN_SKILLS][3] = bh; winShown_[WIN_SKILLS] = true;
-            ScopedDeaf deafSkills(uin, clickWin_, WIN_SKILLS);
+            ScopedLayer deafSkills(*this, sb, uin, WIN_SKILLS, false);
             if (winTitlebar(WIN_SKILLS, bw, tr("win.skill"))) skillsOpen_ = false;
             ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
             winBlock(bx, by, bw, bh);
@@ -17480,6 +17473,7 @@ void GameScene::render(Application& app) {
         // clicks a monster (slotTarget_) then presses Spin -> CZ_PET_CATCH 0x19f; 0x1a0 lands the
         // reels on win(egg)/lose. Focusable Spin/Close (click / Tab / gamepad-A via ui::button+nav).
         if (slotOpen_) {
+            ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
             if (!slotSpriteTried_) { slotSpriteTried_ = true; slotSprite_.loadActor(app.vfs(), "slotmachine"); }
             const float fH = static_cast<float>(uiH);
             const float ww = 200.0f, wh = 210.0f;
@@ -17657,6 +17651,7 @@ void GameScene::render(Application& app) {
                 const float dh =
                     ui::kTitleBarH + picBlock + makerH + static_cast<float>(lines.size()) * lh + pad + 4.0f + cardH;
                 float dx = 24.0f, dy = std::max(70.0f, (static_cast<float>(uiH) - dh) * 0.5f);
+                ScopedLayer layerPopup12(*this, sb, uin, 100 + (POPUP_ITEM_DESC), false);
                 float ty = popupWindow(POPUP_ITEM_DESC, dx, dy, dw, dh,
                                        itemTitle(app, descItemId_, descCards_));
                 if (picH > 0.0f) {  // centred illustration at the top of the body
@@ -17747,6 +17742,7 @@ void GameScene::render(Application& app) {
                     if (cx + cw > static_cast<float>(uiW)) cx = dx - cw - 8.0f;
                     if (cx < 4.0f) cx = 4.0f;
                     float cy = std::max(70.0f, std::min(dy, static_cast<float>(uiH) - ch - 4.0f));
+                    ScopedLayer layerPopup13(*this, sb, uin, 100 + (POPUP_CARD_DESC), false);
                     float cty = popupWindow(POPUP_CARD_DESC, cx, cy, cw, ch, app.itemDb().name(cardDescId_));
                     cardRx = cx; cardRy = cy; cardRw = cw; cardRh = ch;
                     if (cpicH > 0.0f) {
@@ -17814,6 +17810,7 @@ void GameScene::render(Application& app) {
                 const int visN = std::min(total, maxVis);
                 const float dh = ui::kTitleBarH + static_cast<float>(visN) * lh + pad + 4.0f;
                 float dx = 24.0f, dy = std::max(70.0f, (static_cast<float>(uiH) - dh) * 0.5f);
+                ScopedLayer layerPopup14(*this, sb, uin, 100 + (POPUP_SKILL_DESC), false);
                 float ty = popupWindow(POPUP_SKILL_DESC, dx, dy, dw, dh, net::skillName(skillDescName_));
                 const int maxScroll = std::max(0, total - visN);
                 if (uin.wheel != 0.0f && app.input().hit(dx, dy, dw, dh))
@@ -17906,6 +17903,7 @@ void GameScene::render(Application& app) {
         if (!tradeRequestFrom_.empty()) {
             const float dw = 300.0f, dh = 70.0f + ui::kTitleBarH;
             float dx = (static_cast<float>(uiW) - dw) * 0.5f, dy = (static_cast<float>(uiH) - dh) * 0.5f;
+            ScopedLayer layerPopup15(*this, sb, uin, 100 + (POPUP_TRADE), false);
             const float cy = popupWindow(POPUP_TRADE, dx, dy, dw, dh, tr("trade.title"));
             font.draw(sb, dx + 16.0f, cy + 8.0f, 1.2f, ui::color::kWinText,
                       tradeRequestFrom_ + " wants to trade");
@@ -17925,6 +17923,7 @@ void GameScene::render(Application& app) {
         if (!friendReqName_.empty()) {
             const float dw = 360.0f, dh = kSkinTitleH + 104.0f;
             float dx = (static_cast<float>(uiW) - dw) * 0.5f, dy = (static_cast<float>(uiH) - dh) * 0.5f;
+            ScopedLayer layerPopup16(*this, sb, uin, 100 + (POPUP_FRIEND_REQ), false);
             const float cy = popupWindow(POPUP_FRIEND_REQ, dx, dy, dw, dh, tr("win.friend"));
             font.draw(sb, dx + 16.0f, cy + 8.0f, 1.1f, ui::color::kWinText, friendReqName_);
             font.draw(sb, dx + 16.0f, cy + 28.0f, 1.0f, ui::color::kWinText, tr("friend.wishes"));
@@ -17944,6 +17943,7 @@ void GameScene::render(Application& app) {
         // Warp Portal destination picker (ZC_WARPLIST 0x11c): a centred modal listing the up-to-4
         // map names; clicking one sends CZ_SELECTWARPPOINT 0x11b. Cancel closes without warping. (audit)
         if (warpOpen_ && !warpDests_.empty()) {
+            ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
             const float bw = 220.0f, rowH = 24.0f;
             const int nDest = static_cast<int>(warpDests_.size());
             const int rows = nDest + 1;  // + Cancel
@@ -18004,6 +18004,7 @@ void GameScene::render(Application& app) {
         // already filtered out on decode). List each with its icon+name; click / gamepad-South inserts it
         // (0x17c). Two footer buttons — Cancel and Close — plus Esc / gamepad-East / titlebar close it.
         if (cardOpen_) {
+            ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
             const float bw = 260.0f, rowH = 26.0f;
             const int nItem = static_cast<int>(cardTargets_.size());
             const int visRows = std::clamp(nItem, 1, 8);       // window shows up to 8 rows, then scrolls
@@ -18114,7 +18115,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_CRAFT].x, by = winPos_[WIN_CRAFT].y;
             winRect_[WIN_CRAFT][0] = bx; winRect_[WIN_CRAFT][1] = by;
             winRect_[WIN_CRAFT][2] = bw; winRect_[WIN_CRAFT][3] = bh; winShown_[WIN_CRAFT] = true;
-            ScopedDeaf deafCraft(uin, clickWin_, WIN_CRAFT);
+            ScopedLayer deafCraft(*this, sb, uin, WIN_CRAFT, false);
             std::string ctitle;
             switch (craftList_.kind) {
                 case net::CraftKind::Produce: ctitle = tr("win.craft.produce"); break;
@@ -18214,7 +18215,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_QUEST].x, by = winPos_[WIN_QUEST].y;
             winRect_[WIN_QUEST][0] = bx; winRect_[WIN_QUEST][1] = by;
             winRect_[WIN_QUEST][2] = bw; winRect_[WIN_QUEST][3] = bh; winShown_[WIN_QUEST] = true;
-            ScopedDeaf deafQuest(uin, clickWin_, WIN_QUEST);
+            ScopedLayer deafQuest(*this, sb, uin, WIN_QUEST, false);
             if (winTitlebar(WIN_QUEST, bw, tr("win.quest"))) questOpen_ = false;
             ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
             winBlock(bx, by, bw, bh);
@@ -18293,6 +18294,7 @@ void GameScene::render(Application& app) {
             const std::string title = friendTab_ == 0
                                           ? "Friend (" + std::to_string(friends_.size()) + "/40)"
                                           : "Party";
+            ScopedLayer layerFriends(*this, sb, uin, WIN_FRIENDS, false);
             if (winTitlebar(WIN_FRIENDS, fw, title)) friendsOpen_ = false;
             // Body fill starts BELOW the skin titlebar -- filling from `by` painted over the blue cap +
             // close X so the window looked title-less (S.: "нету синей шапки и крестика как у других окон").
@@ -18413,6 +18415,8 @@ void GameScene::render(Application& app) {
                 }
             }
             const float fhTotal = (toolY + 30.0f) - by;
+            winRect_[WIN_FRIENDS][0] = bx; winRect_[WIN_FRIENDS][1] = by;  // [layers] its z-order bounds
+            winRect_[WIN_FRIENDS][2] = fw; winRect_[WIN_FRIENDS][3] = fhTotal; winShown_[WIN_FRIENDS] = true;
             ui::border(sb, bx, by, fw, fhTotal, ui::rgba(80, 80, 95, 255), 2.0f);  // outer window frame (S.)
             winBlock(bx, by, fw, fhTotal);
             // Bottom-edge resize: drag the grip to add/remove visible rows, like the inventory (S.).
@@ -18430,6 +18434,7 @@ void GameScene::render(Application& app) {
             // Inline "add a friend by name" box; Enter or Send fires CZ_ADD_FRIENDS.
             if (friendAddOpen_) {
                 float aw = fw, ah = ui::kTitleBarH + 52.0f, axp = bx, ayp = by + fhTotal + 2.0f;
+                ScopedLayer layerPopup17(*this, sb, uin, 100 + (POPUP_ADD_FRIEND), false);
                 const float acy = popupWindow(POPUP_ADD_FRIEND, axp, ayp, aw, ah, tr("win.add_friend"));
                 friendAddField_.draw(sb, font, axp + 8.0f, acy + 4.0f, aw - 16.0f, 18.0f, true, time_,
                                      "character name");
@@ -18446,6 +18451,7 @@ void GameScene::render(Application& app) {
             // Inline "create party by name" box; Enter or Create fires CZ_MAKE_GROUP2.
             if (partyCreateOpen_) {
                 float aw = fw, ah = ui::kTitleBarH + 52.0f, axp = bx, ayp = by + fhTotal + 2.0f;
+                ScopedLayer layerPopup18(*this, sb, uin, 100 + (POPUP_CREATE_PARTY), false);
                 const float acy = popupWindow(POPUP_CREATE_PARTY, axp, ayp, aw, ah, tr("party.create_title"));
                 partyCreateField_.draw(sb, font, axp + 8.0f, acy + 4.0f, aw - 16.0f, 18.0f, true, time_,
                                        "party name");
@@ -18464,6 +18470,7 @@ void GameScene::render(Application& app) {
         if (partyInviteAid_) {
             const float dw = 360.0f, dh = kSkinTitleH + 104.0f;
             float dx = (static_cast<float>(uiW) - dw) * 0.5f, dy = (static_cast<float>(uiH) - dh) * 0.5f;
+            ScopedLayer layerPopup19(*this, sb, uin, 100 + (POPUP_PARTY), false);
             const float cy = popupWindow(POPUP_PARTY, dx, dy, dw, dh, tr("win.party"));
             font.draw(sb, dx + 16.0f, cy + 8.0f, 1.1f, ui::color::kWinText, partyInviteName_);
             font.draw(sb, dx + 16.0f, cy + 28.0f, 1.0f, ui::color::kWinText, tr("party.invite_msg"));
@@ -18484,6 +18491,7 @@ void GameScene::render(Application& app) {
         if (chatRoomOpen_) {
             const float cw = 280.0f, ch = kSkinTitleH + 96.0f;
             float bx = (static_cast<float>(uiW) - cw) * 0.5f, by = (static_cast<float>(uiH) - ch) * 0.40f;
+            ScopedLayer layerPopup20(*this, sb, uin, 100 + (POPUP_CREATE_ROOM), false);
             const float ccy = popupWindow(POPUP_CREATE_ROOM, bx, by, cw, ch, tr("chat.create_room"));
             const float lx = bx + 12.0f, fx = bx + 72.0f, fw2 = cw - 84.0f;
             float ry = ccy + 8.0f;
@@ -18521,6 +18529,7 @@ void GameScene::render(Application& app) {
             float bx = (static_cast<float>(uiW) - rw) * 0.5f, by = (static_cast<float>(uiH) - rh) * 0.5f;
             const std::string title = "Pub:" + roomTitle_ + " (" + std::to_string(roomMembers_.size()) +
                                       "/" + std::to_string(roomLimit_) + ")";
+            ScopedLayer layerPopup21(*this, sb, uin, 100 + (POPUP_ROOM), false);
             const float rcy = popupWindow(POPUP_ROOM, bx, by, rw, rh, title);
             const float chatW = rw - memW - 18.0f, chatX = bx + 8.0f;
             const float listTop = rcy + 4.0f, listH = rh - (listTop - by) - 32.0f;
@@ -18587,6 +18596,7 @@ void GameScene::render(Application& app) {
         if (guildInviteId_) {
             const float dw = 360.0f, dh = kSkinTitleH + 104.0f;
             float dx = (static_cast<float>(uiW) - dw) * 0.5f, dy = (static_cast<float>(uiH) - dh) * 0.5f;
+            ScopedLayer layerPopup22(*this, sb, uin, 100 + (POPUP_GUILD_INVITE), false);
             const float cy = popupWindow(POPUP_GUILD_INVITE, dx, dy, dw, dh, tr("win.guild"));
             font.draw(sb, dx + 16.0f, cy + 8.0f, 1.1f, ui::color::kWinText, guildInviteName_);
             font.draw(sb, dx + 16.0f, cy + 28.0f, 1.0f, ui::color::kWinText, tr("guild.invite_msg"));
@@ -18612,6 +18622,7 @@ void GameScene::render(Application& app) {
             const float mh = ui::kTitleBarH + 248.0f + 14.0f +  // +14 = the contract-timer line
                              (mSkillN > 0 ? static_cast<float>(mSkillN) * 13.0f + 16.0f : 0.0f);
             float mx = static_cast<float>(uiW) - mw - 24.0f, my = 90.0f;
+            ScopedLayer layerPopup23(*this, sb, uin, 100 + (POPUP_MERC), false);
             const float top = popupWindow(POPUP_MERC, mx, my, mw, mh,
                                           mercInfo_.name.empty() ? std::string("Mercenary") : mercInfo_.name);
             const float lx = mx + 10.0f;
@@ -18685,6 +18696,7 @@ void GameScene::render(Application& app) {
             if (!open) return;
             const float sw = 230.0f, sh = ui::kTitleBarH + 92.0f;
             float sx = static_cast<float>(uiW) - sw - 24.0f, sy = 90.0f;
+            ScopedLayer layerPopup24(*this, sb, uin, 100 + (popupId), false);
             const float top = popupWindow(popupId, sx, sy, sw, sh, title);
             font.draw(sb, sx + 12.0f, top + 10.0f, 1.0f, ui::color::kWinTextDim, note);
             if (ui::button(sb, font, uin, sx + sw - 90.0f, sy + sh - 28.0f, 80.0f, 20.0f, tr("win.close"), 1.0f))
@@ -18699,6 +18711,7 @@ void GameScene::render(Application& app) {
             const float skillPanelH = homunShowSkills_ ? (static_cast<float>(skillShown) * 15.0f + 20.0f) : 0.0f;
             const float hw = 230.0f, hh = ui::kTitleBarH + 250.0f + 92.0f + skillPanelH;
             float hx = static_cast<float>(uiW) - hw - 24.0f, hy = 90.0f;
+            ScopedLayer layerPopup25(*this, sb, uin, 100 + (POPUP_HOMUN), false);
             const float top = popupWindow(POPUP_HOMUN, hx, hy, hw, hh,
                                           homunInfo_.name.empty() ? std::string("Homunculus") : homunInfo_.name);
             const float lx = hx + 10.0f;
@@ -18800,6 +18813,7 @@ void GameScene::render(Application& app) {
             // One-time rename modal: type a new name, OK sends CZ_RENAME_MER (0x231); the server applies
             // it once (rename_flag) and re-pushes 0x22e, so the button then disappears. (S.)
             if (homunRenameOpen_) {
+                ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
                 const float mw = 250.0f, mh = 104.0f;
                 const float mx = (static_cast<float>(uiW) - mw) * 0.5f;
                 const float my = (static_cast<float>(uiH) - mh) * 0.5f;
@@ -18850,6 +18864,7 @@ void GameScene::render(Application& app) {
         if (petOpen_ && pet_.have) {
             const float pw = 230.0f, ph = ui::kTitleBarH + 170.0f;
             float px2 = static_cast<float>(uiW) - pw - 24.0f, py2 = 90.0f;
+            ScopedLayer layerPopup26(*this, sb, uin, 100 + (POPUP_PET), false);
             const float top = popupWindow(POPUP_PET, px2, py2, pw, ph,
                                           pet_.name.empty() ? std::string("Pet") : pet_.name);
             const float lx = px2 + 10.0f;
@@ -18915,6 +18930,7 @@ void GameScene::render(Application& app) {
             const int rows = static_cast<int>(std::min<usize>(petEggs_.size(), 10));
             const float ew = 240.0f, eh = ui::kTitleBarH + 12.0f + rows * 20.0f + 34.0f;
             float exp = static_cast<float>(uiW) * 0.5f - ew * 0.5f, eyp = 160.0f;
+            ScopedLayer layerPopup27(*this, sb, uin, 100 + (POPUP_PET_EGG), false);
             const float top = popupWindow(POPUP_PET_EGG, exp, eyp, ew, eh, tr("pet.hatch_prompt"));
             float ly = top + 6.0f;
             for (int i = 0; i < rows; ++i) {
@@ -18939,6 +18955,7 @@ void GameScene::render(Application& app) {
             const int rows = static_cast<int>(rentItems_.size());
             const float rw = 240.0f, rh = ui::kTitleBarH + 16.0f + rows * 20.0f + 30.0f;
             float rxp = static_cast<float>(uiW) - rw - 24.0f, ryp = 90.0f;
+            ScopedLayer layerPopup28(*this, sb, uin, 100 + (POPUP_RENT), false);
             const float top = popupWindow(POPUP_RENT, rxp, ryp, rw, rh, tr("win.rental"));
             float ly = top + 8.0f;
             for (const auto& e : rentItems_) {
@@ -18970,7 +18987,7 @@ void GameScene::render(Application& app) {
             const float bx = winPos_[WIN_GUILD].x, by = winPos_[WIN_GUILD].y;
             winRect_[WIN_GUILD][0] = bx; winRect_[WIN_GUILD][1] = by;
             winRect_[WIN_GUILD][2] = gw; winRect_[WIN_GUILD][3] = gh; winShown_[WIN_GUILD] = true;
-            ScopedDeaf deafGuild(uin, clickWin_, WIN_GUILD);  // top window captures clicks (S.: не проваливать)
+            ScopedLayer deafGuild(*this, sb, uin, WIN_GUILD, false);  // top window captures clicks (S.: не проваливать)
             const std::string gtitle = guildInfo_.name.empty() ? std::string("Guild") : guildInfo_.name;
             if (winTitlebar(WIN_GUILD, gw, gtitle)) guildOpen_ = false;
             ui::panel(sb, bx, by, gw, gh, ui::color::kWinBody);  // window background fill (S.)
@@ -19066,6 +19083,7 @@ void GameScene::render(Application& app) {
                         emblemPickerOpen_ = !emblemPickerOpen_;
                     }
                     if (emblemPickerOpen_) {
+                        ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
                         const float dx = ebx - 150.0f, dy = panelY + 50.0f, dwid = 170.0f;
                         const int nf = std::max(1, static_cast<int>(emblemFiles_.size()));
                         ui::panel(sb, dx, dy, dwid, static_cast<float>(nf) * 18.0f, ui::rgba(248, 248, 250, 255));
@@ -19358,6 +19376,7 @@ void GameScene::render(Application& app) {
         if (buyStoreOpen_) {
             const float bw = 320.0f, bh = ui::kTitleBarH + 250.0f;
             float bx = (static_cast<float>(uiW) - bw) * 0.5f, by = (static_cast<float>(uiH) - bh) * 0.28f;
+            ScopedLayer layerPopup29(*this, sb, uin, 100 + (POPUP_BUY_STORE), false);
             const float ccy = popupWindow(POPUP_BUY_STORE, bx, by, bw, bh, tr("win.buying_store"));
             const float lx = bx + 12.0f, fx = bx + 78.0f, fw3 = 120.0f;
             float ry = ccy + 4.0f;
@@ -19416,6 +19435,7 @@ void GameScene::render(Application& app) {
             const float bw = paneW * 2.0f + gap + pad * 2.0f;
             const float bh = headH + listH + 24.0f + 34.0f + pad;
             float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.35f;
+            ScopedLayer layerPopup30(*this, sb, uin, 100 + (POPUP_EXCHANGE), false);
             popupWindow(POPUP_EXCHANGE, bx, by, bw, bh, tr("trade.with") + tradeWith_);
             winBlock(bx, by, bw, bh);
             const float lpx = bx + pad, rpx = bx + pad + paneW + gap, listTop = by + headH;
@@ -19487,6 +19507,7 @@ void GameScene::render(Application& app) {
     // Magnifier identify list (S.): pick an unidentified item to identify (sends 0x178). Each row is a
     // ui::button, so it auto-registers for gamepad nav focus -> focusable on a pad too.
     if (identifyOpen_) {
+        ScopedLayer layerPicker(*this, sb, uin, kLayerModal, true);  // [layers] a picker: over every window, owns the mouse
         std::vector<std::pair<u16, const net::InvItem*>> rows;
         for (u16 idx : identifyList_) {
             auto it = inventory_.find(idx);
@@ -19528,8 +19549,8 @@ void GameScene::render(Application& app) {
             uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});
         }
     }
-    if (dropDialogOpen_) modalUnmask();
     if (dropDialogOpen_) {
+        ScopedLayer layerModal(*this, sb, uin, kLayerModal, true);
         const float dw = 210.0f, dh = 104.0f;
         const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
 #if defined(__ANDROID__)
@@ -19780,6 +19801,7 @@ void GameScene::render(Application& app) {
     // few px off, nudge here (roBrowser hotspots: DEFAULT 1,19 · TALK/PICK 20,40 · WARP 10,32).
     // Hide the RO cursor in gamepad mode unless the Mouse overlay (L3) or the touchpad is driving it, so
     // an idle cursor doesn't clutter the screen while playing with the pad (S.). Keyboard/mouse always show.
+    layerSwitchView(sb, kLayerTopView);  // [layers] the cursor (and the gamepad keyboard after it) over every window
     if (cursor_.ready() && !padHideCursor_ && !app.touchMode()) {  // touch: no pointer, hide the RO cursor (S.)
         // The wide magnet that sticks the cursor to a mob, computed up front so the ATTACK cursor and
         // the click both follow the SAME mob the cursor visibly snapped to -- otherwise the cursor
@@ -19851,7 +19873,7 @@ void GameScene::render(Application& app) {
     // Disconnect / connection-failure modal (S.; drawn LAST, over every window -- S. 2026-11-23): a centered window + a Relogin button that drops the
     // socket and returns to the login screen (pop char-select + login, same as ESC -> Log out).
     if (phase_ == Phase::Failed) {
-        modalUnmask();  // its button gets the click the windows below did not
+        ScopedLayer layerModal(*this, sb, uin, kLayerModal, true);  // over every window, its button takes the click
         const float dw = 340.0f, dh = 128.0f;
         const float dx = (static_cast<float>(uiW) - dw) * 0.5f;
         const float dy = (static_cast<float>(uiH) - dh) * 0.5f;
@@ -19874,7 +19896,9 @@ void GameScene::render(Application& app) {
     if (ui::osk().active)
         ui::oskRender(sb, app.font(), static_cast<float>(uiW), static_cast<float>(uiH));
 
-    modalUnmask();  // the next frame's input starts from the real buttons
+    // [layers] the real pointer events back for the next frame's update
+    uin.mousePressed = layerRealEv_.p; uin.mouseDoubleClick = layerRealEv_.d; uin.mouseReleased = layerRealEv_.r;
+    uin.rightDown = layerRealEv_.rd; uin.wheel = layerRealEv_.wh;
     sb.end();
 }
 
@@ -19904,6 +19928,49 @@ int GameScene::fitByWeight(u16 nameid, int amount, bool toCart) const {
         return amount;  // a weightless item, or the server has not told the limit yet
     const long long fit = (limit - used) / w;
     return static_cast<int>(std::clamp<long long>(fit, 0, amount));
+}
+
+// [layers] -----------------------------------------------------------------------------------------------
+void GameScene::layerSwitchView(SpriteBatch& sb, u16 view) {
+    if (view == layerView_) return;
+    sb.end();
+    sb.begin(layerW_, layerH_, view, layerUiW_, layerUiH_);
+    layerView_ = view;
+}
+
+GameScene::ScopedLayer::ScopedLayer(GameScene& gs, SpriteBatch& b, InputState& i, int key, bool modal)
+    : g(gs), sb(b), in(i), prev{i.mousePressed, i.mouseDoubleClick, i.mouseReleased, i.rightDown, i.wheel},
+      prevView(gs.layerView_) {
+    u16 view = kLayerModalView;
+    bool hears = modal;
+    if (!modal) {
+        auto it = g.layerZ_.find(key);
+        if (it == g.layerZ_.end()) it = g.layerZ_.emplace(key, ++g.layerTop_).first;  // newly opened: on top
+        hears = !g.layerModalUp_ && (g.clickWin_ == key || g.clickWin_ < 0);
+        if (hears && g.layerRealEv_.p && g.clickWin_ == key && it->second != g.layerTop_)
+            it->second = ++g.layerTop_;  // a press on it brings it to the top
+        u32 rank = 0;
+        for (int other : g.layerOpenPrev_)
+            if (other != key) {
+                auto o = g.layerZ_.find(other);
+                if (o != g.layerZ_.end() && o->second < it->second) ++rank;
+            }
+        view = static_cast<u16>(kLayerView0 + std::min<u32>(rank, kLayerViews - 1));
+    }
+    if (hears) {
+        in.mousePressed = g.layerRealEv_.p; in.mouseDoubleClick = g.layerRealEv_.d;
+        in.mouseReleased = g.layerRealEv_.r; in.rightDown = g.layerRealEv_.rd; in.wheel = g.layerRealEv_.wh;
+    } else {
+        in.mousePressed = in.mouseDoubleClick = in.mouseReleased = in.rightDown = false;
+        in.wheel = 0.0f;
+    }
+    g.layerSwitchView(sb, view);
+}
+
+GameScene::ScopedLayer::~ScopedLayer() {
+    in.mousePressed = prev.p; in.mouseDoubleClick = prev.d; in.mouseReleased = prev.r;
+    in.rightDown = prev.rd; in.wheel = prev.wh;
+    g.layerSwitchView(sb, prevView);
 }
 
 } // namespace uaro

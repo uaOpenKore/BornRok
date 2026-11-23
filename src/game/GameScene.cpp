@@ -14916,16 +14916,30 @@ void GameScene::render(Application& app) {
     // filling over the cast time; dropped when it completes or on ZC_USESKILL_CANCEL (0x1b9). (S.)
     for (auto it = castBars_.begin(); it != castBars_.end();) {
         if (time_ >= it->second.end) { it = castBars_.erase(it); continue; }  // cast finished
+        // At the unit's FEET, in the UI space the HP/SP bars use, as the block's top bar: right above the
+        // HP bar under the feet (S. 2026-11-23: the HP bars covered the cast bar).
         float csx = 0.0f, csy = 0.0f;
-        const bool have = (it->first == app.session().accountId)
-                              ? selfScreenPos(csx, csy)
-                              : actorScreenPos(it->first, csx, csy);
+        bool have = false;
+        {
+            Vec3 fp{};
+            bool known = false;
+            if (it->first == app.session().accountId) { fp = playerPos_; known = true; }
+            else if (auto ai = actors_.find(it->first); ai != actors_.end()) { fp = ai->second.pos; known = true; }
+            if (known) {
+                const Vec4 c = vp * Vec4{fp.x, fp.y, fp.z, 1.0f};
+                if (c.w > 0.0f) {
+                    csx = (c.x / c.w * 0.5f + 0.5f) * uiW;
+                    csy = (1.0f - (c.y / c.w * 0.5f + 0.5f)) * uiH;
+                    have = true;
+                }
+            }
+        }
         if (have) {
             const double dur = it->second.end - it->second.start;
             const float frac =
                 dur > 0.0 ? static_cast<float>((time_ - it->second.start) / dur) : 1.0f;
-            const float cbw = 46.0f, cbh = 5.0f;
-            const float cbx = csx - cbw * 0.5f, cby = csy + 20.0f;  // below the unit
+            const float cbw = 42.0f, cbh = 4.0f;
+            const float cbx = csx - cbw * 0.5f, cby = csy - cbh - 2.0f;  // just above the HP bar (it starts at feet +2)
             sb.draw(cbx - 1.0f, cby - 1.0f, cbw + 2.0f, cbh + 2.0f, ui::rgba(0, 0, 0, 200));
             sb.draw(cbx, cby, cbw, cbh, ui::rgba(40, 40, 52, 220));
             sb.draw(cbx, cby, cbw * std::clamp(frac, 0.0f, 1.0f), cbh, ui::rgba(255, 205, 80, 255));

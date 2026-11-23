@@ -53,6 +53,30 @@ namespace uaro {
 // block-scope extern would bind ::embedded_quest_titles in the GLOBAL namespace and fail to link).
 extern const std::string& embedded_quest_titles();
 int embedded_item_weight(std::uint32_t nameid);  // resource/EmbeddedItemWeights.cpp (server item_db)
+int embedded_item_element(std::uint32_t nameid);  // same file: element 1..9 of an elemental weapon/armour, else 0
+
+// The colour of an item's name (S. 2026-11-23, after uaRO HD): an elemental weapon/armour -- from the server's item_db
+// (bAtkEle/bDefEle) or a forged one (card0 0xFF, element in card1) -- in its element's colour; unidentified: dim.
+static u32 itemNameColor(u16 nameid, const u16 cards[4], bool identified) {
+    if (!identified) return ui::color::kWinTextDim;
+    int e = embedded_item_element(nameid);
+    if (cards && cards[0] == 0x00FF) {
+        const int fe = (cards[1] & 0xFF) % 10;
+        if (fe >= 1 && fe <= 4) e = fe;
+    }
+    switch (e) {
+        case 1: return ui::rgba(110, 170, 255, 255);  // Water
+        case 2: return ui::rgba(200, 160, 90, 255);   // Earth
+        case 3: return ui::rgba(255, 110, 80, 255);   // Fire
+        case 4: return ui::rgba(120, 220, 120, 255);  // Wind
+        case 5: return ui::rgba(190, 120, 230, 255);  // Poison
+        case 6: return ui::rgba(255, 225, 120, 255);  // Holy
+        case 7: return ui::rgba(170, 120, 200, 255);  // Shadow
+        case 8: return ui::rgba(190, 200, 235, 255);  // Ghost
+        case 9: return ui::rgba(160, 170, 150, 255);  // Undead
+        default: return ui::color::kWinText;
+    }
+}
 
 namespace {
 std::string stripExt(const std::string& s) {
@@ -16269,7 +16293,7 @@ void GameScene::render(Application& app) {
                                    itemTitle(app, vit.nameid, vit.cards);
             // Two lines per item (S.): name on top, price below, pinned to the right edge.
             font.draw(sb, lpx + 6.0f + isz + 6.0f, ry + 3.0f, 1.0f,
-                      vit.identify ? ui::color::kWinText : ui::color::kWinTextDim, nm);
+                      itemNameColor(vit.nameid, vit.cards, vit.identify != 0), nm);
             drawMakerSuffix(sb, font, lpx + 6.0f + isz + 6.0f + font.width(nm, 1.0f), ry + 3.0f, 1.0f, vit.cards);
             const std::string pz = std::to_string(vit.price) + " z";
             font.draw(sb, lpx + paneW - font.width(pz, 0.95f) - 8.0f, ry + 16.0f, 0.95f,
@@ -16702,7 +16726,7 @@ void GameScene::render(Application& app) {
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
                                            itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
-                          it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);  // grey if unidentified
+                          itemNameColor(it.nameid, it.cards, it.identified != 0), label);  // element colour, grey if unidentified
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 1;  // bag -> drag onto equip = wear, onto storage = store, onto map = drop
@@ -16866,7 +16890,7 @@ void GameScene::render(Application& app) {
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
                                            itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
-                          it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);  // grey if unidentified
+                          itemNameColor(it.nameid, it.cards, it.identified != 0), label);  // element colour, grey if unidentified
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 3;  // storage -> drag onto the bag to retrieve
@@ -16972,7 +16996,7 @@ void GameScene::render(Application& app) {
                 const std::string label = (it.refine > 0 ? "+" + std::to_string(it.refine) + " " : "") +
                                            itemTitle(app, it.nameid, it.cards);
                 font.draw(sb, bx + 6.0f + isz + 8.0f, ry + 8.0f, 1.2f,
-                          it.identified ? ui::color::kWinText : ui::color::kWinTextDim, label);
+                          itemNameColor(it.nameid, it.cards, it.identified != 0), label);
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
                     dragSrc_ = 4;  // cart -> drag onto the bag to take out

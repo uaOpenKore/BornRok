@@ -244,6 +244,11 @@ private:
     int waterReflect_ = 0;      // 0 off / 1 light / 2 ssr (half-res) / 3 planar (full-res)
     int reflectW_ = 0, reflectH_ = 0;  // size reflectFb_ was created at (SSR = half native, Planar = native)
     int reflectFrames_ = 0;            // frames completed since reflectFb_ was (re)created
+    // The water samples a COPY of the reflection, never the render target itself: the copy is blitted at the
+    // start of view 0 (outside any render pass), so no backend ever has to change the target's layout inside
+    // the water's render pass (S. 2026-11-23: Vulkan crashed in getDescriptorSet with Water Reflect on, also
+    // after 0.0.84's first-frames guard). Invalid when the backend has no texture blit -> the target is sampled.
+    bgfx::TextureHandle reflectCopy_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle tonemapProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle easuProg_ = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle rcasProg_ = BGFX_INVALID_HANDLE;

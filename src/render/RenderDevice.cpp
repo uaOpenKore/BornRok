@@ -556,12 +556,19 @@ void RenderDevice::createReflectTarget() {
     bgfx::TextureHandle a[2] = {c, d};
     reflectFb_ = bgfx::createFrameBuffer(2, a, true);
     reflectFrames_ = 0;  // not sampleable until the mirror pass has drawn into it (reflectSampleable)
+    const bgfx::Caps* caps = bgfx::getCaps();
+    if (caps && (caps->supported & BGFX_CAPS_TEXTURE_BLIT))
+        reflectCopy_ = bgfx::createTexture2D(static_cast<u16>(reflectW_), static_cast<u16>(reflectH_), false, 1,
+                                             bgfx::TextureFormat::RGBA8,
+                                             BGFX_TEXTURE_BLIT_DST | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
     if (!bgfx::isValid(reflectFb_)) log::error("render: water reflection framebuffer failed");
 }
 
 void RenderDevice::destroyReflectTarget() {
     if (bgfx::isValid(reflectFb_)) bgfx::destroy(reflectFb_);
     reflectFb_ = BGFX_INVALID_HANDLE;
+    if (bgfx::isValid(reflectCopy_)) bgfx::destroy(reflectCopy_);
+    reflectCopy_ = BGFX_INVALID_HANDLE;
     reflectW_ = reflectH_ = 0;
 }
 
@@ -585,6 +592,7 @@ void RenderDevice::setWaterReflect(int mode) {
 
 bgfx::TextureHandle RenderDevice::reflectTexture() const {
     if (!bgfx::isValid(reflectFb_)) return BGFX_INVALID_HANDLE;  // (brace-init macro can't be a ?: operand)
+    if (bgfx::isValid(reflectCopy_)) return reflectCopy_;      // the copy is what the water samples
     return bgfx::getTexture(reflectFb_, 0);
 }
 
@@ -822,6 +830,10 @@ void RenderDevice::beginFrame() {
             // Clear to the map's sky colour so water areas with no reflected geometry mirror the sky.
             bgfx::setViewClear(kReflectView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, clearColor_, 1.0f, 0);
             bgfx::touch(kReflectView);
+            // last frame's reflection -> the copy the water samples; blits run before view 0's draws, outside its
+            // render pass (the first frame of a new target has nothing to copy yet)
+            if (bgfx::isValid(reflectCopy_) && reflectFrames_ >= 1)
+                bgfx::blit(0, reflectCopy_, 0, 0, bgfx::getTexture(reflectFb_, 0));
         }
     } else {
         bgfx::setViewFrameBuffer(kReflectView, BGFX_INVALID_HANDLE);

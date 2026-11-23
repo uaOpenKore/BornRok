@@ -1354,6 +1354,9 @@ private:
     double autoRelogAt_ = 0.0;  // when the auto-reconnect fires (0 = none)
     double inGameSince_ = 0.0;  // authok time; 2 min in game resets the reconnect tries  // when the pending tick went out (0 = none pending)
     float zoom_ = 1.0f;     // camera distance multiplier (mouse wheel)
+    // HP / SP / cast bars shrink with a far camera (S. 2026-11-23, from uaRO HD): 100 % up to the default distance,
+    // down to 60 % at the farthest zoom.
+    float hpBarScale() const { return zoom_ <= 1.0f ? 1.0f : std::max(0.6f, 1.0f - (zoom_ - 1.0f) / 3.0f * 0.4f); }
     float azimuth_ = 0.0f;  // camera orbit angle (right-drag, horizontal)
     float pitch_ = 0.0f;    // camera elevation offset (shift+right-drag, vertical)
 

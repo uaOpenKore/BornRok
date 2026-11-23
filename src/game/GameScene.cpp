@@ -14967,7 +14967,8 @@ void GameScene::render(Application& app) {
             if (c.w <= 0.0f) continue;
             const float ax = (c.x / c.w * 0.5f + 0.5f) * uiW;
             const float ay = (1.0f - (c.y / c.w * 0.5f + 0.5f)) * uiH;
-            const float bw = 34.0f, bh = 4.0f, bx0 = ax - bw * 0.5f, by0 = ay + 6.0f;  // just below the feet
+            const float bw = 34.0f * hpBarScale(), bh = std::max(3.0f, 4.0f * hpBarScale());
+            const float bx0 = ax - bw * 0.5f, by0 = ay + 6.0f;  // just below the feet
             const float frac = std::clamp(static_cast<float>(m.hp) / static_cast<float>(m.maxHp), 0.0f, 1.0f);
             sb.draw(bx0 - 1.0f, by0 - 1.0f, bw + 2.0f, bh + 2.0f, ui::rgba(0, 0, 0, 200));
             sb.draw(bx0, by0, bw, bh, ui::rgba(40, 40, 50, 220));
@@ -15002,7 +15003,7 @@ void GameScene::render(Application& app) {
             const double dur = it->second.end - it->second.start;
             const float frac =
                 dur > 0.0 ? static_cast<float>((time_ - it->second.start) / dur) : 1.0f;
-            const float cbw = 42.0f, cbh = 4.0f;
+            const float cbw = 42.0f * hpBarScale(), cbh = std::max(3.0f, 4.0f * hpBarScale());
             const float cbx = csx - cbw * 0.5f, cby = csy - cbh - 2.0f;  // just above the HP bar (it starts at feet +2)
             sb.draw(cbx - 1.0f, cby - 1.0f, cbw + 2.0f, cbh + 2.0f, ui::rgba(0, 0, 0, 200));
             sb.draw(cbx, cby, cbw, cbh, ui::rgba(40, 40, 52, 220));
@@ -15043,7 +15044,7 @@ void GameScene::render(Application& app) {
         }
         // Under the feet, above the name: a red HP bar then a blue SP bar.
         float y = sy + 2.0f;
-        const float barW = 42.0f, barH = 4.0f;
+        const float barW = 42.0f * hpBarScale(), barH = std::max(3.0f, 4.0f * hpBarScale());
         auto bar = [&](i32 cur, i32 max, u32 fill) {
             if (max <= 0) return;  // not known yet (no ZC_PAR_CHANGE received)
             const float frac = std::clamp(static_cast<float>(cur) / static_cast<float>(max), 0.0f, 1.0f);
@@ -15085,7 +15086,7 @@ void GameScene::render(Application& app) {
         // when show_mob_info is on) above a "Name  Lv.N" label.
         if (mob) {
             if (const auto hit = mobHpPct_.find(gid); hit != mobHpPct_.end()) {
-                const float bw = 46.0f, bh = 5.0f;
+                const float bw = 46.0f * hpBarScale(), bh = std::max(3.0f, 5.0f * hpBarScale());
                 const float frac = std::clamp(hit->second / 100.0f, 0.0f, 1.0f);
                 sb.draw(sx - bw * 0.5f - 1, y - 1, bw + 2, bh + 2, ui::rgba(0, 0, 0, 190));
                 sb.draw(sx - bw * 0.5f, y, bw, bh, ui::rgba(38, 38, 44, 210));

@@ -12722,8 +12722,12 @@ void GameScene::update(Application& app, double dt) {
                     if (in.hit(l.x, l.y, l.w, l.h)) {
                         if (in.mousePressed) pointerOverUi_ = true;
                         if (in.mouseReleased) {
-                            descItemId_ = l.id;
-                            for (int k = 0; k < 4; ++k) descCards_[k] = 0;
+                            if (in.shift) {
+                                refOpenAt(1, l.id);  // Shift: the Reference card (who drops it)
+                            } else {
+                                descItemId_ = l.id;
+                                for (int k = 0; k < 4; ++k) descCards_[k] = 0;
+                            }
                         }
                         break;
                     }
@@ -12757,6 +12761,8 @@ void GameScene::update(Application& app, double dt) {
             }
             if (in.hit(cbx, cby, cbw, cbh)) {
                 chatFocused_ = true;  // clicking the chat bar focuses it (no walk/attack)
+            } else if (atkMob && in.shift && isMobActor(atkMob)) {  // Shift+click a monster: its Reference card
+                if (auto ai = actors_.find(atkMob); ai != actors_.end()) refOpenAt(0, ai->second.info.class_);
             } else if (atkMob && petCatching_) {
                 // Taming in progress (0x19e): this click PICKS the capture target (not an attack).
                 // The actual CZ_PET_CATCH is sent when the player spins the slot machine (#149).

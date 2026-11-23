@@ -366,7 +366,7 @@ void RenderDevice::initPostProcess(const std::string& assetDir) {
 // first one it can (AMD's Vulkan driver has no D24_UNORM_S8_UINT; S. 2026-11-23 Vulkan crash on the water
 // reflection target). Logged once per run.
 static bgfx::TextureFormat::Enum rtDepthFormat() {
-    static const bgfx::TextureFormat::Enum kTry[] = {bgfx::TextureFormat::D24S8, bgfx::TextureFormat::D32FS8,
+    static const bgfx::TextureFormat::Enum kTry[] = {bgfx::TextureFormat::D24S8,
                                                      bgfx::TextureFormat::D32F, bgfx::TextureFormat::D24,
                                                      bgfx::TextureFormat::D16};
     static bgfx::TextureFormat::Enum chosen = bgfx::TextureFormat::Count;

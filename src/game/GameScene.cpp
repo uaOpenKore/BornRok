@@ -53,7 +53,8 @@ namespace uaro {
 // block-scope extern would bind ::embedded_quest_titles in the GLOBAL namespace and fail to link).
 extern const std::string& embedded_quest_titles();
 int embedded_item_weight(std::uint32_t nameid);  // resource/EmbeddedItemWeights.cpp (server item_db)
-int embedded_item_element(std::uint32_t nameid);  // same file: element 1..9 of an elemental weapon/armour, else 0
+int embedded_item_element(std::uint32_t nameid);
+std::uint32_t embedded_mvp_respawn_ms(const char* map, std::uint16_t mob);  // resource/EmbeddedMvpSpawns.cpp  // same file: element 1..9 of an elemental weapon/armour, else 0
 
 // The colour of an item's name (S. 2026-11-23, after uaRO HD): an elemental weapon/armour -- from the server's item_db
 // (bAtkEle/bDefEle) or a forged one (card0 0xFF, element in card1) -- in its element's colour; unidentified: dim.
@@ -3955,6 +3956,10 @@ void GameScene::pumpStream(Application& app) {
                             selfDamagedAt_.erase(dm);
                         }
                         if (killedByMe) triggerRumble(app, RumbleEvent::Kill);
+                        if (isMobActor(gid)) {  // an MVP of this map died in sight -> its respawn timer
+                            const auto nm = names_.find(gid);
+                            mvpDied(it->second.info.class_, nm != names_.end() ? nm->second : std::string());
+                        }
                         // Death SFX: monsters use their per-sprite <name>_die.wav (#103); players
                         // have no stock death sound, so only mobs play one.
                         if (isMobActor(gid))
@@ -15228,6 +15233,7 @@ void GameScene::render(Application& app) {
     // status) flows just below the panel so the two never overlap; the panel height depends
     // on its Alt+V state (collapsed 22 / short 40 / full 150).
     drawMinimap(app);
+    drawMvpTimers(app);
     drawBasicInfo(app);
     drawGamepadModeStrip(app);  // bottom-screen active-modes line (#102/#115)
     if (app.session().walkMode && !(app.input().pad.connected && app.gamepadMode())) {
@@ -20101,6 +20107,88 @@ std::string GameScene::itemTitle(Application& app, u16 nameid, const u16 cards[4
 void GameScene::drawMakerSuffix(SpriteBatch& sb, const Font& font, float x, float y, float scale, const u16 cards[4]) {
     const std::string mk = makerName(cards);
     if (!mk.empty()) font.draw(sb, x, y, scale, ui::rgba(90, 150, 255, 255), " " + mk + "'s");
+}
+
+std::string GameScene::mvpPath() const {
+    std::string root = fs::data_dir();
+    if (!root.empty() && (root.back() == '/' || root.back() == '\\')) root.pop_back();
+    return (std::filesystem::path(root) / "settings" / "mvp.txt").string();
+}
+
+void GameScene::mvpLoad() {
+    mvpLoaded_ = true;
+    mvpTimers_.clear();
+    std::ifstream f(mvpPath());
+    std::string line;
+    while (std::getline(f, line)) {  // <mob> <map> <died unix s> <respawn ms> <name...>
+        std::istringstream ls(line);
+        MvpTimer t;
+        if (!(ls >> t.mob >> t.map >> t.died >> t.respawnMs)) continue;
+        std::getline(ls >> std::ws, t.name);
+        mvpTimers_.push_back(t);
+    }
+}
+
+void GameScene::mvpSave() const {
+    std::error_code ec;
+    const std::filesystem::path p(mvpPath());
+    std::filesystem::create_directories(p.parent_path(), ec);
+    std::ofstream f(p, std::ios::trunc);
+    for (const MvpTimer& t : mvpTimers_)
+        f << t.mob << ' ' << t.map << ' ' << t.died << ' ' << t.respawnMs << ' ' << t.name << '\n';
+}
+
+void GameScene::mvpDied(u16 mob, const std::string& name) {
+    const u32 ms = embedded_mvp_respawn_ms(mapBase_.c_str(), mob);
+    if (ms == 0) return;
+    if (!mvpLoaded_) mvpLoad();
+    const long long now = static_cast<long long>(std::time(nullptr));
+    for (auto it = mvpTimers_.begin(); it != mvpTimers_.end();)  // one per MVP and map; drop the long-gone ones
+        if ((it->mob == mob && it->map == mapBase_) || it->died + it->respawnMs / 1000 + 1800 < now)
+            it = mvpTimers_.erase(it);
+        else
+            ++it;
+    mvpTimers_.push_back({mob, mapBase_, name.empty() ? "#" + std::to_string(mob) : name, now, ms});
+    mvpHidden_ = false;
+    mvpSave();
+    log::info("mvp: {} died on {}, back in {} min", mvpTimers_.back().name, mapBase_, ms / 60000);
+}
+
+void GameScene::drawMvpTimers(Application& app) {
+    if (!mvpLoaded_) mvpLoad();
+    if (mvpTimers_.empty() || mvpHidden_) return;
+    const long long now = static_cast<long long>(std::time(nullptr));
+    std::vector<const MvpTimer*> shown;
+    for (const MvpTimer& t : mvpTimers_)
+        if (t.died + t.respawnMs / 1000 + 1800 >= now) shown.push_back(&t);
+    if (shown.empty()) return;
+    std::sort(shown.begin(), shown.end(), [](const MvpTimer* a, const MvpTimer* b) {
+        return a->died + a->respawnMs / 1000 < b->died + b->respawnMs / 1000;
+    });
+    if (shown.size() > 8) shown.resize(8);
+    SpriteBatch& sb = app.sprites();
+    Font& font = app.font();
+    const float rowH = 16.0f, w = 230.0f, h = 22.0f + rowH * static_cast<float>(shown.size());
+    const float x = (mmSize_ > 0.0f ? mmX_ + mmSize_ : static_cast<float>(lastViewW_) / app.uiScale()) - w;
+    const float y = (mmSize_ > 0.0f ? mmY_ + mmSize_ + 6.0f : 200.0f);
+    ui::panel(sb, x, y, w, h, ui::rgba(0, 0, 0, 160));
+    font.draw(sb, x + 6.0f, y + 3.0f, 0.95f, ui::rgba(255, 205, 80, 255), "MVP timers");
+    const InputState& in = app.input();
+    if (ui::button(sb, font, in, x + w - 20.0f, y + 2.0f, 16.0f, 16.0f, "x", 0.9f)) mvpHidden_ = true;
+    float ry = y + 20.0f;
+    for (const MvpTimer* t : shown) {
+        const long long left = t->died + t->respawnMs / 1000 - now;
+        const long long a = left >= 0 ? left : -left;
+        char tb[24];
+        if (a >= 3600) std::snprintf(tb, sizeof(tb), "%s%lld:%02lld:%02lld", left < 0 ? "+" : "", a / 3600, a / 60 % 60, a % 60);
+        else std::snprintf(tb, sizeof(tb), "%s%lld:%02lld", left < 0 ? "+" : "", a / 60, a % 60);
+        const u32 col = left < 0 ? ui::rgba(150, 150, 150, 255) : left < 300 ? ui::rgba(255, 170, 90, 255)
+                                                                            : ui::color::kWinText;
+        font.draw(sb, x + 6.0f, ry, 0.9f, col, t->name + "  " + t->map);
+        font.draw(sb, x + w - 8.0f - font.width(tb, 0.9f), ry, 0.9f, col, tb);
+        ry += rowH;
+    }
+    uiBlockRects_.push_back({x, y, w, h});
 }
 
 bool GameScene::multiClick(int src, u16 index, const InputState& in) {

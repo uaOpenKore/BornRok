@@ -152,7 +152,19 @@ private:
     void drawBasicInfo(Application& app);  // top-left BasicInfo panel (Alt+V: full/short/collapsed)
     void drawHotbar(Application& app);   // quick-slot / hotkey bar (12 slots x 1..4 rows)
     bool hotbarSlotAt(int mx, int my, int& row, int& col) const;  // slot under the cursor, for drops
-    std::string hotbarCfgPath(Application& app) const;  // settings/<login>-<charName>.cfg ("" if unknown)
+    std::string hotbarCfgPath(Application& app) const;
+    // MVP timers (S. 2026-11-23, after uaRO HD): the MVPs this client saw die and when each is back -- the server
+    // respawns one exactly its spawn's delay after death (table from the server's spawns). Shared by every
+    // character, kept in settings/mvp.txt; shown until 30 minutes after it is back.
+    struct MvpTimer { u16 mob = 0; std::string map, name; long long died = 0; u32 respawnMs = 0; };
+    std::vector<MvpTimer> mvpTimers_;
+    bool mvpLoaded_ = false;
+    bool mvpHidden_ = false;
+    std::string mvpPath() const;
+    void mvpLoad();
+    void mvpSave() const;
+    void mvpDied(u16 mob, const std::string& name);
+    void drawMvpTimers(Application& app);  // settings/<login>-<charName>.cfg ("" if unknown)
     void loadHotbar(Application& app);   // restore the quick-slot layout from disk on entry
     void saveHotbar(Application& app);   // mark the layout dirty (debounced); write happens in update()
     void writeHotbar(Application& app);  // actually write the layout to disk (the real save)

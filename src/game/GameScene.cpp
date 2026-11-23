@@ -2674,6 +2674,19 @@ void GameScene::playSkillCastSfx(Application& app, u16 skillId, const Vec3& at) 
 // Record the overhead skill-name "shout" (S.: "когда чар кастит скилл, над головой выкрик названия на
 // 1,5 секунды"). Keyed by caster gid, so a fresh cast refreshes it. skillConstList() (server skill_db,
 // id->display name) is our numeric-id name source; an unknown id (no name) shows nothing.
+void GameScene::noteTakenHit(u32 src, u16 skill, i32 dmg) {
+    TakenHit h;
+    h.t = time_;
+    h.src = src;
+    h.skill = skill;
+    h.dmg = dmg;
+    if (const auto n = names_.find(src); n != names_.end()) h.who = n->second;  // the name now (the unit may vanish)
+    else if (src != 0 && namesAskedHit_.insert(src).second) conn_.send(net::buildNameRequest(src));  // the window reads it later
+    takenHits_.push_back(h);
+    while (!takenHits_.empty() && (takenHits_.size() > 32 || time_ - takenHits_.front().t > 15.0))
+        takenHits_.erase(takenHits_.begin());
+}
+
 void GameScene::noteSkillShout(u32 gid, u16 skillId) {
     if (gid == 0 || skillId == 0) return;
     static const std::unordered_map<u16, std::string> kNames = [] {
@@ -3924,6 +3937,10 @@ void GameScene::pumpStream(Application& app) {
                     // (AREA includes self) -> raise the respawn window.
                     if (gid == app.session().accountId && reason == 1) {
                         dead_ = true;
+                        deathHits_.clear();  // the hits of the last 10 s before this death
+                        for (const TakenHit& h : takenHits_)
+                            if (time_ - h.t <= 10.0) deathHits_.push_back(h);
+                        takenHits_.clear();
                         attackTarget_ = 0;
                         playerMove_.active = false;
                         haveWalkTarget_ = false;
@@ -4545,6 +4562,8 @@ void GameScene::pumpStream(Application& app) {
                         const bool combatAct = (ad.type != 1 && ad.type != 2 && ad.type != 3);
                         // Gamepad haptics (S.): remember which units the player just damaged (for kill
                         // attribution on their death), and buzz on the player's own critical hit.
+                        if (combatAct && ad.dst == app.session().accountId && ad.damage + ad.damage2 > 0)
+                            noteTakenHit(ad.src, 0, ad.damage + ad.damage2);
                         if (combatAct && ad.src == app.session().accountId && ad.damage > 0) {
                             selfDamagedAt_[ad.dst] = time_;
                             if (ad.type == 10) triggerRumble(app, RumbleEvent::Crit);  // single tick on crit
@@ -4629,6 +4648,7 @@ void GameScene::pumpStream(Application& app) {
                                                // caster, flinch the target, float the damage
                 net::SkillDamage sd;
                 if (net::decodeSkillDamage(rx.data(), rx.size(), sd) != 0) {
+                    if (sd.dst == app.session().accountId && sd.damage > 0) noteTakenHit(sd.src, sd.skillId, sd.damage);
                     // The caster plays its attack/cast motion, even on a resisted hit (damage 0).
                     if (sd.src != 0) {
                         if (sd.src == app.session().accountId) {
@@ -16708,12 +16728,39 @@ void GameScene::render(Application& app) {
     if (dead_) {
         const float fW = static_cast<float>(uiW), fH = static_cast<float>(uiH);
         sb.draw(0.0f, 0.0f, fW, fH, ui::rgba(0, 0, 0, 140));
-        const float bw = 320.0f, bh = 150.0f + ui::kTitleBarH;
+        const usize nHits = std::min<usize>(deathHits_.size(), 8);
+        const float hitRowH = 17.0f, hitsH = nHits ? 22.0f + hitRowH * static_cast<float>(nHits) : 0.0f;
+        const float bw = nHits ? 380.0f : 320.0f, bh = 150.0f + ui::kTitleBarH + hitsH;
         float bx = (fW - bw) * 0.5f, by = (fH - bh) * 0.5f;
         ScopedLayer layerPopup10(*this, sb, uin, 100 + (POPUP_DEAD), false);
         const float cy = popupWindow(POPUP_DEAD, bx, by, bw, bh, tr("death.title"), ui::color::kError);
         font.draw(sb, bx + 24.0f, cy + 6.0f, 2.0f, ui::color::kError, tr("death.died"));
         font.draw(sb, bx + 24.0f, cy + 38.0f, 1.5f, ui::color::kWinTextDim, tr("death.prompt"));
+        if (nHits) {  // the hits of that death, the last one at the bottom (S. 2026-11-23, from uaRO HD)
+            static const std::unordered_map<u16, std::string> kSkill = [] {
+                std::unordered_map<u16, std::string> m;
+                for (const auto& kv : skillConstList()) m.emplace(kv.first, kv.second);
+                return m;
+            }();
+            float hy = cy + 70.0f;
+            font.draw(sb, bx + 24.0f, hy, 1.1f, ui::color::kWinText, "Last hits:");
+            hy += 20.0f;
+            const usize first = deathHits_.size() - nHits;
+            for (usize i = first; i < deathHits_.size(); ++i) {
+                const TakenHit& h = deathHits_[i];
+                std::string who = h.who;
+                if (who.empty()) { const auto n = names_.find(h.src); who = n != names_.end() ? n->second : "?"; }
+                std::string what = "attack";
+                if (h.skill) { const auto k = kSkill.find(h.skill); what = k != kSkill.end() ? k->second : "skill " + std::to_string(h.skill); }
+                char ago[16];
+                std::snprintf(ago, sizeof(ago), "-%.1fs", deathHits_.back().t - h.t);
+                font.draw(sb, bx + 24.0f, hy, 1.0f, ui::color::kWinText, who + "  " + what);
+                const std::string d = std::to_string(h.dmg);
+                font.draw(sb, bx + bw - 80.0f - font.width(d, 1.0f), hy, 1.0f, ui::rgba(255, 120, 100, 255), d);
+                font.draw(sb, bx + bw - 64.0f, hy, 0.9f, ui::color::kWinTextDim, ago);
+                hy += hitRowH;
+            }
+        }
         const bool resBtn = ui::button(sb, font, app.input(), bx + (bw - 180.0f) * 0.5f,
                                         by + bh - 46.0f, 180.0f, 32.0f, tr("death.resurrect"), 1.5f, true);
         // Enter also confirms the respawn (S.: "кнопку resurect нужно нажимать по enter"). Chat is

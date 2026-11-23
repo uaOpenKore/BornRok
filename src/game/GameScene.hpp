@@ -1353,6 +1353,11 @@ private:
     std::string dcReason_;      // why the map connection ended (under "Connection lost")
     double autoRelogAt_ = 0.0;  // when the auto-reconnect fires (0 = none)
     double inGameSince_ = 0.0;  // authok time; 2 min in game resets the reconnect tries  // when the pending tick went out (0 = none pending)
+    // The hits that killed us (S. 2026-11-23, from uaRO HD): the last ones taken, shown in the death window.
+    struct TakenHit { double t = 0.0; u32 src = 0; u16 skill = 0; i32 dmg = 0; std::string who; };
+    std::vector<TakenHit> takenHits_, deathHits_;
+    std::unordered_set<u32> namesAskedHit_;  // attackers whose name we asked for (once each)
+    void noteTakenHit(u32 src, u16 skill, i32 dmg);
     float zoom_ = 1.0f;     // camera distance multiplier (mouse wheel)
     // HP / SP / cast bars shrink with a far camera (S. 2026-11-23, from uaRO HD): 100 % up to the default distance,
     // down to 60 % at the farthest zoom.

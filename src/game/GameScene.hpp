@@ -156,7 +156,13 @@ private:
     // MVP timers (S. 2026-11-23, after uaRO HD): the MVPs this client saw die and when each is back -- the server
     // respawns one exactly its spawn's delay after death (table from the server's spawns). Shared by every
     // character, kept in settings/mvp.txt; shown until 30 minutes after it is back.
-    struct MvpTimer { u16 mob = 0; std::string map, name; long long died = 0; u32 respawnMs = 0; };
+    struct MvpTimer {
+        u16 mob = 0;  // 0 = from the server's announce (it names the MVP, not its id)
+        std::string map, name, killer;
+        long long died = 0;
+        u32 respawnMs = 0;
+        bool server = false;  // the server's exact time (its "[MVP] ..." announce) -- wins over a death seen here
+    };
     std::vector<MvpTimer> mvpTimers_;
     bool mvpLoaded_ = false;
     bool mvpHidden_ = false;
@@ -164,6 +170,7 @@ private:
     void mvpLoad();
     void mvpSave() const;
     void mvpDied(u16 mob, const std::string& name);
+    void mvpAnnounce(const std::string& text);  // "[MVP] <name> was defeated [by <player> ]on <map>. Back in H:MM:SS."
     void drawMvpTimers(Application& app);  // settings/<login>-<charName>.cfg ("" if unknown)
     void loadHotbar(Application& app);   // restore the quick-slot layout from disk on entry
     void saveHotbar(Application& app);   // mark the layout dirty (debounced); write happens in update()

@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <regex>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -5674,6 +5675,7 @@ void GameScene::pumpStream(Application& app) {
                         if (!raw.empty()) {
                             chatLog_.push_back({net::cp1251ToUtf8(raw), color});
                             if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
+                            if (raw.rfind("[MVP] ", 0) == 0) mvpAnnounce(chatLog_.back().text);  // -> MVP timers
                         }
                     }
                 }
@@ -20164,11 +20166,17 @@ void GameScene::mvpLoad() {
     mvpTimers_.clear();
     std::ifstream f(mvpPath());
     std::string line;
-    while (std::getline(f, line)) {  // <mob> <map> <died unix s> <respawn ms> <name...>
+    while (std::getline(f, line)) {  // <mob> <map> <died unix s> <respawn ms> <server 0/1> <name>\t<killer>
         std::istringstream ls(line);
         MvpTimer t;
-        if (!(ls >> t.mob >> t.map >> t.died >> t.respawnMs)) continue;
-        std::getline(ls >> std::ws, t.name);
+        int srv = 0;
+        if (!(ls >> t.mob >> t.map >> t.died >> t.respawnMs >> srv)) continue;
+        t.server = srv != 0;
+        std::string rest;
+        std::getline(ls >> std::ws, rest);
+        const auto tab = rest.find('\t');
+        t.name = rest.substr(0, tab);
+        if (tab != std::string::npos) t.killer = rest.substr(tab + 1);
         mvpTimers_.push_back(t);
     }
 }
@@ -20179,7 +20187,8 @@ void GameScene::mvpSave() const {
     std::filesystem::create_directories(p.parent_path(), ec);
     std::ofstream f(p, std::ios::trunc);
     for (const MvpTimer& t : mvpTimers_)
-        f << t.mob << ' ' << t.map << ' ' << t.died << ' ' << t.respawnMs << ' ' << t.name << '\n';
+        f << t.mob << ' ' << t.map << ' ' << t.died << ' ' << t.respawnMs << ' ' << (t.server ? 1 : 0) << ' ' << t.name
+          << '\t' << t.killer << '\n';
 }
 
 void GameScene::mvpDied(u16 mob, const std::string& name) {
@@ -20187,15 +20196,50 @@ void GameScene::mvpDied(u16 mob, const std::string& name) {
     if (ms == 0) return;
     if (!mvpLoaded_) mvpLoad();
     const long long now = static_cast<long long>(std::time(nullptr));
+    for (const MvpTimer& t : mvpTimers_)  // the server already told the exact time of this death
+        if (t.server && t.map == mapBase_ && now - t.died < 20 && (t.name == name || name.empty())) return;
     for (auto it = mvpTimers_.begin(); it != mvpTimers_.end();)  // one per MVP and map; drop the long-gone ones
-        if ((it->mob == mob && it->map == mapBase_) || it->died + it->respawnMs / 1000 + 1800 < now)
+        if ((it->map == mapBase_ && ((it->mob != 0 && it->mob == mob) || (!name.empty() && it->name == name))) ||
+            it->died + it->respawnMs / 1000 + 1800 < now)
             it = mvpTimers_.erase(it);
         else
             ++it;
-    mvpTimers_.push_back({mob, mapBase_, name.empty() ? "#" + std::to_string(mob) : name, now, ms});
+    MvpTimer t;
+    t.mob = mob;
+    t.map = mapBase_;
+    t.name = name.empty() ? "#" + std::to_string(mob) : name;
+    t.died = now;
+    t.respawnMs = ms;
+    mvpTimers_.push_back(t);
     mvpHidden_ = false;
     mvpSave();
     log::info("mvp: {} died on {}, back in {} min", mvpTimers_.back().name, mapBase_, ms / 60000);
+}
+
+void GameScene::mvpAnnounce(const std::string& text) {
+    // "[MVP] <name> was defeated [by <player> ]on <map>. Back in H:MM:SS." (map-server mob_setdelayspawn)
+    static const std::regex re(R"(^\[MVP\] (.+?) was defeated (?:by (.+?) )?on (\S+)\. Back in (\d+):(\d\d):(\d\d)\.$)");
+    std::smatch m;
+    if (!std::regex_match(text, m, re)) return;
+    if (!mvpLoaded_) mvpLoad();
+    const long long now = static_cast<long long>(std::time(nullptr));
+    const long long left = std::stoll(m[4].str()) * 3600 + std::stoll(m[5].str()) * 60 + std::stoll(m[6].str());
+    MvpTimer t;
+    t.name = m[1].str();
+    t.killer = m[2].matched ? m[2].str() : std::string();
+    t.map = m[3].str();
+    t.died = now;
+    t.respawnMs = static_cast<u32>(left * 1000);
+    t.server = true;
+    for (auto it = mvpTimers_.begin(); it != mvpTimers_.end();)  // replaces this MVP's timer (seen here or older)
+        if ((it->map == t.map && (it->name == t.name || (!it->server && now - it->died < 20))) ||
+            it->died + it->respawnMs / 1000 + 1800 < now)
+            it = mvpTimers_.erase(it);
+        else
+            ++it;
+    mvpTimers_.push_back(t);
+    mvpHidden_ = false;
+    mvpSave();
 }
 
 void GameScene::drawMvpTimers(Application& app) {
@@ -20229,6 +20273,12 @@ void GameScene::drawMvpTimers(Application& app) {
         const u32 col = left < 0 ? ui::rgba(150, 150, 150, 255) : left < 300 ? ui::rgba(255, 170, 90, 255)
                                                                             : ui::color::kWinText;
         font.draw(sb, x + 6.0f, ry, 0.9f, col, t->name + "  " + t->map);
+        if (!t->killer.empty() && in.hit(x, ry, w, rowH)) {  // who killed it: under the mouse
+            const std::string k = "by " + t->killer;
+            const float kw = font.width(k, 0.9f) + 10.0f;
+            ui::panel(sb, x - kw - 4.0f, ry - 2.0f, kw, rowH + 2.0f, ui::rgba(0, 0, 0, 200));
+            font.draw(sb, x - kw + 1.0f, ry, 0.9f, ui::rgba(255, 205, 80, 255), k);
+        }
         font.draw(sb, x + w - 8.0f - font.width(tb, 0.9f), ry, 0.9f, col, tb);
         ry += rowH;
     }

@@ -376,6 +376,12 @@ int Application::run(const AppConfig& cfg) {
             std::string t;
             char b[48];
             auto add = [&](const char* fmt, double v) { std::snprintf(b, sizeof(b), fmt, v); t += b; };
+            // the backend first, short: Vulkan / DX11 / DX12 / OpenGL / Metal (S. 2026-11-23)
+            {
+                std::string be = render_.rendererName();
+                if (be.rfind("Direct3D ", 0) == 0) be = "DX" + be.substr(9);
+                t += be + "  ";
+            }
             add("FPS %.0f", fps);
             if (cpu >= 0.0 && ovCpu0 >= 0.0) add("  CPU %.0f%%", (cpu - ovCpu0) / (ovSec * ovCores) * 100.0);
             if (cpuT >= 0.0) add(" %.0f\xC2\xB0" "C", cpuT);

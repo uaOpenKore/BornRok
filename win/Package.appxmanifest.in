@@ -11,14 +11,14 @@
     IgnorableNamespaces="uap rescap">
 
   <!-- Identity Name + Properties/DisplayName come from the Partner Center reservation and DIFFER per
-       Store product: S. registered the arm64 desktop build as its own product "BornRok-ARM". They're
+       Store product (2026-11-23: arm64 and x64 both go into the "PechSoft.UaRO" product; arm64 shows "Bornrok"). They're
        filled per-arch by CMake (_msix_identity_name / _msix_display_name), overridable with
        -DCLIENT_MSIX_IDENTITY_NAME / -DCLIENT_MSIX_DISPLAY_NAME. Publisher (CN) is shared across all
        products (its hash is the package-family suffix). -->
   <Identity Name="@_msix_identity_name@" Publisher="CN=61037DF1-57D4-495A-B98B-6932FE1F50C0" Version="@_msix_version@" ProcessorArchitecture="@_msix_arch@" />
 
   <Properties>
-    <!-- Reserved product name (per-arch): arm64 -> "BornRok-ARM". Must match Partner Center. -->
+    <!-- A reserved product name (per-arch: arm64 -> "Bornrok", x64 -> "UaRO"). Must match Partner Center. -->
     <DisplayName>@_msix_display_name@</DisplayName>
     <PublisherDisplayName>PechSoft</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>

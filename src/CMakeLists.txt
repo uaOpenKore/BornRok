@@ -898,8 +898,10 @@ if(MSVC AND NOT CLIENT_XBOX)
     # Each arch configures in its own build dir (build/win-arm64 vs build/win-msvc), so the per-arch
     # default lands in the right cache. (Publisher CN is shared -> same package-family hash.)
     if(_msix_arch STREQUAL "arm64")
-      set(_default_msix_identity "PechSoft.BornRok-ARM")
-      set(_default_msix_display  "BornRok-ARM")
+      # S. 2026-11-23: the arm64 package goes into the same Store product as x64 ("ожидается: PechSoft.UaRO"),
+      # shown as "Bornrok" ("BornRok-ARM" is not a reserved name there).
+      set(_default_msix_identity "PechSoft.UaRO")
+      set(_default_msix_display  "Bornrok")
     else()
       # x64 desktop Store product: Partner Center reservation identity = "PechSoft.UaRO"
       # (family PechSoft.UaRO_nq0prcg8y9840) — подтверждено ошибкой загрузки 2026-10-06
@@ -924,6 +926,13 @@ if(MSVC AND NOT CLIENT_XBOX)
       set(CLIENT_MSIX_IDENTITY_NAME "${_default_msix_identity}" CACHE STRING "" FORCE)
     endif()
     if(_msix_arch STREQUAL "x64" AND CLIENT_MSIX_DISPLAY_NAME STREQUAL "BornRok-HD")
+      set(CLIENT_MSIX_DISPLAY_NAME "${_default_msix_display}" CACHE STRING "" FORCE)
+    endif()
+    # arm64: the retired separate product "BornRok-ARM" (2026-11-23) -> the shared one
+    if(_msix_arch STREQUAL "arm64" AND CLIENT_MSIX_IDENTITY_NAME STREQUAL "PechSoft.BornRok-ARM")
+      set(CLIENT_MSIX_IDENTITY_NAME "${_default_msix_identity}" CACHE STRING "" FORCE)
+    endif()
+    if(_msix_arch STREQUAL "arm64" AND CLIENT_MSIX_DISPLAY_NAME STREQUAL "BornRok-ARM")
       set(CLIENT_MSIX_DISPLAY_NAME "${_default_msix_display}" CACHE STRING "" FORCE)
     endif()
     set(_msix_identity_name "${CLIENT_MSIX_IDENTITY_NAME}")

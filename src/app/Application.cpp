@@ -25,6 +25,9 @@
 #include "game/ViewerScene.hpp"
 #include "game/ViewerScene2D.hpp"
 #include "net/Socket.hpp"
+#include "formats/ImageIO.hpp"  // decodeImage (sprite pack quality detection)
+#include "formats/Spr.hpp"
+#include "resource/Zip.hpp"
 #include "patcher/PatchManifest.hpp"  // kDyeGuideDest
 #include "patcher/ContentQuality.hpp"  // contentPlatformId / isBakedTokenPlatform (no-patcher decision)
 #include "platform/FileSystem.hpp"
@@ -554,13 +557,45 @@ bool Application::reloadClientInfo() {
 // its .spr. 1k sprites dye through their own .spr -> no guide. Called on every content mount AND after the
 // config is read: the first mount runs before settings/game.cfg is parsed, so sprquality was still empty
 // there and a 2k client never got its guide (S. 2026-11-23: no stylist colour changed anything on 2k).
-void Application::applyDyeGuide() {
+void Application::applyDyeGuide(bool detect) {
     namespace stdfs = std::filesystem;
     std::error_code ec;
+    std::string guideFile;
+    for (const std::string& cd : contentDirs_)
+        if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guideFile = cd + "/" + kDyeGuideDest; break; }
+    // The client sets the sprite quality itself from the pack it actually has (S. 2026-11-23: "пусть клиент сам
+    // ставит нужные параметры"): the novice body is a .spr in a 1k pack, WebP frames in a 2k/4k one, and the
+    // WebP frame's width against the 1k guide's tells 2k from 4k (no guide: 2k, the only HD pack there is).
+    // Not when the player has just picked a quality in the settings: that choice is what the patcher fetches.
+    if (detect) {
+        const std::string nov = "data/sprite/\xc0\xce\xb0\xa3\xc1\xb7/\xb8\xf6\xc5\xeb/\xb3\xb2/"
+                                "\xc3\xca\xba\xb8\xc0\xda_\xb3\xb2";  // 인간족/몸통/남/초보자_남
+        std::string onDisk;
+        // WebP first: a mounted GRO.grf also has the classic .spr, which would read as a 1k pack
+        if (auto w = vfs_.readQuiet(nov + ".png.d/0.webp")) {
+            onDisk = "2k";
+            int hdW = 0, oneKW = 0;
+            if (auto img = decodeImage(*w); img && img->valid()) hdW = static_cast<int>(img->width);
+            if (!guideFile.empty()) {
+                ZipArchive z;
+                if (z.open(guideFile, [&](const std::string& n) { return n == nov + ".spr"; }))
+                    if (auto b = z.read(nov + ".spr"))
+                        if (auto spr = Sprite::parse(*b); spr && !spr->indexedFrames().empty())
+                            oneKW = spr->indexedFrames()[0].width;
+            }
+            if (hdW > 0 && oneKW > 0 && hdW >= oneKW * 3) onDisk = "4k";
+        } else if (vfs_.readQuiet(nov + ".spr")) {
+            onDisk = "1k";
+        }
+        if (!onDisk.empty() && onDisk != spriteQuality_) {
+            log::info("content: the sprite pack on disk is {} (the setting said '{}') -> sprite quality {}", onDisk,
+                      spriteQuality_, onDisk);
+            spriteQuality_ = onDisk;
+            saveConfig();
+        }
+    }
     std::string guide;
-    if (spriteQuality_ == "2k" || spriteQuality_ == "4k")
-        for (const std::string& cd : contentDirs_)
-            if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guide = cd + "/" + kDyeGuideDest; break; }
+    if (spriteQuality_ == "2k" || spriteQuality_ == "4k") guide = guideFile;
     if (guide == dyeGuideApplied_ && dyeGuideDone_) return;
     dyeGuideApplied_ = guide;
     dyeGuideDone_ = true;

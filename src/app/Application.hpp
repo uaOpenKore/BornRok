@@ -279,7 +279,7 @@ public:
     const std::string& textureQuality() const { return textureQuality_; }
     const std::string& spriteQuality() const { return spriteQuality_; }
     void setTextureQuality(const std::string& q) { textureQuality_ = q; saveConfig(); }
-    void setSpriteQuality(const std::string& q) { spriteQuality_ = q; saveConfig(); applyDyeGuide(); }
+    void setSpriteQuality(const std::string& q) { spriteQuality_ = q; saveConfig(); applyDyeGuide(false); }
 
     // General settings (#104). gameMode: 0 = Kbd+Mouse, 1 = TouchScreen, 2 = GamePad (UI layout).
     const std::string& language() const { return language_; }
@@ -358,7 +358,8 @@ private:
     int renderer_ = 0;
     int rendererStarted_ = 0;  // the code the device was started with
     void readEarlyConfig();
-    void applyDyeGuide();                  // the 1k dye guide for 2k/4k sprites (or none)
+    // the sprite quality of the pack on disk (detect) + the 1k dye guide for 2k/4k sprites (or none)
+    void applyDyeGuide(bool detect = true);
     std::vector<std::string> contentDirs_;  // the content folders of the last mount
     std::string dyeGuideApplied_;
     bool dyeGuideDone_ = false;

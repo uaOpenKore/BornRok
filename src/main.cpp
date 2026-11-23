@@ -25,6 +25,54 @@
 #include "core/Log.hpp"
 #include "platform/FileSystem.hpp"
 
+#if defined(_WIN32) && !defined(CLIENT_UWP) && !defined(CLIENT_CONSOLE)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <dbghelp.h>
+#include <cstdio>
+namespace {
+// A crash leaves a line in output_log.txt (the exception, the module + offset it happened in) and a minidump
+// beside it (BornRok_crash.dmp) instead of a silent exit (S. 2026-11-23: "игра вылетела", nothing logged).
+// dbghelp is loaded at the crash, so nothing extra is linked.
+LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
+    static volatile LONG once = 0;
+    if (InterlockedExchange(&once, 1)) return EXCEPTION_CONTINUE_SEARCH;
+    const EXCEPTION_RECORD* er = ep ? ep->ExceptionRecord : nullptr;
+    void* addr = er ? er->ExceptionAddress : nullptr;
+    char mod[MAX_PATH] = "?";
+    HMODULE hm = nullptr;
+    if (addr && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                   static_cast<LPCSTR>(addr), &hm))
+        GetModuleFileNameA(hm, mod, MAX_PATH);
+    const unsigned long long off = (hm && addr) ? static_cast<unsigned long long>(
+        reinterpret_cast<const char*>(addr) - reinterpret_cast<const char*>(hm)) : 0ull;
+    uaro::log::error("CRASH: exception 0x{:08x} at {} in '{}' +0x{:x} (BornRok {}) -- minidump BornRok_crash.dmp",
+                     er ? static_cast<unsigned>(er->ExceptionCode) : 0u, addr, mod, off, UARO_VERSION_STR);
+    const std::string dmp = uaro::fs::data_dir() + "/BornRok_crash.dmp";
+    if (HMODULE dbg = LoadLibraryA("dbghelp.dll")) {
+        using Fn = BOOL(WINAPI*)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
+                                 PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
+        if (auto write = reinterpret_cast<Fn>(GetProcAddress(dbg, "MiniDumpWriteDump"))) {
+            HANDLE f = CreateFileA(dmp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (f != INVALID_HANDLE_VALUE) {
+                MINIDUMP_EXCEPTION_INFORMATION mei{GetCurrentThreadId(), ep, FALSE};
+                write(GetCurrentProcess(), GetCurrentProcessId(), f,
+                      static_cast<MINIDUMP_TYPE>(MiniDumpWithThreadInfo | MiniDumpWithIndirectlyReferencedMemory),
+                      ep ? &mei : nullptr, nullptr, nullptr);
+                CloseHandle(f);
+            }
+        }
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+}  // namespace
+#endif
+
 #if defined(__ANDROID__)
 // On Android there is no console main: the SDL Java activity loads the .so and calls SDL_main.
 // Including SDL_main.h (with SDL_MAIN_HANDLED NOT defined for this TU) renames our main() to
@@ -51,6 +99,9 @@ int main(int argc, char** argv) {
     // stale/incremental build silently kept old .obj -> fixes "не изменились"). __DATE__/__TIME__ are the
     // COMPILE time of this TU, which a real rebuild always bumps.
     uaro::log::info("build: BornRok {} ({} {})", UARO_VERSION_STR, __DATE__, __TIME__);
+#if defined(_WIN32) && !defined(CLIENT_UWP) && !defined(CLIENT_CONSOLE)
+    SetUnhandledExceptionFilter(crashFilter);
+#endif
     // Show the exe dir vs the writable data dir up front: under a packaged (MSIX/Flatpak) install
     // these DIFFER (exe dir read-only), and the writable one is where the patcher downloads + where
     // the VFS must mount from. Decisive first line for "патчер скачал, но подключить не смог".

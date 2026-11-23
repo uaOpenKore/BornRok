@@ -3363,6 +3363,7 @@ void GameScene::drawGamepadPrompt(Application& app) {
     const float py = (static_cast<float>(lastViewH_) - ph) * 0.5f;
     ui::panel(sb, px, py, pw, ph, ui::rgba(20, 20, 28, 235));
     ui::border(sb, px, py, pw, ph, ui::rgba(120, 120, 140, 255));
+    uiBlockRects_.push_back({px, py, pw, ph});  // no click through the prompt (S. 2026-11-23: all windows)
     font.draw(sb, px + 14.0f, py + 12.0f, 1.1f, ui::color::kWinText, tr("pad.detected"));
     font.draw(sb, px + 14.0f, py + 32.0f, 1.1f, ui::color::kWinText, tr("pad.switch_prompt"));
     if (ui::button(sb, font, uin, px + 20.0f, py + ph - 34.0f, 130.0f, 26.0f, (tr("common.yes") + " (A)"), 1.1f)) {
@@ -9619,6 +9620,7 @@ void GameScene::drawStatusIcons(Application& app) {
             my >= static_cast<int>(y) && my < static_cast<int>(y + kIcon)) {
             hoverSi = si; hoverX = x; hoverY = y;
         }
+        uiBlockRects_.push_back({x, y, kIcon, kIcon});  // a click on a status icon is not a ground click
         x += kIcon + kGap;
     };
     bool anyDebuff = false;

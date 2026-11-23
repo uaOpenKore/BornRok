@@ -10913,7 +10913,7 @@ void GameScene::drawHotbar(Application& app) {
 
     // Activate a slot by its bound key. All 4 rows' binds work regardless of how many rows are
     // shown (the mode is just visual); ignored while typing in chat.
-    if (!chatFocused_ && !(inventoryOpen_ && invFilterFocus_) && !(storageOpen_ && storageFilterFocus_) &&
+    if (!chatFocused_ && !chatSearchFocused_ && !(inventoryOpen_ && invFilterFocus_) && !(storageOpen_ && storageFilterFocus_) &&
         bindEditIndex_ < 0 && in.hotkeyRow >= 0 && in.hotkeyRow < 5 && in.hotkeyCol >= 0 &&
         in.hotkeyCol < 12 &&
         !(app.session().walkMode && ((in.hotkeyRow == 1 && in.hotkeyCol == 1) ||       // W
@@ -11740,6 +11740,9 @@ void GameScene::update(Application& app, double dt) {
                         conn_.send(net::buildGlobalMessage(app.session().charName, line));
                 }
             }
+        } else if (chatSearchFocused_) {  // typing the chat search; Enter / Esc leave the field (the filter stays)
+            chatConsumedKey = true;
+            if (in.escape || chatSearch_.update(in, true)) chatSearchFocused_ = false;
         } else if (chatWhisperFocused_) {  // typing the whisper target; Enter jumps to the message
             chatConsumedKey = true;
             if (in.escape)
@@ -12155,7 +12158,7 @@ void GameScene::update(Application& app, double dt) {
     // of worldOctant, then stepped out in world space until it lands in the next cell (scale-agnostic).
     // Walk mode (S. 2026-11-23, after uaRO HD): ` / ё toggles it outside the chat (typing there types the
     // letter); while on, W A S D lead the character relative to the screen and are not hotbar keys.
-    if (in.keyGrave && !chatFocused_ && haveAuth_) {
+    if (in.keyGrave && !chatFocused_ && !chatSearchFocused_ && haveAuth_) {
         app.session().walkMode = !app.session().walkMode;
         chatLog_.push_back({app.session().walkMode ? "Walk mode ON: W A S D move the character (` to turn off)"
                                                    : "Walk mode OFF: W A S D are hotbar keys again",
@@ -12184,7 +12187,7 @@ void GameScene::update(Application& app, double dt) {
         // W A S D (walk mode): the screen direction -> the world direction whose projection on the screen is
         // closest to it (works with any camera orbit and the mirrored map).
         const int wsX = (in.dHeld ? 1 : 0) - (in.aHeld ? 1 : 0), wsY = (in.wHeld ? 1 : 0) - (in.sHeld ? 1 : 0);
-        const bool kbMove = app.session().walkMode && (wsX != 0 || wsY != 0) && !menuOpen_;
+        const bool kbMove = app.session().walkMode && (wsX != 0 || wsY != 0) && !menuOpen_ && !chatSearchFocused_;
         float kbDx = 0.0f, kbDz = 0.0f;
         if (kbMove) {
             const Vec4 c0 = lastVp_ * Vec4{playerPos_.x, playerPos_.y, playerPos_.z, 1.0f};
@@ -12611,8 +12614,23 @@ void GameScene::update(Application& app, double dt) {
                 // A press on the drag-grip strip above the log (which holds the move title + the resize
                 // corner) must NOT walk -- it starts a drag/resize in render(). The log body itself stays
                 // click-through for world targeting (S.), so only the grip strip blocks the press.
-                if (in.mousePressed && in.hit(fbx - 2.0f, areaY - gripH, fbw + 4.0f, gripH))
+                if (in.mousePressed && in.hit(fbx - 2.0f, areaY - gripH, fbw + 4.0f, gripH)) {
                     pointerOverUi_ = true;
+                    // the search field in the strip (keep in sync with the render)
+                    const bool onSearch = in.hit(fbx + 50.0f, areaY - gripH, fbw - 50.0f - 20.0f, gripH);
+                    chatSearchFocused_ = onSearch;
+                    if (onSearch) chatFocused_ = chatWhisperFocused_ = false;
+                }
+                // "[Item]" links in the log: the press is the chat's (no walk); the card opens on release
+                for (const ChatLink& l : chatLinks_)
+                    if (in.hit(l.x, l.y, l.w, l.h)) {
+                        if (in.mousePressed) pointerOverUi_ = true;
+                        if (in.mouseReleased) {
+                            descItemId_ = l.id;
+                            for (int k = 0; k < 4; ++k) descCards_[k] = 0;
+                        }
+                        break;
+                    }
                 if (chatMoving_ || chatResizing_) pointerOverUi_ = true;  // hold the world off mid-drag
             }
         }
@@ -13411,6 +13429,7 @@ bool GameScene::occProbe(std::unordered_map<u32, bgfx::OcclusionQueryHandle>& qu
 }
 
 void GameScene::render(Application& app) {
+    chatLinks_.clear();  // re-collected as the chat draws
     for (int k = 0; k < 5; ++k) {  // multi-select rows: this frame's drawn order becomes the one Shift+click uses
         multiOrder_[k].swap(multiOrderCur_[k]);
         multiOrderCur_[k].clear();
@@ -15606,9 +15625,13 @@ void GameScene::render(Application& app) {
             const float gripH = 14.0f, gripY = areaY - gripH, padW = 16.0f;
             ui::panel(sb, cbx - 2.0f, gripY, cbw + 4.0f, gripH, ui::rgba(40, 44, 58, 190));
             font.draw(sb, cbx + 2.0f, gripY + 1.0f, 0.95f, ui::color::kWinText, tr("common.chat"));
-            // Move: grab the strip (minus the resize pad) and follow the cursor.
+            const float srX = cbx + 50.0f, srW = cbw - 50.0f - padW - 4.0f;  // the search field (S. 2026-11-23)
+            chatSearch_.maxLen = 32;
+            chatSearch_.draw(sb, font, srX, gripY, srW, gripH, chatSearchFocused_, time_,
+                             chatSearchFocused_ ? "" : "search...");
+            // Move: grab the strip (minus the resize pad and the search field) and follow the cursor.
             if (draggingWin_ < 0 && resizingWin_ < 0 && !chatResizing_ && uin.mousePressed &&
-                uin.hit(cbx - 2.0f, gripY, cbw + 4.0f - padW, gripH)) {
+                uin.hit(cbx - 2.0f, gripY, cbw + 4.0f - padW, gripH) && !uin.hit(srX, gripY, srW, gripH)) {
                 chatMoving_ = true;
                 chatGrabX_ = static_cast<float>(uin.mouseX) - chatBarX_;
                 chatGrabY_ = static_cast<float>(uin.mouseY) - chatBarY_;
@@ -15674,11 +15697,19 @@ void GameScene::render(Application& app) {
             }
             mixKey(&maxTextW, sizeof(maxTextW));
             mixKey(&sc, sizeof(sc));
+            auto lowerA = [](std::string v) {
+                for (char& c : v)
+                    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+                return v;
+            };
+            const std::string filt = lowerA(chatSearch_.value);
+            mixKey(filt.data(), filt.size());
             if (wrapKey != chatWrapKey_) {
                 chatWrapKey_ = wrapKey;
                 std::vector<ChatLine>& wrapped = chatWrapped_;
                 wrapped.clear();
                 for (const auto& src : chatLog_) {
+                    if (!filt.empty() && lowerA(src.text).find(filt) == std::string::npos) continue;  // search
                     std::string cur, word;
                     auto flush = [&]() {
                         if (word.empty()) return;
@@ -15718,7 +15749,20 @@ void GameScene::render(Application& app) {
                 const int idx = end - kVis + i;
                 if (idx < 0 || idx >= total) continue;
                 const ChatLine& wl = wrapped[static_cast<usize>(idx)];
-                drawOutlined(cbx + 4.0f, areaY + 2.0f + static_cast<float>(i) * lineH, wl.text, wl.color);
+                const float ly = areaY + 2.0f + static_cast<float>(i) * lineH;
+                drawOutlined(cbx + 4.0f, ly, wl.text, wl.color);
+                // "[Item name]" -> a link to the item's card (underlined, brighter under the mouse)
+                for (usize p = wl.text.find('['); p != std::string::npos; p = wl.text.find('[', p + 1)) {
+                    const usize q = wl.text.find(']', p + 1);
+                    if (q == std::string::npos) break;
+                    const u32 id = app.itemDb().idByName(wl.text.substr(p + 1, q - p - 1));
+                    if (id == 0) continue;
+                    const float lx = cbx + 4.0f + font.width(wl.text.substr(0, p), sc);
+                    const float lw = font.width(wl.text.substr(p, q - p + 1), sc);
+                    const bool lh = uin.hit(lx, ly, lw, lineH);
+                    sb.draw(lx, ly + lineH - 3.0f, lw, 1.0f, lh ? ui::rgba(255, 230, 120, 255) : ui::rgba(200, 200, 120, 200));
+                    chatLinks_.push_back({lx, ly, lw, lineH, id});
+                }
             }
             if (maxScroll > 0) {  // a thin scrollbar when the log overflows (wheel above; drag = touch)
                 const float trkX = cbx + cbw - 6.0f;

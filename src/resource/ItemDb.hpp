@@ -35,6 +35,10 @@ public:
     // Card-slot count for an item (data/itemslotcounttable.txt), or 0 if unslotted/unknown.
     int slots(u32 id) const;
 
+    // The id of the item with this display name (case-insensitive, a trailing " [N]" ignored), or 0. For the
+    // "[Item]" links in chat (S. 2026-11-23).
+    u32 idByName(const std::string& name) const;
+
     // VFS path of the item's small inventory-icon BMP
     // (data/texture/<유저인터페이스>/item/<resname>.bmp), or "" if the resname is
     // unknown. The bytes are magenta-keyed like the rest of RO's UI bitmaps.
@@ -78,7 +82,8 @@ private:
     std::unordered_map<u32, std::string> names_;  // id -> display name (spaces)
     std::unordered_map<u32, std::string> res_;    // id -> icon/sprite resource name (EUC-KR)
     std::unordered_map<u32, std::string> desc_;   // id -> multi-line description (raw colour codes)
-    std::unordered_map<u32, int> slots_;          // id -> card-slot count (itemslotcounttable.txt)
+    std::unordered_map<u32, int> slots_;
+    mutable std::unordered_map<std::string, u32> byName_;  // lower-case name -> id (built on first use)          // id -> card-slot count (itemslotcounttable.txt)
     std::unordered_map<u32, std::string> cardPrefix_;   // cardId -> prefix word (cardprefixnametable.txt)
 };
 

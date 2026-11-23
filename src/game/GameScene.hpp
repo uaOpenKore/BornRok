@@ -1243,6 +1243,12 @@ private:
     void addWhisperName(const std::string& name);  // push a PM partner to the front of the history
     ui::TextField chatWhisperField_;    // bottom-bar whisper target; non-empty -> messages go as PMs
     bool chatWhisperFocused_ = false;   // the whisper-name field has keyboard focus (vs the message)
+    // Chat search (S. 2026-11-23, from uaRO HD): a field in the chat's title strip; while it has text only the
+    // lines containing it are shown. And "[Item name]" in a line is a link that opens the item's card.
+    ui::TextField chatSearch_;
+    bool chatSearchFocused_ = false;
+    struct ChatLink { float x, y, w, h; u32 id; };
+    std::vector<ChatLink> chatLinks_;   // the links drawn last frame (the press is taken in update)
 
     // NPC merchant shop. ZC_SELECT_DEALTYPE opens the buy/sell chooser; the chosen mode
     // shows the buy or sell list with a per-row quantity. Modal like the NPC dialog.

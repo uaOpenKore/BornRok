@@ -212,6 +212,23 @@ std::string ItemDb::nameWithCards(u32 id, const u16 cards[4]) const {
     return out;
 }
 
+static std::string lowerAscii(std::string s) {
+    for (char& c : s)
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return s;
+}
+
+u32 ItemDb::idByName(const std::string& name) const {
+    if (byName_.empty())
+        for (const auto& [id, nm] : names_)
+            if (!nm.empty()) byName_.emplace(lowerAscii(nm), id);  // the first id of a name wins
+    std::string k = name;
+    if (const auto b = k.rfind(" ["); b != std::string::npos && !k.empty() && k.back() == ']') k.resize(b);
+    while (!k.empty() && k.back() == ' ') k.pop_back();
+    const auto it = byName_.find(lowerAscii(k));
+    return it != byName_.end() ? it->second : 0;
+}
+
 int ItemDb::slots(u32 id) const {
     const auto it = slots_.find(id);
     return (it != slots_.end()) ? it->second : 0;

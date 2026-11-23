@@ -512,6 +512,12 @@ void Application::mountGameData() {
     if (spriteQuality_ == "2k" || spriteQuality_ == "4k")
         for (const std::string& cd : contentDirs)
             if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guide = cd + "/" + kDyeGuideDest; break; }
+    // say why dyes do not show on WebP sprites (S. 2026-11-23: 2k, every stylist palette, no change, nothing logged)
+    if (guide.empty())
+        log::info("dye: sprite quality '{}'{}", spriteQuality_,
+                  (spriteQuality_ == "2k" || spriteQuality_ == "4k")
+                      ? std::string(" but no dye guide (content/") + kDyeGuideDest + ") -- hair/clothes dyes cannot show"
+                      : std::string(" -> dyes from the sprites' own .spr palettes"));
     CharacterActor::setDyeGuide(guide);
     for (usize c = 0; c < kContentCategories; ++c)
         vfs_.setContentMode(static_cast<ContentCategory>(c), contentModes_[c]);

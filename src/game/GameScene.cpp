@@ -18700,14 +18700,16 @@ void GameScene::render(Application& app) {
             winBlock(bx, by, bw, bh);
             float ty = by + kSkinTitleH + 6.0f;
             // tabs + search
-            for (int t = 0; t < 2; ++t) {
-                const float tx = bx + 8.0f + t * 92.0f;
-                if (ui::button(sb, font, uin, tx, ty, 88.0f, 24.0f, t == 0 ? "Monsters" : "Items", 1.05f, true) && refTab_ != t) {
+            static const char* const kTabs[4] = {"Monsters", "Items", "Locations", "Elements"};
+            for (int t = 0; t < 4; ++t) {
+                const float tx = bx + 8.0f + t * 84.0f;
+                if (ui::button(sb, font, uin, tx, ty, 80.0f, 24.0f, kTabs[t], 1.0f, true) && refTab_ != t) {
                     refTab_ = t; refScroll_ = 0.0f; refSel_ = 0;
+                    if (t == 2 && refMap_.empty()) refMap_ = mapBase_;
                 }
-                if (refTab_ == t) sb.draw(tx, ty + 23.0f, 88.0f, 2.0f, ui::rgba(243, 198, 83, 255));
+                if (refTab_ == t) sb.draw(tx, ty + 23.0f, 80.0f, 2.0f, ui::rgba(243, 198, 83, 255));
             }
-            const float sx0 = bx + 200.0f, sw0 = bw - 208.0f;
+            const float sx0 = bx + 350.0f, sw0 = bw - 358.0f;
             if (uin.mousePressed) refSearchFocused_ = uin.hit(sx0, ty, sw0, 24.0f);
             refSearch_.maxLen = 30;
             refSearch_.draw(sb, font, sx0, ty, sw0, 24.0f, refSearchFocused_, time_,
@@ -18720,7 +18722,25 @@ void GameScene::render(Application& app) {
             const std::string q = lowerA(refSearch_.value);
             const u32 qid = static_cast<u32>(std::strtoul(refSearch_.value.c_str(), nullptr, 10));
             std::vector<u32> rows;
-            if (refTab_ == 0) {
+            static std::size_t nNpc = 0, nWarp = 0;
+            static const ref::Npc* kN = ref::npcs(nNpc);
+            static const ref::Warp* kW = ref::warps(nWarp);
+            static const std::vector<std::string> kMaps = [&] {  // every map the data knows, sorted
+                std::vector<std::string> v;
+                for (std::size_t i = 0; i < nNpc; ++i) v.push_back(kN[i].map);
+                for (std::size_t i = 0; i < nWarp; ++i) { v.push_back(kW[i].map); v.push_back(kW[i].to); }
+                for (std::size_t i = 0; i < nMob; ++i)
+                    for (int k = 0; k < kM[i].spawnN; ++k) v.push_back(ref::spawns()[kM[i].spawn0 + k].map);
+                std::sort(v.begin(), v.end());
+                v.erase(std::unique(v.begin(), v.end()), v.end());
+                return v;
+            }();
+            if (refTab_ == 2) {
+                for (u32 i = 0; i < kMaps.size(); ++i)
+                    if (q.empty() || lowerA(kMaps[i]).find(q) != std::string::npos) rows.push_back(i);
+            } else if (refTab_ == 3) {
+                // the element table has no list
+            } else if (refTab_ == 0) {
                 for (std::size_t i = 0; i < nMob; ++i) {
                     const ref::Mob& m = kM[i];
                     if (m.spawnN == 0 && q.empty()) continue;  // without a search: only the monsters in the world
@@ -18749,14 +18769,19 @@ void GameScene::render(Application& app) {
                 const u32 id = rows[static_cast<usize>(i)];
                 std::string lbl;
                 if (refTab_ == 0) { const ref::Mob* m = findMob(id); lbl = "Lv." + std::to_string(m->lv) + "  " + m->name; }
+                else if (refTab_ == 2) lbl = kMaps[id] + (kMaps[id] == mapBase_ ? "  (here)" : "");
                 else lbl = itemLabel(id);
                 const bool hov = uin.hit(listX, ry, listW, rowH);
-                if (id == refSel_) ui::panel(sb, listX + 1.0f, ry, listW - 2.0f, rowH, ui::rgba(243, 198, 83, 70));
+                const bool sel = refTab_ == 2 ? kMaps[id] == refMap_ : id == refSel_;
+                if (sel) ui::panel(sb, listX + 1.0f, ry, listW - 2.0f, rowH, ui::rgba(243, 198, 83, 70));
                 else if (hov) ui::panel(sb, listX + 1.0f, ry, listW - 2.0f, rowH, ui::rgba(255, 255, 255, 25));
                 font.draw(sb, listX + 5.0f, ry + 2.0f, 0.95f, ui::color::kWinText, lbl);
-                if (hov && uin.mousePressed) { refSel_ = id; refCardScroll_ = 0.0f; }
+                if (hov && uin.mousePressed) {
+                    if (refTab_ == 2) refMap_ = kMaps[id]; else refSel_ = id;
+                    refCardScroll_ = 0.0f;
+                }
             }
-            if (rows.empty()) font.draw(sb, listX + 6.0f, listTop + 6.0f, 1.0f, ui::color::kWinTextDim, "Nothing found");
+            if (rows.empty() && refTab_ != 3) font.draw(sb, listX + 6.0f, listTop + 6.0f, 1.0f, ui::color::kWinTextDim, "Nothing found");
             // the card
             float cy2 = listTop - refCardScroll_;
             const float cardTop = listTop, cardBot = listBot;
@@ -18770,7 +18795,101 @@ void GameScene::render(Application& app) {
                 cy2 += 16.0f * sc + 2.0f;
             };
             const u32 tc = ui::color::kWinText, dim = ui::color::kWinTextDim, gold = ui::rgba(243, 198, 83, 255);
-            if (refSel_ == 0) {
+            if (refTab_ == 2) {
+                // ---- a location: the way from here, monsters, NPCs, warps
+                const std::string& mp = refMap_;
+                line(mp.empty() ? "Pick a map on the left." : mp, gold, 1.3f);
+                if (!mp.empty()) {
+                    // the route from the map we stand on: breadth-first over the warps
+                    if (!mapBase_.empty() && mp != mapBase_) {
+                        std::unordered_map<std::string, std::string> from;
+                        std::vector<std::string> todo{mapBase_};
+                        from[mapBase_] = "";
+                        for (std::size_t h = 0; h < todo.size() && !from.count(mp); ++h) {
+                            const std::string cur = todo[h];
+                            const ref::Warp* lo = std::lower_bound(kW, kW + nWarp, cur,
+                                [](const ref::Warp& w, const std::string& v) { return std::strcmp(w.map, v.c_str()) < 0; });
+                            for (const ref::Warp* w = lo; w < kW + nWarp && cur == w->map; ++w)
+                                if (!from.count(w->to)) { from[w->to] = cur; todo.push_back(w->to); }
+                        }
+                        if (from.count(mp)) {
+                            std::vector<std::string> path;
+                            for (std::string at = mp; !at.empty(); at = from[at]) path.push_back(at);
+                            std::string r = "Route: ";
+                            for (auto it2 = path.rbegin(); it2 != path.rend(); ++it2) r += (it2 == path.rbegin() ? "" : " > ") + *it2;
+                            line(r + "   (" + std::to_string(path.size() - 1) + " warps)", tc);
+                        } else {
+                            line("No walking route from " + mapBase_ + " (Kafra / NPC teleport only)", dim);
+                        }
+                    }
+                    cy2 += 6.0f;
+                    line("Monsters (click: the monster)", gold);
+                    bool anyM = false;
+                    for (std::size_t i = 0; i < nMob; ++i)
+                        for (int k = 0; k < kM[i].spawnN; ++k) {
+                            const ref::Spawn& sp = ref::spawns()[kM[i].spawn0 + k];
+                            if (mp != sp.map) continue;
+                            anyM = true;
+                            std::string s = "  " + std::string(kM[i].name) + " (Lv." + std::to_string(kM[i].lv) + ")  x" + std::to_string(sp.count);
+                            if (kM[i].mvp) s += "  [MVP]";
+                            line(s, kM[i].mvp ? gold : tc, 1.0f, 0, kM[i].id);
+                        }
+                    if (!anyM) line("  none", dim);
+                    cy2 += 6.0f;
+                    line("NPCs", gold);
+                    bool anyN = false;
+                    for (std::size_t i = 0; i < nNpc; ++i)
+                        if (mp == kN[i].map) {
+                            anyN = true;
+                            line("  " + std::string(kN[i].name) + "  (" + std::to_string(kN[i].x) + ", " + std::to_string(kN[i].y) + ")" +
+                                     (kN[i].kind == 1 ? "  shop" : ""),
+                                 kN[i].kind == 1 ? ui::rgba(150, 220, 150, 255) : tc);
+                        }
+                    if (!anyN) line("  none", dim);
+                    cy2 += 6.0f;
+                    line("Warps (click: the map)", gold);
+                    std::vector<std::string> tos;
+                    for (std::size_t i = 0; i < nWarp; ++i)
+                        if (mp == kW[i].map && mp != kW[i].to && std::find(tos.begin(), tos.end(), kW[i].to) == tos.end()) {
+                            tos.push_back(kW[i].to);
+                            const float yb = cy2;
+                            line("  > " + std::string(kW[i].to), tc);
+                            if (yb >= cardTop - 2.0f && yb + 16.0f <= cardBot && uin.hit(cardX, yb, cardW, 16.0f) && uin.mousePressed) {
+                                refMap_ = kW[i].to;
+                                refCardScroll_ = 0.0f;
+                            }
+                        }
+                    if (tos.empty()) line("  none", dim);
+                }
+            } else if (refTab_ == 3) {
+                // ---- the element table: attack element (rows) on a defense element of the chosen level (columns)
+                line("Damage % by element (attack: rows, target: columns)", gold, 1.1f);
+                for (int lv = 1; lv <= 4; ++lv) {
+                    const float lx = cardX + 300.0f + (lv - 1) * 34.0f;
+                    if (ui::button(sb, font, uin, lx, cardTop, 30.0f, 20.0f, ("Lv" + std::to_string(lv)).c_str(), 0.85f, true)) refEleLv_ = lv;
+                    if (refEleLv_ == lv) sb.draw(lx, cardTop + 19.0f, 30.0f, 2.0f, gold);
+                }
+                cy2 += 6.0f;
+                static const char* const kE3[10] = {"Neu", "Wat", "Ear", "Fir", "Win", "Poi", "Hol", "Sha", "Gho", "Und"};
+                const float cw0 = 34.0f, ch0 = 20.0f, gx0 = cardX + 36.0f;
+                for (int d = 0; d < 10; ++d) font.draw(sb, gx0 + d * cw0 + 4.0f, cy2, 0.85f, dim, kE3[d]);
+                cy2 += ch0;
+                for (int a = 0; a < 10; ++a) {
+                    font.draw(sb, cardX, cy2 + 3.0f, 0.85f, dim, kE3[a]);
+                    for (int d = 0; d < 10; ++d) {
+                        const int v = ref::attrFix(refEleLv_, a, d);
+                        const u32 bg = v > 100 ? ui::rgba(170, 60, 50, static_cast<u8>(std::min(220, 60 + (v - 100) * 2)))
+                                       : v < 100 ? ui::rgba(50, 90, 170, static_cast<u8>(std::min(220, 60 + (100 - v) * 2)))
+                                                 : ui::rgba(255, 255, 255, 18);
+                        ui::panel(sb, gx0 + d * cw0, cy2, cw0 - 2.0f, ch0 - 2.0f, bg);
+                        const std::string vs = std::to_string(v);
+                        font.draw(sb, gx0 + d * cw0 + (cw0 - 2.0f - font.width(vs, 0.85f)) * 0.5f, cy2 + 3.0f, 0.85f, tc, vs);
+                    }
+                    cy2 += ch0;
+                }
+                cy2 += 6.0f;
+                line("Red: more damage, blue: less, 0 or below: none / heals.", dim);
+            } else if (refSel_ == 0) {
                 line(refTab_ == 0 ? "Pick a monster on the left." : "Pick an item on the left.", dim);
                 line("Ctrl+F opens this window. Search by name or by id.", dim);
             } else if (refTab_ == 0) {
@@ -18801,7 +18920,13 @@ void GameScene::render(Application& app) {
                     for (int k = 0; k < m->spawnN; ++k) {
                         std::string s = std::string("  ") + sp[k].map + "  x" + std::to_string(sp[k].count);
                         if (sp[k].delayMs >= 60000) s += "   respawn " + std::to_string(sp[k].delayMs / 60000) + " min";
+                        const float yb = cy2;
                         line(s, tc);
+                        if (yb >= cardTop - 2.0f && yb + 16.0f <= cardBot && uin.hit(cardX, yb, cardW, 16.0f) && uin.mousePressed) {
+                            refTab_ = 2;  // the location: route, NPCs
+                            refMap_ = sp[k].map;
+                            refCardScroll_ = 0.0f;
+                        }
                     }
                 }
             } else {

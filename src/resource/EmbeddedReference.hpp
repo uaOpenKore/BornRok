@@ -28,6 +28,12 @@ struct Item {
     std::uint8_t elv;
 };
 
+struct Npc { const char* map; const char* name; std::uint16_t x, y; std::uint8_t kind; };   // kind 1 = shop
+struct Warp { const char* map; std::uint16_t x, y; const char* to; std::uint16_t tx, ty; };  // sorted by map
+const Npc* npcs(std::size_t& n);
+const Warp* warps(std::size_t& n);
+// attr_fix: damage % of an attack element on a defense element of level 1..4 (elements 0..9)
+int attrFix(int level, int atk, int def);
 const Mob* mobs(std::size_t& n);
 const Item* items(std::size_t& n);
 const Drop* drops();

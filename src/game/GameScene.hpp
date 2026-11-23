@@ -830,7 +830,9 @@ private:
     // Reference (Ctrl+F, S. 2026-11-23 after uaRO HD's «Довідник»): monsters and items from the server's db,
     // drops with chances, where a monster lives, who drops an item (resource/EmbeddedReference.cpp).
     bool refOpen_ = false;
-    int refTab_ = 0;               // 0 monsters, 1 items
+    int refTab_ = 0;               // 0 monsters, 1 items, 2 locations, 3 elements
+    std::string refMap_;           // selected location (tab 2)
+    int refEleLv_ = 1;             // the element table's defense level (tab 3)
     u32 refSel_ = 0;               // selected mob / item id
     float refScroll_ = 0.0f, refCardScroll_ = 0.0f;
     ui::TextField refSearch_;

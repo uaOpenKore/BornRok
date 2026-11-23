@@ -60,6 +60,11 @@ for name in ("db/item_db.txt", "db/item_db2.txt"):
                                 w=num(f[6]), atk=num(f[7]), df=num(f[8]), slots=num(f[10]), elv=num(f[16]))
 
 spawns = {}  # mob -> {map: [count, delay]}
+npcs = []     # (map, name, x, y, kind 0 npc / 1 shop)
+warps = []    # (map, x, y, to, tx, ty)
+def npc_name(n):
+    n = n.split("::")[0]
+    return n.split("#")[0].strip()
 seen = set()
 def load_conf(path):
     if path in seen or not os.path.exists(os.path.join(root, path)):
@@ -80,6 +85,19 @@ def load_npc(path):
         if line.lstrip().startswith("//"):
             continue
         parts = [x for x in line.rstrip("\r\n").split("\t") if x != ""]
+        if len(parts) >= 4 and parts[1] == "warp":
+            a, b = parts[0].split(","), parts[3].split(",")
+            if len(a) >= 3 and len(b) >= 5:
+                warps.append((a[0].replace(".gat", "").strip(), num(a[1]), num(a[2]), b[2].replace(".gat", "").strip(), num(b[3]), num(b[4])))
+            continue
+        if len(parts) >= 4 and (parts[1] in ("script", "shop", "cashshop") or parts[1].startswith("duplicate(")):
+            a = parts[0].split(",")
+            spr = parts[3].split(",")[0].strip()
+            if len(a) >= 3 and a[0] != "-" and spr.lstrip("-").isdigit() and int(spr) not in (-1, 111, 139):
+                nm = npc_name(parts[2])
+                if nm:
+                    npcs.append((a[0].replace(".gat", "").strip(), nm, num(a[1]), num(a[2]), 0 if parts[1] in ("script",) or parts[1].startswith("duplicate(") else 1))
+            continue
         if len(parts) < 4 or parts[1] not in ("monster", "boss_monster"):
             continue
         mp = parts[0].split(",")[0].replace(".gat", "").strip()
@@ -93,6 +111,20 @@ def load_npc(path):
         e[1] = max(e[1], d)
 load_conf("npc/scripts_main.conf")
 
+# element table: attr_fix.txt, 4 levels x 10 x 10 (rows = attack element, columns = defense element)
+attr = []
+p = os.path.join(root, "db/attr_fix.txt")
+if os.path.exists(p):
+    for line in open(p, encoding="utf-8", errors="replace"):
+        s2 = line.split("//")[0].strip()
+        if not s2 or "\t" in line.split("//")[0] and re.match(r"^\d+,\d+", s2):
+            continue
+        vals = [v for v in s2.replace(" ", "").split(",") if v != ""]
+        if len(vals) == 10 and all(v.lstrip("-").isdigit() for v in vals):
+            attr.extend(int(v) for v in vals)
+attr = (attr + [100] * 400)[:400]
+npcs.sort()
+warps.sort()
 mob_ids = sorted(mobs)
 item_ids = sorted(items)
 with open(OUT, "w", encoding="utf-8") as o:
@@ -126,8 +158,21 @@ with open(OUT, "w", encoding="utf-8") as o:
         o.write("    {%d, %s, %d, %d, %d, %d, %d, %d, %d, %d},\n" % (iid, cstr(it["name"]), it["type"], it["buy"],
                 it["sell"], it["w"], it["atk"], it["df"], it["slots"], it["elv"]))
     o.write("};\n\n")
+    o.write("static const Npc kNpcs[] = {\n")
+    for mp, nm, x, y, k in npcs:
+        o.write("    {%s, %s, %d, %d, %d},\n" % (cstr(mp), cstr(nm), x, y, k))
+    o.write('    {"", "", 0, 0, 0}};\nstatic const Warp kWarps[] = {\n')
+    for mp, x, y, to, tx, ty in warps:
+        o.write("    {%s, %d, %d, %s, %d, %d},\n" % (cstr(mp), x, y, cstr(to), tx, ty))
+    o.write('    {"", 0, 0, "", 0, 0}};\nstatic const short kAttr[400] = {\n')
+    for i in range(0, 400, 20):
+        o.write("    " + ", ".join(str(v) for v in attr[i:i + 20]) + ",\n")
+    o.write("};\n\n")
+    o.write("const Npc* npcs(std::size_t& n) { n = sizeof(kNpcs) / sizeof(kNpcs[0]) - 1; return kNpcs; }\n")
+    o.write("const Warp* warps(std::size_t& n) { n = sizeof(kWarps) / sizeof(kWarps[0]) - 1; return kWarps; }\n")
+    o.write("int attrFix(int level, int atk, int def) { return kAttr[((level - 1) * 10 + atk) * 10 + def]; }\n")
     o.write("const Mob* mobs(std::size_t& n) { n = sizeof(kMobs) / sizeof(kMobs[0]); return kMobs; }\n")
     o.write("const Item* items(std::size_t& n) { n = sizeof(kItems) / sizeof(kItems[0]); return kItems; }\n")
     o.write("const Drop* drops() { return kDrops; }\n")
     o.write("const Spawn* spawns() { return kSpawns; }\n\n}  // namespace uaro::ref\n")
-print("%s: %d monsters, %d spawned, %d items" % (OUT, len(mob_ids), len(spawns), len(item_ids)))
+print("%s: %d monsters, %d spawned, %d items, %d npcs, %d warps, attr %s" % (OUT, len(mob_ids), len(spawns), len(item_ids), len(npcs), len(warps), attr[:10]))

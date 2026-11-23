@@ -2294,12 +2294,6 @@ void GameScene::initOverlayPass(Application& app) {
 #if defined(__ANDROID__)
     feetOcclusionOk_ = false;
 #endif
-    // OFF on Vulkan too (S. 2026-11-23, AMD crash dumps 0.0.83-0.0.93: amdvlk64 in vkUpdateDescriptorSets from
-    // RendererContextVK::getDescriptorSet). bgfx before 2026-10-23 (bkaradzic/bgfx#4083, fixed in #4085; vcpkg's
-    // 1.129.8940 is older): reading occlusion queries kicks the command list mid-frame, so some frames-in-flight's
-    // descriptor pools are never reset, fill up, and the null descriptor set crashes the driver. The more draws
-    // a frame has (the water-reflection pass doubles the world), the sooner it happens.
-    if (bgfx::getRendererType() == bgfx::RendererType::Vulkan) feetOcclusionOk_ = false;
     log::info("game: feet-occlusion {}", feetOcclusionOk_ ? "enabled" : "off (plain depth)");
 }
 

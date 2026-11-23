@@ -781,8 +781,9 @@ public:
                     if (selOpen_ < 0 &&
                         ui::button(sb, font, uin, cx + cw - 90.0f, rowY - 2.0f, 90.0f, 24.0f,
                                    eff.c_str(), 1.1f))
-                        // cycle 1k -> 2k -> 4k -> 1k (S.: вернуть x2 тир), persisted
-                        (app.*setter)(eff == "1k" ? "2k" : eff == "2k" ? "4k" : "1k");
+                        // cycle 1k -> 2k -> 4k -> 1k (S.: вернуть x2 тир), persisted; sprites only 1k <-> 2k: there is
+                        // no 4k sprite pack (S. 2026-11-23: "убери из спрайтов 4к вариант")
+                        (app.*setter)(eff == "1k" ? "2k" : (eff == "2k" && !isSprite) ? "4k" : "1k");
                 };
                 qualityRow(0, tr("set.texture"), app.textureQuality(), /*isSprite=*/false, &Application::setTextureQuality);
                 qualityRow(1, tr("set.sprite"), app.spriteQuality(), /*isSprite=*/true, &Application::setSpriteQuality);

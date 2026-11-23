@@ -25,9 +25,6 @@
 #include "game/ViewerScene.hpp"
 #include "game/ViewerScene2D.hpp"
 #include "net/Socket.hpp"
-#include "formats/ImageIO.hpp"  // decodeImage (sprite pack quality detection)
-#include "formats/Spr.hpp"
-#include "resource/Zip.hpp"
 #include "patcher/PatchManifest.hpp"  // kDyeGuideDest
 #include "patcher/ContentQuality.hpp"  // contentPlatformId / isBakedTokenPlatform (no-patcher decision)
 #include "platform/FileSystem.hpp"
@@ -564,26 +561,16 @@ void Application::applyDyeGuide(bool detect) {
     for (const std::string& cd : contentDirs_)
         if (stdfs::exists(cd + "/" + kDyeGuideDest, ec)) { guideFile = cd + "/" + kDyeGuideDest; break; }
     // The client sets the sprite quality itself from the pack it actually has (S. 2026-11-23: "пусть клиент сам
-    // ставит нужные параметры"): the novice body is a .spr in a 1k pack, WebP frames in a 2k/4k one, and the
-    // WebP frame's width against the 1k guide's tells 2k from 4k (no guide: 2k, the only HD pack there is).
+    // ставит нужные параметры"): the novice body is a .spr in a 1k pack, WebP frames in the 2k one (there is no
+    // 4k sprite pack).
     // Not when the player has just picked a quality in the settings: that choice is what the patcher fetches.
     if (detect) {
         const std::string nov = "data/sprite/\xc0\xce\xb0\xa3\xc1\xb7/\xb8\xf6\xc5\xeb/\xb3\xb2/"
                                 "\xc3\xca\xba\xb8\xc0\xda_\xb3\xb2";  // 인간족/몸통/남/초보자_남
         std::string onDisk;
         // WebP first: a mounted GRO.grf also has the classic .spr, which would read as a 1k pack
-        if (auto w = vfs_.readQuiet(nov + ".png.d/0.webp")) {
-            onDisk = "2k";
-            int hdW = 0, oneKW = 0;
-            if (auto img = decodeImage(*w); img && img->valid()) hdW = static_cast<int>(img->width);
-            if (!guideFile.empty()) {
-                ZipArchive z;
-                if (z.open(guideFile, [&](const std::string& n) { return n == nov + ".spr"; }))
-                    if (auto b = z.read(nov + ".spr"))
-                        if (auto spr = Sprite::parse(*b); spr && !spr->indexedFrames().empty())
-                            oneKW = spr->indexedFrames()[0].width;
-            }
-            if (hdW > 0 && oneKW > 0 && hdW >= oneKW * 3) onDisk = "4k";
+        if (vfs_.readQuiet(nov + ".png.d/0.webp")) {
+            onDisk = "2k";  // the HD (WebP) pack; there is no 4k sprite pack (S. 2026-11-23)
         } else if (vfs_.readQuiet(nov + ".spr")) {
             onDisk = "1k";
         }
@@ -670,6 +657,7 @@ void Application::loadConfig() {
                     // 2k choice silently revert to the 1k default on the next launch (S. 2026-08-06:
                     // "меняю качество - выхожу - захожу и всё равно 1k").
                     if (val != "1k" && val != "2k" && val != "4k") val.clear();  // legacy/garbage -> platform default
+                    if (key == "sprquality" && val == "4k") val = "2k";  // no 4k sprite pack (S. 2026-11-23)
                     (key == "texquality" ? textureQuality_ : spriteQuality_) = val;
                 }
                 continue;

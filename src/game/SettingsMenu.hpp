@@ -152,7 +152,7 @@ public:
         // Scale and God Rays toggles below its dropdowns).
         const float bodyH = panel_ == 0   ? static_cast<float>(rootCount) * 40.0f
                             : panel_ == 1 ? 3 * 46.0f + 44.0f
-                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 25 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size + Character Dye. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
+                            : panel_ == 2 ? 5 * rowH + 2 * 46.0f + 26 * 34.0f + 84.0f  // + Bloom + AO + Normals + 2 interp + Water Reflect + Grass + Grass Wind + Grass Flowers + LOD + 4 ambient FX + Butterflies + Dust Motes + Water Ripples + Water Trails + xBR + MSAA + Texture Size + Character Dye. Back-button clearance padded (84 not 44) so the last rows always clear the pinned Back on short screens (S.: "не хватает скролла")
                             : panel_ == 4 ? (helpTopic_ < 0
                                                  ? smhelp::kTopicCount * 42.0f + 44.0f  // Help topic menu
                                                  // Per-topic page: size to the ACTUAL line count (+header
@@ -715,6 +715,21 @@ public:
             if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, cdy - 4.0f, 90.0f, 26.0f,
                                            app.charDye() ? tr("set.on") : tr("set.off"), 1.2f))
                 app.setCharDye(!app.charDye());
+            // Renderer (S. 2026-11-23): the graphics backend -- Auto / D3D11 / D3D12 / Vulkan / OpenGL / Metal,
+            // only the ones this build and OS offer. Applies on the next start ("restart" shows until then).
+            const float rdy = cdy + 34.0f;
+            const int rc = app.renderer();
+            font.draw(sb, cx, rdy, 1.1f, ui::color::kWinText,
+                      rc != app.rendererStarted() ? "Renderer (restart)" : "Renderer");
+            if (selOpen_ < 0 && ui::button(sb, font, uin, cx + cw - 90.0f, rdy - 4.0f, 90.0f, 26.0f,
+                                           RenderDevice::rendererLabel(rc), 1.2f)) {
+                int nx = rc;
+                for (int i = 0; i < 6; ++i) {
+                    nx = (nx + 1) % 6;
+                    if (RenderDevice::rendererAvailable(nx)) break;
+                }
+                app.setRenderer(nx);
+            }
         }
         // General: "Use content" (feat/content-sources) — per asset category, which archive
         // family supplies the files: GRO (official GRO.grf) / UaRO (our archives, GRO fallback)

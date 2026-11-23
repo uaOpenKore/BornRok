@@ -152,6 +152,9 @@ public:
     bool xbrUpscale() const { return xbr_ != 0; }
     bool charDye() const { return charDye_ != 0; }   // hair/clothes dyes on PCs (off on Android/Switch by default)
     void setCharDye(bool on);
+    int renderer() const { return renderer_; }
+    int rendererStarted() const { return rendererStarted_; }
+    void setRenderer(int code);
     void setXbrUpscale(bool on);
     // Object LOD (Settings -> Video -> LOD, #lod): 0 = off (draw all), else the world-unit radius
     // around the player within which RSM objects draw (+ rear-180° cull). -1 = auto (60 on Android,
@@ -350,6 +353,11 @@ private:
     // On-screen perf counter in the top-left corner: fps, the process's RAM and its CPU load (S. 2026-11-23).
     // Refreshed once a second; "showperf 0" in settings/game.cfg hides it.
     int showPerf_ = 1;
+    // Graphics backend (S. 2026-11-23): RenderConfig::renderer codes, "renderer N" in settings/game.cfg. Read
+    // before the device starts (readEarlyConfig); a change applies on the next start.
+    int renderer_ = 0;
+    int rendererStarted_ = 0;  // the code the device was started with
+    void readEarlyConfig();
     std::string perfOverlayText_;
     void drawPerfOverlay();
     float uiScale_ = 1.0f;                       // in-game UI magnification (#134)

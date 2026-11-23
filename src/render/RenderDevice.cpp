@@ -168,6 +168,12 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
     init.type = bgfx::RendererType::Gnm;
 #else
     init.type = bgfx::RendererType::Count;  // auto-select best backend
+    if (cfg.renderer > 0 && rendererAvailable(cfg.renderer)) {  // the player's choice (Settings > Graphics)
+        static const bgfx::RendererType::Enum kTypes[6] = {
+            bgfx::RendererType::Count, bgfx::RendererType::Direct3D11, bgfx::RendererType::Direct3D12,
+            bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGL, bgfx::RendererType::Metal};
+        init.type = kTypes[cfg.renderer];
+    }
 #endif
     init.resolution.width = static_cast<u32>(width_);
     init.resolution.height = static_cast<u32>(height_);
@@ -176,12 +182,22 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
     init.platformData.ndt = nw.ndt;
     init.callback = &g_bgfxCallback;  // route bgfx's own trace/fatal into our console log
 
-    log::info("render: bgfx::init requested type=auto {}x{} reset=MSAAx{}{}{}", width_, height_,
+    log::info("render: bgfx::init requested type={} {}x{} reset=MSAAx{}{}{}",
+              init.type == bgfx::RendererType::Count ? "auto" : bgfx::getRendererName(init.type), width_, height_,
               msaaResetFlag(msaa_) ? msaa_ : 0, vsync_ ? "|vsync" : "",
               cfg.cacheDir.empty() ? "" : " (shader cache on)");
     if (!bgfx::init(init)) {
-        log::error("render: bgfx::init FAILED -- no usable graphics backend (driver/GPU?)");
-        return false;
+        if (init.type == bgfx::RendererType::Count) {
+            log::error("render: bgfx::init FAILED -- no usable graphics backend (driver/GPU?)");
+            return false;
+        }
+        // the chosen backend does not start on this machine: fall back to bgfx's own pick
+        log::warn("render: the chosen backend {} failed to start -- trying auto", bgfx::getRendererName(init.type));
+        init.type = bgfx::RendererType::Count;
+        if (!bgfx::init(init)) {
+            log::error("render: bgfx::init FAILED -- no usable graphics backend (driver/GPU?)");
+            return false;
+        }
     }
     inited_ = true;
 
@@ -933,6 +949,24 @@ void RenderDevice::endFrame() {
 
 const char* RenderDevice::rendererName() const {
     return bgfx::getRendererName(bgfx::getRendererType());
+}
+
+bool RenderDevice::rendererAvailable(int code) {
+    static const bgfx::RendererType::Enum kTypes[6] = {
+        bgfx::RendererType::Count, bgfx::RendererType::Direct3D11, bgfx::RendererType::Direct3D12,
+        bgfx::RendererType::Vulkan, bgfx::RendererType::OpenGL, bgfx::RendererType::Metal};
+    if (code == 0) return true;
+    if (code < 0 || code > 5) return false;
+    bgfx::RendererType::Enum list[bgfx::RendererType::Count];
+    const u8 n = bgfx::getSupportedRenderers(bgfx::RendererType::Count, list);
+    for (u8 i = 0; i < n; ++i)
+        if (list[i] == kTypes[code]) return true;
+    return false;
+}
+
+const char* RenderDevice::rendererLabel(int code) {
+    static const char* const kNames[6] = {"Auto", "D3D11", "D3D12", "Vulkan", "OpenGL", "Metal"};
+    return (code >= 0 && code <= 5) ? kNames[code] : "Auto";
 }
 
 } // namespace uaro

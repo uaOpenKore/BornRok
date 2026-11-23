@@ -14,6 +14,7 @@ struct RenderConfig {
     bool vsync = true;
     int msaa = 4;          // backbuffer MSAA samples 0/2/4/8 (always 0 on Android)
     std::string cacheDir;  // where bgfx's shader/pipeline cache blobs are kept; "" = no cache
+    int renderer = 0;      // the player's choice (S. 2026-11-23): 0 auto, 1 D3D11, 2 D3D12, 3 Vulkan, 4 OpenGL, 5 Metal
 };
 
 // Owns the bgfx device bound to a native window. View 0 is the primary screen
@@ -40,6 +41,9 @@ public:
     RenderDevice& operator=(const RenderDevice&) = delete;
 
     bool init(const NativeWindow& nw, const RenderConfig& cfg);
+    // The renderer choice codes of RenderConfig::renderer: whether this build/OS offers one, and its name.
+    static bool rendererAvailable(int code);
+    static const char* rendererLabel(int code);
     void shutdown();
 
     void resize(int width, int height);

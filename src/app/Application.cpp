@@ -96,7 +96,9 @@ int Application::run(const AppConfig& cfg) {
     int pw = cfg.width, ph = cfg.height;
     platform_.window().pixelSize(pw, ph);
 
+    readEarlyConfig();
     RenderConfig rc;
+    rc.renderer = rendererStarted_ = renderer_;
     rc.width = pw;
     rc.height = ph;
     rc.vsync = cfg.vsync;
@@ -667,6 +669,7 @@ void Application::loadConfig() {
                 texMaxDim_ = px <= 0 ? 0 : px <= 256 ? 256 : px <= 512 ? 512 : px <= 1024 ? 1024
                            : px <= 2048 ? 2048 : 4096;
             }
+            else if (key == "renderer") renderer_ = std::clamp(static_cast<int>(v + 0.5f), 0, 5);  // graphics backend (next start)
             else if (key == "showperf") showPerf_ = (v != 0.0f) ? 1 : 0;  // on-screen fps / RAM / CPU
             else if (key == "perflog") perfLogSec_ = std::clamp(static_cast<int>(v + 0.5f), 0, 600);  // 0 = off
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
@@ -875,6 +878,7 @@ void Application::saveConfig() const {
     out << "texmaxdim " << texMaxDim_ << "\n";
     out << "perflog " << perfLogSec_ << "\n";
     out << "showperf " << showPerf_ << "\n";
+    out << "renderer " << renderer_ << "\n";
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -981,6 +985,22 @@ void Application::setGrassFlowers(bool on) {
     grassFlowers_ = on ? 1 : 0;
     g_grassFlowers = on;
     saveConfig();
+}
+
+void Application::setRenderer(int code) { renderer_ = std::clamp(code, 0, 5); saveConfig(); }
+
+// The keys that must be known before the graphics device starts (only "renderer" now), from the user's
+// settings/game.cfg; the full config is read later (loadConfig), when the VFS is up.
+void Application::readEarlyConfig() {
+#if !defined(CLIENT_CONSOLE)
+    std::ifstream f(gameCfgPath());
+    std::string key;
+    float v = 0.0f;
+    while (f >> key) {
+        if (key == "renderer" && (f >> v)) renderer_ = std::clamp(static_cast<int>(v + 0.5f), 0, 5);
+        else f.ignore(4096, '\n');
+    }
+#endif
 }
 
 void Application::setCharDye(bool on) { charDye_ = on ? 1 : 0; g_charDye = on; saveConfig(); }

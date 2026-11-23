@@ -421,6 +421,13 @@ int Application::run(const AppConfig& cfg) {
     }
     log::info("exiting");
 
+#if !defined(CLIENT_CONSOLE)
+    {   // the main loop ended normally (menu Exit / window close / OS quit): the Auto renderer of this run did
+        // not crash. Removed before the teardown, so a driver hiccup while shutting down is not held against it.
+        std::error_code ec;
+        std::filesystem::remove(gameCfgPath().parent_path() / "render_session.txt", ec);
+    }
+#endif
     // Deterministic teardown: scenes (textures) -> sprites/font -> device -> platform.
     scenes_.clear(*this);
     CharacterActor::clearSharedCache();  // free the shared sprite-frame textures while bgfx is alive
@@ -428,12 +435,6 @@ int Application::run(const AppConfig& cfg) {
     font_.shutdown();
     uiSkin_.destroy();
     render_.shutdown();
-#if !defined(CLIENT_CONSOLE)
-    {   // a clean exit: the Auto renderer of this run did not crash
-        std::error_code ec;
-        std::filesystem::remove(gameCfgPath().parent_path() / "render_session.txt", ec);
-    }
-#endif
     platform_.shutdown();
     net::Socket::globalShutdown();
     return 0;

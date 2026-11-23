@@ -42,6 +42,9 @@ struct InputState {
     bool rightHeld = false;
     bool upHeld = false;
     bool downHeld = false;
+    // Walk mode (S. 2026-11-23): the key left of 1 (` / ё) toggles it; W A S D held lead the character.
+    bool keyGrave = false;  // edge
+    bool wHeld = false, aHeld = false, sHeld = false, dHeld = false;  // by scancode, any layout
     bool keyHome = false;
     bool keyEnd = false;
     bool keyInsert = false;  // Insert pressed this frame (in-game: toggle sit/stand)

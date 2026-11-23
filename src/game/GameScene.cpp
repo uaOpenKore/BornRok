@@ -10885,7 +10885,9 @@ void GameScene::drawHotbar(Application& app) {
     // shown (the mode is just visual); ignored while typing in chat.
     if (!chatFocused_ && !(inventoryOpen_ && invFilterFocus_) && !(storageOpen_ && storageFilterFocus_) &&
         bindEditIndex_ < 0 && in.hotkeyRow >= 0 && in.hotkeyRow < 5 && in.hotkeyCol >= 0 &&
-        in.hotkeyCol < 12)
+        in.hotkeyCol < 12 &&
+        !(app.session().walkMode && ((in.hotkeyRow == 1 && in.hotkeyCol == 1) ||       // W
+                                     (in.hotkeyRow == 2 && in.hotkeyCol <= 2))))       // A S D
         useHotSlot(in.hotkeyRow, in.hotkeyCol);
 
     // Gamepad ПБД (#102/#115, Phase 5): hold a shoulder -> the face buttons fire that block's 4 slots
@@ -12121,6 +12123,14 @@ void GameScene::update(Application& app, double dt) {
     // Keyboard tank-style navigation (S.): Left/Right turn the character 45 deg in place; Up/Down
     // walk one cell forward/back along the facing. Forward is derived from auth_.dir via the inverse
     // of worldOctant, then stepped out in world space until it lands in the next cell (scale-agnostic).
+    // Walk mode (S. 2026-11-23, after uaRO HD): ` / ё toggles it outside the chat (typing there types the
+    // letter); while on, W A S D lead the character relative to the screen and are not hotbar keys.
+    if (in.keyGrave && !chatFocused_ && haveAuth_) {
+        app.session().walkMode = !app.session().walkMode;
+        chatLog_.push_back({app.session().walkMode ? "Walk mode ON: W A S D move the character (` to turn off)"
+                                                   : "Walk mode OFF: W A S D are hotbar keys again",
+                            kChatServer});
+    }
     if (worldInput && !chatFocused_ && !dead_ && !dialogOpen_ && haveAuth_) {
         // Gamepad Standard-mode movement (#102/#115, Phase 2) folds into this tank-nav so all the tested
         // glide/moonwalk/turn-throttle logic is reused: right stick X turns 45deg, left stick = fwd/back
@@ -12141,6 +12151,28 @@ void GameScene::update(Application& app, double dt) {
         const bool padTurnL = padDrive && !padCameraMode_ && padTurnAxis < -0.6f;
         const bool padTurnR = padDrive && !padCameraMode_ && padTurnAxis > 0.6f;
         const bool padMove = padDrive && (padStrafeAxis * padStrafeAxis + padFwdAxis * padFwdAxis) > 0.36f;  // |stick|>0.6
+        // W A S D (walk mode): the screen direction -> the world direction whose projection on the screen is
+        // closest to it (works with any camera orbit and the mirrored map).
+        const int wsX = (in.dHeld ? 1 : 0) - (in.aHeld ? 1 : 0), wsY = (in.wHeld ? 1 : 0) - (in.sHeld ? 1 : 0);
+        const bool kbMove = app.session().walkMode && (wsX != 0 || wsY != 0) && !menuOpen_;
+        float kbDx = 0.0f, kbDz = 0.0f;
+        if (kbMove) {
+            const Vec4 c0 = lastVp_ * Vec4{playerPos_.x, playerPos_.y, playerPos_.z, 1.0f};
+            const float wl = std::sqrt(static_cast<float>(wsX * wsX + wsY * wsY));
+            const float wantX = wsX / wl, wantY = wsY / wl;
+            float best = -2.0f;
+            for (int k = 0; k < 32 && c0.w > 1e-4f; ++k) {
+                const float a = k * (kPi / 16.0f);
+                const float dx = std::cos(a), dz = std::sin(a);
+                const Vec4 c1 = lastVp_ * Vec4{playerPos_.x + dx, playerPos_.y, playerPos_.z + dz, 1.0f};
+                if (c1.w <= 1e-4f) continue;
+                float sx = c1.x / c1.w - c0.x / c0.w, sy = c1.y / c1.w - c0.y / c0.w;  // NDC, +y = up
+                const float sl = std::sqrt(sx * sx + sy * sy);
+                if (sl < 1e-6f) continue;
+                const float dot = (sx * wantX + sy * wantY) / sl;
+                if (dot > best) { best = dot; kbDx = dx; kbDz = dz; }
+            }
+        }
         const bool navUpB = in.upHeld || (padDrive && in.pad.ly > 0.6f);
         const bool navDownB = in.downHeld || (padDrive && in.pad.ly < -0.6f);
         // Held Left/Right turn 45 deg, throttled so holding them rotates at a steady pace instead of
@@ -12177,11 +12209,15 @@ void GameScene::update(Application& app, double dt) {
         // Held Up/Down = continuous forward/back walk (no per-cell pause): walk toward a cell several
         // ahead and re-issue on a turn / when nearly there, so it glides smoothly. Down moonwalks back
         // without turning (face lock). Release stops at the current cell.
-        if (navUpB || navDownB || padMove) {
-            const u8 heading = faceLocked_ ? lockedFace_ : auth_.dir;
+        if (navUpB || navDownB || padMove || (kbMove && (kbDx != 0.0f || kbDz != 0.0f))) {
+            const bool kbWalk = kbMove && (kbDx != 0.0f || kbDz != 0.0f) && !navUpB && !navDownB && !padMove;
+            const u8 heading = kbWalk ? worldOctant(kbDx, kbDz) : (faceLocked_ ? lockedFace_ : auth_.dir);
             const float th = static_cast<float>(8 - heading) * (kPi / 4.0f);
             float fdx, fdz;
-            if (padDrive) {
+            if (kbWalk) {
+                fdx = kbDx;
+                fdz = kbDz;
+            } else if (padDrive) {
                 // Combine forward/back (left stick Y, along facing) + strafe (X, perpendicular) into one
                 // normalised world direction, so the stick walks any way while the facing stays locked.
                 const float fwd = padFwdAxis, str = padStrafeAxis;
@@ -15112,6 +15148,22 @@ void GameScene::render(Application& app) {
     drawMinimap(app);
     drawBasicInfo(app);
     drawGamepadModeStrip(app);  // bottom-screen active-modes line (#102/#115)
+    if (app.session().walkMode && !(app.input().pad.connected && app.gamepadMode())) {
+        // Walk mode badge (S. 2026-11-23: "показывать какой режим включён"), where the pad's mode strip goes.
+        SpriteBatch& sb = app.sprites();
+        Font& font = app.font();
+        const std::string s = chatFocused_ ? "WALK MODE  (paused while typing)" : "WALK MODE  W A S D  (` to exit)";
+        const float scale = 1.1f, pad = 10.0f, h = 22.0f;
+        const float tw = font.width(s, scale);
+        const float bx = (lastViewW_ - tw) * 0.5f - pad, by = lastViewH_ - h - 6.0f;
+        ui::panel(sb, bx, by, tw + pad * 2.0f, h, ui::rgba(0, 0, 0, 150));
+        const float tx = bx + pad, ty = by + 4.0f;
+        const u32 black = ui::rgba(0, 0, 0, 255);
+        for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+                if (dx || dy) font.draw(sb, tx + dx, ty + dy, scale, black, s);
+        font.draw(sb, tx, ty, scale, chatFocused_ ? ui::rgba(180, 180, 180, 255) : ui::rgba(140, 230, 140, 255), s);
+    }
     drawTouchJoystick(app);     // visual joystick under the dragging finger (#102)
     drawTouchModePanel(app);    // bottom-centre 3-mode touch panel (#102/#114)
     drawGamepadPrompt(app);     // mid-session "switch to gamepad?" modal (#102/#115)

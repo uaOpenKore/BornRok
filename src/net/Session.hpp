@@ -49,6 +49,7 @@ struct Session {
     // pushed each time, so these live in the session, which outlives any one scene). Only the
     // azimuth/direction snaps back to default on warp/relogin; the zoom and pitch carry over
     // (S.: "зум и угол должны оставаться такие же, только выставляется направление").
+    bool walkMode = false;    // W A S D walk mode (` / ё), kept across map changes
     float camZoom = 0.125f;   // closest zoom (start fully zoomed in)
     float camPitch = 0.0f;    // elevation offset added to the default RO tilt
 

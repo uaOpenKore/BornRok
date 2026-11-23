@@ -274,6 +274,7 @@ bool Platform::pump(InputState& state) {
     state.numDigit = -1;
     state.mousePressed = state.mouseReleased = state.mouseDoubleClick = false;
     state.closeRequested = false;
+    state.keyGrave = false;
     state.appResumed = false;  // one-frame edge; appSuspended is a level that persists across pumps
     state.wheel = 0.0f;
     state.mouseDX = state.mouseDY = 0;
@@ -342,6 +343,16 @@ bool Platform::pump(InputState& state) {
                     case SDLK_END:       state.keyEnd = true; break;
                     case SDLK_INSERT:    state.keyInsert = true; break;
                     default: break;  // window hotkeys handled by scancode below
+                }
+                if (!(e.key.mod & (SDL_KMOD_ALT | SDL_KMOD_CTRL))) {  // walk mode keys (physical position)
+                    switch (e.key.scancode) {
+                        case SDL_SCANCODE_GRAVE: if (!e.key.repeat) state.keyGrave = true; break;
+                        case SDL_SCANCODE_W: state.wHeld = true; break;
+                        case SDL_SCANCODE_A: state.aHeld = true; break;
+                        case SDL_SCANCODE_S: state.sHeld = true; break;
+                        case SDL_SCANCODE_D: state.dHeld = true; break;
+                        default: break;
+                    }
                 }
                 // Ctrl+V -> paste the OS clipboard into the focused input field. Scancode-keyed so it
                 // works on any layout (S. is on a Russian layout). Text fields consume state.text as
@@ -440,6 +451,17 @@ bool Platform::pump(InputState& state) {
                     case SDLK_DOWN:  state.downHeld = false; break;
                     default: break;
                 }
+                switch (e.key.scancode) {
+                    case SDL_SCANCODE_W: state.wHeld = false; break;
+                    case SDL_SCANCODE_A: state.aHeld = false; break;
+                    case SDL_SCANCODE_S: state.sHeld = false; break;
+                    case SDL_SCANCODE_D: state.dHeld = false; break;
+                    default: break;
+                }
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_LOST:  // a key released in another window never comes back as KEY_UP
+                state.wHeld = state.aHeld = state.sHeld = state.dHeld = false;
+                state.leftHeld = state.rightHeld = state.upHeld = state.downHeld = false;
                 break;
             case SDL_EVENT_TEXT_INPUT:
                 if (e.text.text) state.text += e.text.text;

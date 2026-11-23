@@ -157,7 +157,10 @@ std::string ItemDb::nameWithCards(u32 id, const u16 cards[4]) const {
     // Raw display name (WITHOUT the "[N]" slot suffix, which must stay at the very end).
     const auto it = names_.find(id);
     std::string raw = (it != names_.end() && !it->second.empty()) ? it->second : "#" + std::to_string(id);
-    const int sl = slots(id);
+    // A named item (brewed 0x00FE / forged 0x00FF) has no card slots -- its card fields hold the maker (S. 2026-11-23:
+    // "на варенных потах слот [3] не нужен").
+    const bool named = cards && (cards[0] == 0x00FE || cards[0] == 0x00FF);
+    const int sl = named ? 0 : slots(id);
     // Collect card PREFIX words in slot order, counting repeats of the SAME word so N identical cards
     // become a Double/Triple/Quadruple multiplier (S.: "должно быть Double/Triple"). Grouped by WORD
     // (not card id) so two different "Lucky" cards still read "Double Lucky". First-seen order kept.

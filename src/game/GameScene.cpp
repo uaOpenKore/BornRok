@@ -12915,7 +12915,30 @@ void GameScene::update(Application& app, double dt) {
                         dropQtyField_.maxLen = 6;
                     };
                     int hr = 0, hc = 0;
-                    if ((dragSrc_ == 1 || dragSrc_ == 5) &&
+                    // A selected row dragged with others: every selected item, whole stacks, to the container
+                    // it is dropped on (no quantity dialog; the server refuses what does not fit).
+                    int multiDst = 0;
+                    if (multiSel_.size() > 1 && multiHas(dragSrc_, dragIndex_)) {
+                        if (dragSrc_ != 1 && over(invRect_)) multiDst = 1;
+                        else if (dragSrc_ != 3 && storageOpen_ && over(storageRect_)) multiDst = 3;
+                        else if (dragSrc_ != 4 && cartOpen_ && over(cartRect_)) multiDst = 4;
+                    }
+                    if (multiDst != 0) {
+                        const auto& from = dragSrc_ == 1 ? inventory_ : dragSrc_ == 3 ? storage_ : cart_;
+                        for (const u16 idx : multiSel_) {
+                            const auto f = from.find(idx);
+                            if (f == from.end() || f->second.amount <= 0) continue;
+                            const u32 n = static_cast<u32>(f->second.amount);
+                            if (dragSrc_ == 1 && multiDst == 3) conn_.send(net::buildStorageStore(idx, n));
+                            else if (dragSrc_ == 1 && multiDst == 4) conn_.send(net::buildCartAdd(idx, n));
+                            else if (dragSrc_ == 3 && multiDst == 1) conn_.send(net::buildStorageRetrieve(idx, n));
+                            else if (dragSrc_ == 3 && multiDst == 4) conn_.send(net::buildStoreToCart(idx, n));
+                            else if (dragSrc_ == 4 && multiDst == 1) conn_.send(net::buildCartGet(idx, n));
+                            else if (dragSrc_ == 4 && multiDst == 3) conn_.send(net::buildCartToStore(idx, n));
+                        }
+                        multiSel_.clear();
+                        multiSrc_ = 0;
+                    } else if ((dragSrc_ == 1 || dragSrc_ == 5) &&
                         hotbarSlotAt(in.mouseX, in.mouseY, hr, hc)) {
                         // Drop a bag item (dragSrc_ 1) or a skill (5) onto a quick-slot to bind it.
                         if (dragSrc_ == 5)
@@ -13370,6 +13393,14 @@ bool GameScene::occProbe(std::unordered_map<u32, bgfx::OcclusionQueryHandle>& qu
 }
 
 void GameScene::render(Application& app) {
+    for (int k = 0; k < 5; ++k) {  // multi-select rows: this frame's drawn order becomes the one Shift+click uses
+        multiOrder_[k].swap(multiOrderCur_[k]);
+        multiOrderCur_[k].clear();
+    }
+    if ((multiSrc_ == 1 && !inventoryOpen_) || (multiSrc_ == 3 && !storageOpen_) || (multiSrc_ == 4 && !cartOpen_)) {
+        multiSel_.clear();
+        multiSrc_ = 0;
+    }
     ui::nav().widgets.clear();  // #102/#115: refill the focus-nav widget list from this frame's ui::buttons
     SpriteBatch& sb = app.sprites();
     Font& font = app.font();
@@ -16729,6 +16760,9 @@ void GameScene::render(Application& app) {
                 sb.draw(bx + bw * 0.05f, ry + rowH - 1.0f, bw * 0.9f, 1.0f, ui::rgba(255, 255, 255, 35));  // 90% HR (S.)
                 const bool hov = app.input().hit(bx + 4.0f, ry, bw - 18.0f, rowH);
                 if (hov) ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 255, 255, 18));
+                multiOrderCur_[1].push_back(it.index);
+                if (multiHas(1, it.index))  // selected for a multi-move
+                    ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 200, 80, 60));
                 if (hov && app.input().rightDown) {  // RMB -> description popup + this item's inserted cards (S.)
                     descItemId_ = it.nameid;
                     for (int k = 0; k < 4; ++k) descCards_[k] = it.cards[k];  // carded equips in the bag/storage/cart
@@ -16743,6 +16777,7 @@ void GameScene::render(Application& app) {
                           itemNameColor(it.nameid, it.cards, it.identified != 0), label);  // element colour, grey if unidentified
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
+                    if (multiClick(1, it.index, uin)) continue;  // Ctrl/Shift: select, no drag
                     dragSrc_ = 1;  // bag -> drag onto equip = wear, onto storage = store, onto map = drop
                     dragIndex_ = it.index;
                     dragNameid_ = it.nameid;
@@ -16893,6 +16928,9 @@ void GameScene::render(Application& app) {
                 sb.draw(bx + bw * 0.05f, ry + rowH - 1.0f, bw * 0.9f, 1.0f, ui::rgba(255, 255, 255, 35));  // 90% HR (S.)
                 const bool hov = app.input().hit(bx + 4.0f, ry, bw - 18.0f, rowH);
                 if (hov) ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 255, 255, 18));
+                multiOrderCur_[3].push_back(it.index);
+                if (multiHas(3, it.index))  // selected for a multi-move
+                    ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 200, 80, 60));
                 if (hov && app.input().rightDown) {  // RMB -> description popup + this item's inserted cards (S.)
                     descItemId_ = it.nameid;
                     for (int k = 0; k < 4; ++k) descCards_[k] = it.cards[k];  // carded equips in the bag/storage/cart
@@ -16907,6 +16945,7 @@ void GameScene::render(Application& app) {
                           itemNameColor(it.nameid, it.cards, it.identified != 0), label);  // element colour, grey if unidentified
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
+                    if (multiClick(3, it.index, uin)) continue;  // Ctrl/Shift: select, no drag
                     dragSrc_ = 3;  // storage -> drag onto the bag to retrieve
                     dragIndex_ = it.index;
                     dragNameid_ = it.nameid;
@@ -16999,6 +17038,9 @@ void GameScene::render(Application& app) {
                 sb.draw(bx + bw * 0.05f, ry + rowH - 1.0f, bw * 0.9f, 1.0f, ui::rgba(255, 255, 255, 35));  // 90% HR (S.)
                 const bool hov = app.input().hit(bx + 4.0f, ry, bw - 18.0f, rowH);
                 if (hov) ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 255, 255, 18));
+                multiOrderCur_[4].push_back(it.index);
+                if (multiHas(4, it.index))  // selected for a multi-move
+                    ui::panel(sb, bx + 2.0f, ry, bw - 16.0f, rowH, ui::rgba(255, 200, 80, 60));
                 if (hov && app.input().rightDown) {  // RMB -> description popup + this item's inserted cards (S.)
                     descItemId_ = it.nameid;
                     for (int k = 0; k < 4; ++k) descCards_[k] = it.cards[k];  // carded equips in the bag/storage/cart
@@ -17013,6 +17055,7 @@ void GameScene::render(Application& app) {
                           itemNameColor(it.nameid, it.cards, it.identified != 0), label);
                 drawMakerSuffix(sb, font, bx + 6.0f + isz + 8.0f + font.width(label, 1.2f), ry + 8.0f, 1.2f, it.cards);
                 if (hov && uin.mousePressed && dragSrc_ == 0 && !dropDialogOpen_) {
+                    if (multiClick(4, it.index, uin)) continue;  // Ctrl/Shift: select, no drag
                     dragSrc_ = 4;  // cart -> drag onto the bag to take out
                     dragIndex_ = it.index;
                     dragNameid_ = it.nameid;
@@ -20022,6 +20065,29 @@ std::string GameScene::itemTitle(Application& app, u16 nameid, const u16 cards[4
 void GameScene::drawMakerSuffix(SpriteBatch& sb, const Font& font, float x, float y, float scale, const u16 cards[4]) {
     const std::string mk = makerName(cards);
     if (!mk.empty()) font.draw(sb, x, y, scale, ui::rgba(90, 150, 255, 255), " " + mk + "'s");
+}
+
+bool GameScene::multiClick(int src, u16 index, const InputState& in) {
+    if (!in.ctrl && !in.shift) {  // a plain click: keep the selection only when dragging one of its rows
+        if (!multiHas(src, index)) { multiSel_.clear(); multiSrc_ = 0; }
+        return false;
+    }
+    if (multiSrc_ != src) { multiSel_.clear(); multiSrc_ = src; }
+    if (in.shift && multiAnchor_ != 0) {  // the range from the anchor to this row, in the order last drawn
+        const auto& ord = multiOrder_[src];
+        const auto a = std::find(ord.begin(), ord.end(), multiAnchor_), b = std::find(ord.begin(), ord.end(), index);
+        if (a != ord.end() && b != ord.end()) {
+            for (auto p = std::min(a, b); p <= std::max(a, b); ++p)
+                if (!multiHas(src, *p)) multiSel_.push_back(*p);
+            return true;
+        }
+    }
+    const auto f = std::find(multiSel_.begin(), multiSel_.end(), index);
+    if (f != multiSel_.end()) multiSel_.erase(f);
+    else multiSel_.push_back(index);
+    multiAnchor_ = index;
+    if (multiSel_.empty()) multiSrc_ = 0;
+    return true;
 }
 
 int GameScene::fitByWeight(u16 nameid, int amount, bool toCart) const {

@@ -1290,6 +1290,16 @@ private:
     // rest APPEND. The server sends a big storage (guild storage up to 2338) as several 0x1f0/0xa6 chunks
     // of <= 1000 entries (the original client's 20 KB packet buffer), then 0xf2; 0xf2 / 0xf8 re-arm it.
     bool storageListFresh_ = true;
+    // Several items at once (S. 2026-11-23, from uaRO HD): Ctrl+click toggles a row, Shift+click selects the range
+    // from the last one, in the bag (1), storage (3) or cart (4); dragging a selected row moves them all, whole stacks.
+    int multiSrc_ = 0;
+    std::vector<u16> multiSel_;
+    u16 multiAnchor_ = 0;
+    std::vector<u16> multiOrder_[5], multiOrderCur_[5];  // the rows in drawn order (last frame / this frame)
+    bool multiClick(int src, u16 index, const InputState& in);  // true: Ctrl/Shift click handled (no drag)
+    bool multiHas(int src, u16 index) const {
+        return multiSrc_ == src && std::find(multiSel_.begin(), multiSel_.end(), index) != multiSel_.end();
+    }
     std::unordered_map<u16, net::InvItem> cart_;     // pushcart contents, by cart index (slot+2)
     std::unordered_map<u32, net::GroundItem> groundItems_;  // items lying on the floor, by object id
     u32 pendingPickup_ = 0;  // floor item we walked toward to pick up; sent once we're adjacent

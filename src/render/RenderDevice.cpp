@@ -362,6 +362,26 @@ void RenderDevice::initPostProcess(const std::string& assetDir) {
     log::info("render: HDR post-process ready");
 }
 
+// The depth format for a write-only render-target depth: D24S8 where the backend can render to it, else the
+// first one it can (AMD's Vulkan driver has no D24_UNORM_S8_UINT; S. 2026-11-23 Vulkan crash on the water
+// reflection target). Logged once per run.
+static bgfx::TextureFormat::Enum rtDepthFormat() {
+    static const bgfx::TextureFormat::Enum kTry[] = {bgfx::TextureFormat::D24S8, bgfx::TextureFormat::D32FS8,
+                                                     bgfx::TextureFormat::D32F, bgfx::TextureFormat::D24,
+                                                     bgfx::TextureFormat::D16};
+    static bgfx::TextureFormat::Enum chosen = bgfx::TextureFormat::Count;
+    if (chosen != bgfx::TextureFormat::Count) return chosen;
+    const bgfx::Caps* caps = bgfx::getCaps();
+    chosen = bgfx::TextureFormat::D24S8;
+    if (caps)
+        for (auto f : kTry)
+            if (caps->formats[f] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) { chosen = f; break; }
+    log::info("render: render-target depth format {} (D24S8 framebuffer support: {})", static_cast<int>(chosen),
+              caps && (caps->formats[bgfx::TextureFormat::D24S8] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) ? "yes" : "no");
+    return chosen;
+}
+
+
 void RenderDevice::createHdrTarget() {
     destroyHdrTarget();
     const u16 w = static_cast<u16>(width_), h = static_cast<u16>(height_);
@@ -369,7 +389,7 @@ void RenderDevice::createHdrTarget() {
     bgfx::TextureHandle color =
         bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::RGBA16F, rtFlags);
     bgfx::TextureHandle depth =
-        bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::createTexture2D(w, h, false, 1, rtDepthFormat(), BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle att[2] = {color, depth};
     hdrFb_ = bgfx::createFrameBuffer(2, att, true /* destroy textures with the fb */);
     fbW_ = width_;
@@ -429,7 +449,7 @@ void RenderDevice::createFsrTargets() {
                               bgfx::TextureFormat::RGBA8, rt);
     bgfx::TextureHandle d0 =
         bgfx::createTexture2D(static_cast<u16>(sceneW_), static_cast<u16>(sceneH_), false, 1,
-                              bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+                              rtDepthFormat(), BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle a0[2] = {c0, d0};
     fsrFb_ = bgfx::createFrameBuffer(2, a0, true);
     // Native intermediate (EASU output for the upscale path; unused by the SSAA path). No depth.
@@ -490,7 +510,7 @@ void RenderDevice::createGradeTarget() {
                               bgfx::TextureFormat::RGBA8, rt);
     bgfx::TextureHandle d =
         bgfx::createTexture2D(static_cast<u16>(width_), static_cast<u16>(height_), false, 1,
-                              bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+                              rtDepthFormat(), BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle a[2] = {c, d};
     gradeFb_ = bgfx::createFrameBuffer(2, a, true);
     fbW_ = width_;
@@ -528,7 +548,7 @@ void RenderDevice::createGodrayTarget() {
                               bgfx::TextureFormat::RGBA8, rt);
     bgfx::TextureHandle d =
         bgfx::createTexture2D(static_cast<u16>(width_), static_cast<u16>(height_), false, 1,
-                              bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+                              rtDepthFormat(), BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle a[2] = {c, d};
     godrayFb_ = bgfx::createFrameBuffer(2, a, true);
     fbW_ = width_;
@@ -551,7 +571,7 @@ void RenderDevice::createReflectTarget() {
     bgfx::TextureHandle c = bgfx::createTexture2D(static_cast<u16>(reflectW_), static_cast<u16>(reflectH_),
                                                   false, 1, bgfx::TextureFormat::RGBA8, rt);
     bgfx::TextureHandle d = bgfx::createTexture2D(static_cast<u16>(reflectW_), static_cast<u16>(reflectH_),
-                                                  false, 1, bgfx::TextureFormat::D24S8,
+                                                  false, 1, rtDepthFormat(),
                                                   BGFX_TEXTURE_RT_WRITE_ONLY);
     bgfx::TextureHandle a[2] = {c, d};
     reflectFb_ = bgfx::createFrameBuffer(2, a, true);
@@ -637,7 +657,7 @@ void RenderDevice::createComposeTargets() {
     bgfx::TextureHandle sc = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
                                                    false, 1, bgfx::TextureFormat::RGBA8, rt);
     const bool depthReadable = aoSupported();
-    const bgfx::TextureFormat::Enum df = depthReadable ? aoDepthFormat() : bgfx::TextureFormat::D24S8;
+    const bgfx::TextureFormat::Enum df = depthReadable ? aoDepthFormat() : rtDepthFormat();
     const u64 df_flags = depthReadable ? rt : BGFX_TEXTURE_RT_WRITE_ONLY;
     bgfx::TextureHandle sd = bgfx::createTexture2D(static_cast<u16>(bloomW_), static_cast<u16>(bloomH_),
                                                    false, 1, df, df_flags);

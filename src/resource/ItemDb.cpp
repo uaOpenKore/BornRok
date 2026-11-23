@@ -1,5 +1,9 @@
 #include "resource/ItemDb.hpp"
 
+#include <algorithm>
+
+#include "resource/EmbeddedReference.hpp"
+
 #include <cstdlib>
 #include <utility>
 #include <vector>
@@ -153,10 +157,24 @@ void ItemDb::load(const Vfs& vfs) {
               names_.size(), res_.size(), desc_.size(), slots_.size(), cardPrefix_.size());
 }
 
+// The server's own item (resource/EmbeddedReference.cpp) for one the client's content does not know -- a renewal
+// backport the GRF has no name for (S. 2026-11-23: the Advanced Potion Merchant's 11621-11624 showed "#11621").
+static const ref::Item* serverItem(u32 id) {
+    std::size_t n = 0;
+    const ref::Item* all = ref::items(n);
+    const ref::Item* e = all + n;
+    const ref::Item* it = std::lower_bound(all, e, id, [](const ref::Item& m, u32 v) { return m.id < v; });
+    return (it != e && it->id == id) ? it : nullptr;
+}
+static std::string fallbackName(u32 id) {
+    const ref::Item* it = serverItem(id);
+    return it ? std::string(it->name) : "#" + std::to_string(id);
+}
+
 std::string ItemDb::nameWithCards(u32 id, const u16 cards[4]) const {
     // Raw display name (WITHOUT the "[N]" slot suffix, which must stay at the very end).
     const auto it = names_.find(id);
-    std::string raw = (it != names_.end() && !it->second.empty()) ? it->second : "#" + std::to_string(id);
+    std::string raw = (it != names_.end() && !it->second.empty()) ? it->second : fallbackName(id);
     // A named item (brewed 0x00FE / forged 0x00FF) has no card slots -- its card fields hold the maker (S. 2026-11-23:
     // "на варенных потах слот [3] не нужен").
     const bool named = cards && (cards[0] == 0x00FE || cards[0] == 0x00FF);
@@ -231,7 +249,10 @@ u32 ItemDb::idByName(const std::string& name) const {
 
 int ItemDb::slots(u32 id) const {
     const auto it = slots_.find(id);
-    return (it != slots_.end()) ? it->second : 0;
+    if (it != slots_.end()) return it->second;
+    if (names_.count(id) == 0)  // not in the content at all: the server's slots
+        if (const ref::Item* si = serverItem(id)) return si->slots;
+    return 0;
 }
 
 std::string ItemDb::description(u32 id) const {
@@ -241,14 +262,22 @@ std::string ItemDb::description(u32 id) const {
 
 std::string ItemDb::name(u32 id) const {
     const auto it = names_.find(id);
-    std::string nm = (it != names_.end() && !it->second.empty()) ? it->second : "#" + std::to_string(id);
+    std::string nm = (it != names_.end() && !it->second.empty()) ? it->second : fallbackName(id);
     if (const int s = slots(id); s > 0) nm += " [" + std::to_string(s) + "]";  // RO slot suffix (S.)
     return nm;
 }
 
 std::string ItemDb::iconPath(u32 id) const {
-    const auto it = res_.find(id);
-    if (it == res_.end() || it->second.empty()) return {};
+    auto it = res_.find(id);
+    if (it == res_.end() || it->second.empty()) {
+        // no icon in the content: a stand-in of the server item's type (a potion's for a potion, ...), better
+        // than an empty slot (S. 2026-11-23); the real icon comes with the content's itemresnametable
+        const ref::Item* si = serverItem(id);
+        if (!si) return {};
+        static const u32 kStandIn[13] = {501, 501, 601, 909, 1201, 2301, 4001, 9001, 10001, 909, 1750, 601, 909};
+        it = res_.find(si->type < 13 ? kStandIn[si->type] : 909);
+        if (it == res_.end() || it->second.empty()) return {};
+    }
     return "data/texture/" + kUiDir + "/item/" + it->second + ".bmp";
 }
 

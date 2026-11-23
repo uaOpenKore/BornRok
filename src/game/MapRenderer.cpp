@@ -520,7 +520,25 @@ void MapRenderer::render(const Mat4& view, const Mat4& proj, double time, const 
             bgfx::submit(refl.view, program_);
         }
         // Objects too (trees/buildings above water). Same mirror camera + reflection view.
-        models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time, playerPos);
+        // Vulkan: vcpkg's bgfx (1.129.8940) allocates one descriptor set per draw from a single fixed pool of
+        // 1024 x frame-latency sets that never grows; the mirror pass doubling a town's draws ran it dry and
+        // the null set crashed the AMD driver (S. 2026-11-23, the validation layer: "vkUpdateDescriptorSets():
+        // pDescriptorWrites[0].dstSet is VK_NULL_HANDLE"). So on Vulkan the mirror pass gets what is left of a
+        // per-frame budget after the last frame's other draws, nearest models first.
+        int budget = -1;
+        if (bgfx::getRendererType() == bgfx::RendererType::Vulkan) {
+            const bgfx::Stats* st = bgfx::getStats();
+            const int others = st ? static_cast<int>(st->numDraw) - lastReflDraws_ : 0;
+            budget = std::max(0, 900 - std::max(0, others) - static_cast<int>(map_.ground.batches.size()));
+            static int logged = 0;
+            if (logged < 3 && st && st->numDraw > 0) {  // the headroom, for the record
+                ++logged;
+                log::info("water-reflect (Vulkan): {} draws last frame, {} of them the mirror pass -> mirror budget {}",
+                          st->numDraw, lastReflDraws_, budget);
+            }
+        }
+        lastReflDraws_ = static_cast<int>(map_.ground.batches.size()) +
+                         models_.renderReflection(map_, refl.mirror, refl.proj, refl.view, time, playerPos, budget);
     }
 
     water_.render(time, refl);   // animated water surface, blended over the terrain it covers

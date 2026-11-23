@@ -84,6 +84,7 @@ private:
     bgfx::UniformHandle clip_ = BGFX_INVALID_HANDLE;            // u_clip (below-water reflection clip, #water)
     std::vector<Vec3> cellLight_;  // per-cell env light (W*H), for tinting actors in shadow (#118)
     ModelRenderer models_;  // RSM building/object meshes
+    mutable int lastReflDraws_ = 0;  // the mirror pass's draws last frame (Vulkan draw budget)
     WaterRenderer water_;   // animated water surface
     // mutable: render() is const but grass needs to rebuild its mesh live when the height
     // (Normals level) changes, so grass_.render() mutates. (#grass)

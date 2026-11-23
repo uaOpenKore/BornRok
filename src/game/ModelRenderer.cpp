@@ -666,11 +666,12 @@ void ModelRenderer::render(const MapData& map, const Mat4& view, const Mat4& pro
     }
 }
 
-void ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
-                                     bgfx::ViewId view, double time, const Vec3& playerPos) const {
+int ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
+                                    bgfx::ViewId view, double time, const Vec3& playerPos, int maxDraws) const {
     (void)map;  // placements were composed at load (placed_)
-    if (!ready_ || !bgfx::isValid(program_)) return;
+    if (!ready_ || !bgfx::isValid(program_)) return 0;
     bgfx::setViewTransform(view, mirrorView.m, proj.m);
+    int draws = 0;
     const u64 state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z |
                       BGFX_STATE_DEPTH_TEST_LESS;  // opaque; no fade/occlusion in the reflection
     const f32 fade[4] = {1.0f, 0.0f, 0.0f, 0.0f};
@@ -681,14 +682,26 @@ void ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView,
     const f32 lodR = g_lodRadius;
     const bool lodOn = lodR > 0.5f;
     const f32 lodR2 = lodR * lodR;
+    // Nearest first, so a draw budget (Vulkan, see MapRenderer) keeps what is close to the player.
+    std::vector<std::pair<f32, const Placed*>> order;
+    order.reserve(placed_.size());
     for (const Placed& P : placed_) {
+        const f32 ox = P.place.m[12] - playerPos.x, oz = P.place.m[14] - playerPos.z;
+        const f32 d2 = ox * ox + oz * oz;
+        if (lodOn && d2 > lodR2) continue;
+        if (P.cull && !frustum.sphereVisible(P.center, P.radius)) continue;
+        order.push_back({d2, &P});
+    }
+    if (maxDraws >= 0)
+        std::sort(order.begin(), order.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    for (const auto& op : order) {
+        const Placed& P = *op.second;
         const Model& M = models_[P.mi];
         const Mat4& place = P.place;
-        if (lodOn) {
-            const f32 ox = place.m[12] - playerPos.x, oz = place.m[14] - playerPos.z;
-            if (ox * ox + oz * oz > lodR2) continue;
-        }
-        if (P.cull && !frustum.sphereVisible(P.center, P.radius)) continue;
+        int need = static_cast<int>(M.batches.size());
+        for (const AnimNode& an : M.animNodes) need += static_cast<int>(an.batches.size());
+        if (maxDraws >= 0 && draws + need > maxDraws) break;
+        draws += need;
         for (const Batch& b : M.batches) {
             bgfx::setTransform(place.m);
             bgfx::setVertexBuffer(0, M.vbh);
@@ -720,7 +733,7 @@ void ModelRenderer::renderReflection(const MapData& map, const Mat4& mirrorView,
                 bgfx::submit(view, program_);
             }
         }
-    }
+    }    return draws;
 }
 
 } // namespace uaro

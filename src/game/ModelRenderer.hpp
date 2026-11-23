@@ -37,8 +37,9 @@ public:
     // camera-occlude fade (the reflection shows the full world). Used by MapRenderer for the
     // water reflection; cheap-ish — one extra draw per placement into a small offscreen.
     // Placements outside the mirror camera's frustum or the LOD radius around playerPos are skipped.
-    void renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
-                          bgfx::ViewId view, double time, const Vec3& playerPos) const;
+    // Returns the draws submitted; maxDraws >= 0 caps them (nearest placements first).
+    int renderReflection(const MapData& map, const Mat4& mirrorView, const Mat4& proj,
+                         bgfx::ViewId view, double time, const Vec3& playerPos, int maxDraws = -1) const;
 
     // Relief (normal) maps exist only while Normals is on: load() builds them if it is, and
     // MapRenderer::syncNormals() calls these when the setting changes on the current map.

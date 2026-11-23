@@ -1108,7 +1108,7 @@ int Application::pickAutoRenderer() {
         stdfs::remove(marker, ec);
     }
 #if defined(_WIN32)
-    static const int kOrder[] = {3, 1, 2, 4};  // Vulkan, D3D11, D3D12, OpenGL
+    static const int kOrder[] = {1, 3, 2, 4};  // D3D11, Vulkan, D3D12, OpenGL (S. 2026-11-23: Vulkan loads the GPU 2x)
 #elif defined(__APPLE__)
     static const int kOrder[] = {5};           // Metal
 #else

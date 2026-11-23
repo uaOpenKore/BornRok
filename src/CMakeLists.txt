@@ -62,6 +62,7 @@ if(ZLIB_FOUND)
     resource/EmbeddedQuestTitles.cpp
     resource/EmbeddedItemWeights.cpp
     resource/EmbeddedMvpSpawns.cpp
+    resource/EmbeddedReference.cpp
     resource/LuaTables.cpp
     resource/GrfData.cpp
     resource/CardIllust.cpp

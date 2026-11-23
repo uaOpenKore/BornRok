@@ -1,4 +1,5 @@
 #include "game/GameScene.hpp"
+#include "resource/EmbeddedReference.hpp"
 
 #include "net/RxCursor.hpp"
 
@@ -10998,7 +10999,7 @@ void GameScene::drawHotbar(Application& app) {
 
     // Activate a slot by its bound key. All 4 rows' binds work regardless of how many rows are
     // shown (the mode is just visual); ignored while typing in chat.
-    if (!chatFocused_ && !chatSearchFocused_ && !(inventoryOpen_ && invFilterFocus_) && !(storageOpen_ && storageFilterFocus_) &&
+    if (!chatFocused_ && !chatSearchFocused_ && !refSearchFocused_ && !in.ctrl && !(inventoryOpen_ && invFilterFocus_) && !(storageOpen_ && storageFilterFocus_) &&
         bindEditIndex_ < 0 && in.hotkeyRow >= 0 && in.hotkeyRow < 5 && in.hotkeyCol >= 0 &&
         in.hotkeyCol < 12 &&
         !(app.session().walkMode && ((in.hotkeyRow == 1 && in.hotkeyCol == 1) ||       // W
@@ -11825,6 +11826,9 @@ void GameScene::update(Application& app, double dt) {
                         conn_.send(net::buildGlobalMessage(app.session().charName, line));
                 }
             }
+        } else if (refSearchFocused_ && refOpen_) {  // typing the Reference search
+            chatConsumedKey = true;
+            if (in.escape || refSearch_.update(in, true)) refSearchFocused_ = false;
         } else if (chatSearchFocused_) {  // typing the chat search; Enter / Esc leave the field (the filter stays)
             chatConsumedKey = true;
             if (in.escape || chatSearch_.update(in, true)) chatSearchFocused_ = false;
@@ -12000,6 +12004,7 @@ void GameScene::update(Application& app, double dt) {
                         case WIN_FRIENDS: friendsOpen_ = false; break;
                         case WIN_GUILD: guildOpen_ = false; break;
                         case WIN_QUEST: questOpen_ = false; break;
+                        case WIN_REF: refOpen_ = false; refSearchFocused_ = false; break;
                         case WIN_CRAFT:  // cancel the skill on the server, not just hide (S.)
                             conn_.send(net::buildCraftReply(craftList_.kind, net::CraftItem{}));
                             craftOpen_ = false; break;
@@ -12063,6 +12068,11 @@ void GameScene::update(Application& app, double dt) {
     if (in.keyEquip) equipOpen_ = !equipOpen_;              // Alt+Q
     if (in.keySkills) skillsOpen_ = !skillsOpen_;           // Alt+S
     if (in.keyQuest) questOpen_ = !questOpen_;              // Alt+U -> quest journal (#136)
+    // Ctrl+F -> the Reference (the F key by its position, any layout)
+    if (in.ctrl && in.hotkeyRow == 2 && in.hotkeyCol == 3 && !chatFocused_) {
+        refOpen_ = !refOpen_;
+        refSearchFocused_ = refOpen_;
+    }
     if (in.keyChatToggle) chatCollapsed_ = !chatCollapsed_; // Alt+X -> collapse/expand chat (S.)
     if (in.keyBasicInfo)                                    // Alt+V cycles the panel
         basicInfoState_ = (basicInfoState_ == 2) ? 1 : 2;  // toggle full <-> short (S.: drop the 3rd
@@ -12243,7 +12253,7 @@ void GameScene::update(Application& app, double dt) {
     // of worldOctant, then stepped out in world space until it lands in the next cell (scale-agnostic).
     // Walk mode (S. 2026-11-23, after uaRO HD): ` / ё toggles it outside the chat (typing there types the
     // letter); while on, W A S D lead the character relative to the screen and are not hotbar keys.
-    if (in.keyGrave && !chatFocused_ && !chatSearchFocused_ && haveAuth_) {
+    if (in.keyGrave && !chatFocused_ && !chatSearchFocused_ && !refSearchFocused_ && haveAuth_) {
         app.session().walkMode = !app.session().walkMode;
         chatLog_.push_back({app.session().walkMode ? "Walk mode ON: W A S D move the character (` to turn off)"
                                                    : "Walk mode OFF: W A S D are hotbar keys again",
@@ -12272,7 +12282,8 @@ void GameScene::update(Application& app, double dt) {
         // W A S D (walk mode): the screen direction -> the world direction whose projection on the screen is
         // closest to it (works with any camera orbit and the mirrored map).
         const int wsX = (in.dHeld ? 1 : 0) - (in.aHeld ? 1 : 0), wsY = (in.wHeld ? 1 : 0) - (in.sHeld ? 1 : 0);
-        const bool kbMove = app.session().walkMode && (wsX != 0 || wsY != 0) && !menuOpen_ && !chatSearchFocused_;
+        const bool kbMove = app.session().walkMode && (wsX != 0 || wsY != 0) && !menuOpen_ && !chatSearchFocused_ &&
+                            !refSearchFocused_;
         float kbDx = 0.0f, kbDz = 0.0f;
         if (kbMove) {
             const Vec4 c0 = lastVp_ * Vec4{playerPos_.x, playerPos_.y, playerPos_.z, 1.0f};
@@ -18635,6 +18646,209 @@ void GameScene::render(Application& app) {
                 std::string none = tr("quest.none");
                 if (none == "quest.none") none = "No active quests";
                 font.draw(sb, cx, listTop + 4.0f, 1.1f, ui::color::kWinTextDim, none);
+            }
+        }
+        if (refOpen_) {
+            // ---- Reference (Ctrl+F) ------------------------------------------------------------------------
+            static std::size_t nMob = 0, nItem = 0;
+            static const ref::Mob* kM = ref::mobs(nMob);
+            static const ref::Item* kI = ref::items(nItem);
+            static const char* const kRace[10] = {"Formless", "Undead", "Brute", "Plant", "Insect", "Fish", "Demon",
+                                                  "Demi-Human", "Angel", "Dragon"};
+            static const char* const kSize[3] = {"Small", "Medium", "Large"};
+            static const char* const kEle[10] = {"Neutral", "Water", "Earth", "Fire", "Wind", "Poison", "Holy",
+                                                 "Shadow", "Ghost", "Undead"};
+            static const char* const kType[13] = {"Healing", "?", "Usable", "Etc", "Weapon", "Armor", "Card",
+                                                  "Pet Egg", "Pet Armor", "?", "Ammo", "Delayed Use", "?"};
+            auto findMob = [&](u32 id) -> const ref::Mob* {
+                const ref::Mob* e = kM + nMob;
+                const ref::Mob* it = std::lower_bound(kM, e, id, [](const ref::Mob& m, u32 v) { return m.id < v; });
+                return (it != e && it->id == id) ? it : nullptr;
+            };
+            auto findItem = [&](u32 id) -> const ref::Item* {
+                const ref::Item* e = kI + nItem;
+                const ref::Item* it = std::lower_bound(kI, e, id, [](const ref::Item& m, u32 v) { return m.id < v; });
+                return (it != e && it->id == id) ? it : nullptr;
+            };
+            auto itemLabel = [&](u32 id) -> std::string {
+                if (id < 65536) {
+                    const std::string n = app.itemDb().name(id);
+                    if (!n.empty() && n[0] != '#') return n;
+                }
+                const ref::Item* it = findItem(id);
+                return it ? std::string(it->name) : "#" + std::to_string(id);
+            };
+            auto lowerA = [](std::string v) {
+                for (char& c : v)
+                    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+                return v;
+            };
+            const float bw = 640.0f, bh = 440.0f;
+            winPlace(WIN_REF, (fW - bw) * 0.5f, 70.0f);
+            const float bx = winPos_[WIN_REF].x, by = winPos_[WIN_REF].y;
+            winRect_[WIN_REF][0] = bx; winRect_[WIN_REF][1] = by;
+            winRect_[WIN_REF][2] = bw; winRect_[WIN_REF][3] = bh; winShown_[WIN_REF] = true;
+            ScopedLayer deafRef(*this, sb, uin, WIN_REF, false);
+            if (winTitlebar(WIN_REF, bw, "Reference")) { refOpen_ = false; refSearchFocused_ = false; }
+            ui::panel(sb, bx, by + kSkinTitleH, bw, bh - kSkinTitleH, ui::color::kWinBody);
+            winBlock(bx, by, bw, bh);
+            float ty = by + kSkinTitleH + 6.0f;
+            // tabs + search
+            for (int t = 0; t < 2; ++t) {
+                const float tx = bx + 8.0f + t * 92.0f;
+                if (ui::button(sb, font, uin, tx, ty, 88.0f, 24.0f, t == 0 ? "Monsters" : "Items", 1.05f, true) && refTab_ != t) {
+                    refTab_ = t; refScroll_ = 0.0f; refSel_ = 0;
+                }
+                if (refTab_ == t) sb.draw(tx, ty + 23.0f, 88.0f, 2.0f, ui::rgba(243, 198, 83, 255));
+            }
+            const float sx0 = bx + 200.0f, sw0 = bw - 208.0f;
+            if (uin.mousePressed) refSearchFocused_ = uin.hit(sx0, ty, sw0, 24.0f);
+            refSearch_.maxLen = 30;
+            refSearch_.draw(sb, font, sx0, ty, sw0, 24.0f, refSearchFocused_, time_,
+                            refSearchFocused_ ? "" : "search by name or id...");
+            ty += 32.0f;
+            const float listX = bx + 8.0f, listW = 220.0f, listTop = ty, listBot = by + bh - 8.0f, rowH = 18.0f;
+            const float cardX = listX + listW + 10.0f, cardW = bw - (cardX - bx) - 10.0f;
+            ui::panel(sb, listX, listTop, listW, listBot - listTop, ui::rgba(0, 0, 0, 40));
+            // the filtered list
+            const std::string q = lowerA(refSearch_.value);
+            const u32 qid = static_cast<u32>(std::strtoul(refSearch_.value.c_str(), nullptr, 10));
+            std::vector<u32> rows;
+            if (refTab_ == 0) {
+                for (std::size_t i = 0; i < nMob; ++i) {
+                    const ref::Mob& m = kM[i];
+                    if (m.spawnN == 0 && q.empty()) continue;  // without a search: only the monsters in the world
+                    if (!q.empty() && !(qid && m.id == qid) && lowerA(m.name).find(q) == std::string::npos) continue;
+                    rows.push_back(m.id);
+                }
+                std::stable_sort(rows.begin(), rows.end(), [&](u32 a, u32 b) { return findMob(a)->lv < findMob(b)->lv; });
+            } else {
+                for (std::size_t i = 0; i < nItem; ++i) {
+                    const ref::Item& it = kI[i];
+                    if (!q.empty() && !(qid && it.id == qid) && lowerA(it.name).find(q) == std::string::npos &&
+                        lowerA(itemLabel(it.id)).find(q) == std::string::npos)
+                        continue;
+                    rows.push_back(it.id);
+                    if (rows.size() >= 3000) break;
+                }
+            }
+            const float maxLS = std::max(0.0f, rows.size() * rowH - (listBot - listTop - 4.0f));
+            if (uin.hit(listX, listTop, listW, listBot - listTop) && uin.wheel != 0.0f)
+                refScroll_ = std::clamp(refScroll_ - uin.wheel * rowH * 3.0f, 0.0f, maxLS);
+            refScroll_ = std::clamp(refScroll_, 0.0f, maxLS);
+            const int first = static_cast<int>(refScroll_ / rowH);
+            for (int i = first; i < static_cast<int>(rows.size()); ++i) {
+                const float ry = listTop + 2.0f + i * rowH - refScroll_;
+                if (ry + rowH > listBot) break;
+                const u32 id = rows[static_cast<usize>(i)];
+                std::string lbl;
+                if (refTab_ == 0) { const ref::Mob* m = findMob(id); lbl = "Lv." + std::to_string(m->lv) + "  " + m->name; }
+                else lbl = itemLabel(id);
+                const bool hov = uin.hit(listX, ry, listW, rowH);
+                if (id == refSel_) ui::panel(sb, listX + 1.0f, ry, listW - 2.0f, rowH, ui::rgba(243, 198, 83, 70));
+                else if (hov) ui::panel(sb, listX + 1.0f, ry, listW - 2.0f, rowH, ui::rgba(255, 255, 255, 25));
+                font.draw(sb, listX + 5.0f, ry + 2.0f, 0.95f, ui::color::kWinText, lbl);
+                if (hov && uin.mousePressed) { refSel_ = id; refCardScroll_ = 0.0f; }
+            }
+            if (rows.empty()) font.draw(sb, listX + 6.0f, listTop + 6.0f, 1.0f, ui::color::kWinTextDim, "Nothing found");
+            // the card
+            float cy2 = listTop - refCardScroll_;
+            const float cardTop = listTop, cardBot = listBot;
+            std::vector<std::pair<int, u32>> links;  // (tab, id) per clickable line
+            auto line = [&](const std::string& s, u32 col, float sc = 1.0f, int linkTab = -1, u32 linkId = 0) {
+                if (cy2 >= cardTop - 2.0f && cy2 + 16.0f <= cardBot) {
+                    const bool hov = linkTab >= 0 && uin.hit(cardX, cy2, cardW, 16.0f);
+                    font.draw(sb, cardX, cy2, sc, hov ? ui::rgba(255, 230, 120, 255) : col, s);
+                    if (hov && uin.mousePressed) links.push_back({linkTab, linkId});
+                }
+                cy2 += 16.0f * sc + 2.0f;
+            };
+            const u32 tc = ui::color::kWinText, dim = ui::color::kWinTextDim, gold = ui::rgba(243, 198, 83, 255);
+            if (refSel_ == 0) {
+                line(refTab_ == 0 ? "Pick a monster on the left." : "Pick an item on the left.", dim);
+                line("Ctrl+F opens this window. Search by name or by id.", dim);
+            } else if (refTab_ == 0) {
+                if (const ref::Mob* m = findMob(refSel_)) {
+                    line(std::string(m->name) + (m->mvp ? "   [MVP]" : ""), gold, 1.3f);
+                    line("ID " + std::to_string(m->id) + "   Level " + std::to_string(m->lv), dim);
+                    line("HP " + std::to_string(m->hp) + "   Base exp " + std::to_string(m->exp) + "   Job exp " + std::to_string(m->jexp), tc);
+                    line("ATK " + std::to_string(m->atk1) + "-" + std::to_string(m->atk2) + "   DEF " + std::to_string(m->def) +
+                         "   MDEF " + std::to_string(m->mdef), tc);
+                    const int ele = m->ele % 20, elv = m->ele / 20;
+                    line(std::string("Race ") + (m->race < 10 ? kRace[m->race] : "?") + "   Size " + (m->size < 3 ? kSize[m->size] : "?") +
+                         "   Element " + (ele < 10 ? kEle[ele] : "?") + " " + std::to_string(elv), tc);
+                    cy2 += 6.0f;
+                    line("Drops (click: the item)", gold);
+                    const ref::Drop* d = ref::drops() + m->drop0;
+                    if (m->dropN == 0) line("  nothing", dim);
+                    for (int k = 0; k < m->dropN; ++k) {
+                        char pc[32];
+                        std::snprintf(pc, sizeof(pc), "%.2f%%", d[k].rate / 100.0);
+                        line(std::string("  ") + itemLabel(d[k].item) + "  " + pc +
+                                 (d[k].kind == 1 ? "  (card)" : d[k].kind == 2 ? "  (MVP reward)" : ""),
+                             d[k].kind == 1 ? ui::rgba(150, 200, 255, 255) : tc, 1.0f, 1, d[k].item);
+                    }
+                    cy2 += 6.0f;
+                    line("Where", gold);
+                    const ref::Spawn* sp = ref::spawns() + m->spawn0;
+                    if (m->spawnN == 0) line("  not spawned on the maps (quests, summons, events)", dim);
+                    for (int k = 0; k < m->spawnN; ++k) {
+                        std::string s = std::string("  ") + sp[k].map + "  x" + std::to_string(sp[k].count);
+                        if (sp[k].delayMs >= 60000) s += "   respawn " + std::to_string(sp[k].delayMs / 60000) + " min";
+                        line(s, tc);
+                    }
+                }
+            } else {
+                const ref::Item* it = findItem(refSel_);
+                line(itemLabel(refSel_), gold, 1.3f);
+                if (it) {
+                    if (itemLabel(refSel_) != it->name) line(it->name, dim);
+                    line("ID " + std::to_string(it->id) + "   " + (it->type < 13 ? kType[it->type] : "?"), dim);
+                    std::string s = "Buy " + std::to_string(it->buy) + " z   Sell " + std::to_string(it->sell ? it->sell : it->buy / 2) +
+                                    " z   Weight " + std::to_string(it->weight / 10) + "." + std::to_string(it->weight % 10);
+                    line(s, tc);
+                    std::string s2;
+                    if (it->atk) s2 += "ATK " + std::to_string(it->atk) + "   ";
+                    if (it->def) s2 += "DEF " + std::to_string(it->def) + "   ";
+                    if (it->slots) s2 += "Slots " + std::to_string(it->slots) + "   ";
+                    if (it->elv) s2 += "Required level " + std::to_string(it->elv);
+                    if (!s2.empty()) line(s2, tc);
+                }
+                if (refSel_ < 65536 && ui::button(sb, font, uin, cardX + cardW - 110.0f, cardTop, 110.0f, 22.0f, "Description", 1.0f)) {
+                    descItemId_ = static_cast<u16>(refSel_);
+                    for (int k = 0; k < 4; ++k) descCards_[k] = 0;
+                }
+                cy2 += 6.0f;
+                line("Dropped by (click: the monster)", gold);
+                struct By { const ref::Mob* m; int rate; int kind; };
+                std::vector<By> by;
+                for (std::size_t i = 0; i < nMob; ++i) {
+                    const ref::Drop* d = ref::drops() + kM[i].drop0;
+                    for (int k = 0; k < kM[i].dropN; ++k)
+                        if (d[k].item == refSel_) by.push_back({&kM[i], d[k].rate, d[k].kind});
+                }
+                std::sort(by.begin(), by.end(), [](const By& a, const By& b) { return a.rate > b.rate; });
+                if (by.empty()) line("  no monster", dim);
+                for (const By& b : by) {
+                    char pc[32];
+                    std::snprintf(pc, sizeof(pc), "%.2f%%", b.rate / 100.0);
+                    line("  " + std::string(b.m->name) + " (Lv." + std::to_string(b.m->lv) + ")  " + pc +
+                             (b.kind == 2 ? "  (MVP reward)" : "") + (b.m->spawnN ? "" : "  - not spawned"),
+                         b.m->spawnN ? tc : dim, 1.0f, 0, b.m->id);
+                }
+            }
+            const float cardH = cy2 + refCardScroll_ - cardTop;
+            const float maxCS = std::max(0.0f, cardH - (cardBot - cardTop));
+            if (uin.hit(cardX, cardTop, cardW, cardBot - cardTop) && uin.wheel != 0.0f)
+                refCardScroll_ = std::clamp(refCardScroll_ - uin.wheel * 40.0f, 0.0f, maxCS);
+            refCardScroll_ = std::clamp(refCardScroll_, 0.0f, maxCS);
+            if (!links.empty()) {
+                refTab_ = links.front().first;
+                refSel_ = links.front().second;
+                refCardScroll_ = 0.0f;
+                refSearch_.value.clear();
+                refSearch_.caret = 0;
+                refScroll_ = 0.0f;
             }
         }
         // Friend list window (Alt+uiH, #78): online dots + names, Friend/Party tabs, add/remove/PM.

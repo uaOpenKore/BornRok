@@ -827,6 +827,15 @@ private:
     // server's ZC quest packets (0x2b1/0x2b2/0x2b3/0x2b4/0x2b5/0x2b7).
     std::vector<net::QuestInfo> quests_;
     bool questOpen_ = false;       // Alt+U quest journal window
+    // Reference (Ctrl+F, S. 2026-11-23 after uaRO HD's «Довідник»): monsters and items from the server's db,
+    // drops with chances, where a monster lives, who drops an item (resource/EmbeddedReference.cpp).
+    bool refOpen_ = false;
+    int refTab_ = 0;               // 0 monsters, 1 items
+    u32 refSel_ = 0;               // selected mob / item id
+    float refScroll_ = 0.0f, refCardScroll_ = 0.0f;
+    ui::TextField refSearch_;
+    bool refSearchFocused_ = false;
+    void refOpenAt(int tab, u32 id) { refOpen_ = true; refTab_ = tab; refSel_ = id; refCardScroll_ = 0.0f; }
     std::unordered_map<u32, std::string> questTitles_;  // quest id -> display title (#136)
     bool questTitlesLoaded_ = false;
     float questScroll_ = 0.0f;     // journal list scroll offset (px)
@@ -1047,7 +1056,7 @@ private:
     // open window / the hotbar / the minimap (gathered into uiBlockRects_ as they're drawn),
     // the world click and the ground-cell highlight are suppressed, so clicking a panel no
     // longer also walks the character (S.: "не могу кликнуть по окну — чар бежит").
-    enum WinId { WIN_STATUS, WIN_INVENTORY, WIN_EQUIP, WIN_SKILLS, WIN_MENU, WIN_STORAGE, WIN_CART, WIN_FRIENDS, WIN_GUILD, WIN_QUEST, WIN_CRAFT, WIN_COUNT };
+    enum WinId { WIN_STATUS, WIN_INVENTORY, WIN_EQUIP, WIN_SKILLS, WIN_MENU, WIN_STORAGE, WIN_CART, WIN_FRIENDS, WIN_GUILD, WIN_QUEST, WIN_CRAFT, WIN_REF, WIN_COUNT };
     struct WinPos { float x = 0.0f, y = 0.0f; bool placed = false; };
     WinPos winPos_[WIN_COUNT];
     int winRows_[WIN_COUNT] = {};                // user-chosen visible rows (0 = auto-fit); set by the

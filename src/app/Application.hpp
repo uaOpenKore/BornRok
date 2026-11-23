@@ -360,6 +360,10 @@ private:
     int renderer_ = 0;
     int rendererStarted_ = 0;  // the code the device was started with
     void readEarlyConfig();
+    // "Auto" renderer (S. 2026-11-23): Vulkan first, then the next best; a backend whose run did not end cleanly
+    // (crash) is marked in autobad and skipped from then on. Returns the RenderConfig::renderer code to start.
+    int pickAutoRenderer();
+    int autoBad_ = 0;  // bit per renderer code: crashed under Auto
     // the sprite quality of the pack on disk (detect) + the 1k dye guide for 2k/4k sprites (or none)
     void applyDyeGuide(bool detect = true);
     std::vector<std::string> contentDirs_;  // the content folders of the last mount

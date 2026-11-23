@@ -81,6 +81,10 @@ void loadExeClassTables(const Vfs& vfs) {
 }
 }  // namespace
 
+namespace {
+std::filesystem::path gameCfgPath();  // settings/game.cfg (defined below)
+}  // namespace
+
 int Application::run(const AppConfig& cfg) {
     if (!platform_.init()) return 1;
 
@@ -98,7 +102,8 @@ int Application::run(const AppConfig& cfg) {
 
     readEarlyConfig();
     RenderConfig rc;
-    rc.renderer = rendererStarted_ = renderer_;
+    rendererStarted_ = renderer_;
+    rc.renderer = renderer_ == 0 ? pickAutoRenderer() : renderer_;
     rc.width = pw;
     rc.height = ph;
     rc.vsync = cfg.vsync;
@@ -423,6 +428,12 @@ int Application::run(const AppConfig& cfg) {
     font_.shutdown();
     uiSkin_.destroy();
     render_.shutdown();
+#if !defined(CLIENT_CONSOLE)
+    {   // a clean exit: the Auto renderer of this run did not crash
+        std::error_code ec;
+        std::filesystem::remove(gameCfgPath().parent_path() / "render_session.txt", ec);
+    }
+#endif
     platform_.shutdown();
     net::Socket::globalShutdown();
     return 0;
@@ -720,6 +731,7 @@ void Application::loadConfig() {
                            : px <= 2048 ? 2048 : 4096;
             }
             else if (key == "renderer") renderer_ = std::clamp(static_cast<int>(v + 0.5f), 0, 5);  // graphics backend (next start)
+            else if (key == "autobad") autoBad_ = static_cast<int>(v + 0.5f) & 0x3f;  // backends Auto skips (crashed)
             else if (key == "showperf") showPerf_ = (v != 0.0f) ? 1 : 0;  // on-screen fps / RAM / CPU
             else if (key == "perflog") perfLogSec_ = std::clamp(static_cast<int>(v + 0.5f), 0, 600);  // 0 = off
             else if (key == "uiscale") uiScale_ = std::clamp(v, 1.0f, 2.0f);
@@ -931,6 +943,7 @@ void Application::saveConfig() const {
     out << "perflog " << perfLogSec_ << "\n";
     out << "showperf " << showPerf_ << "\n";
     out << "renderer " << renderer_ << "\n";
+    out << "autobad " << autoBad_ << "\n";
     out << "uiscale " << uiScale_ << "\n";
     out << "uiscaleauto " << (uiScaleAuto_ ? 1 : 0) << "\n";
     out << "padinvlx " << (padInvertLX_ ? 1 : 0) << "\n"
@@ -1050,8 +1063,47 @@ void Application::readEarlyConfig() {
     float v = 0.0f;
     while (f >> key) {
         if (key == "renderer" && (f >> v)) renderer_ = std::clamp(static_cast<int>(v + 0.5f), 0, 5);
+        else if (key == "autobad" && (f >> v)) autoBad_ = static_cast<int>(v + 0.5f) & 0x3f;
         else f.ignore(4096, '\n');
     }
+#endif
+}
+
+int Application::pickAutoRenderer() {
+#if defined(CLIENT_CONSOLE) || defined(CLIENT_UWP) || defined(__ANDROID__) || \
+    (defined(__linux__) && !defined(__x86_64__))
+    return 0;  // consoles / Xbox / Android / ARM Linux (Switch L4T): bgfx's own pick, as before
+#else
+    namespace stdfs = std::filesystem;
+    std::error_code ec;
+    const stdfs::path marker = gameCfgPath().parent_path() / "render_session.txt";
+    if (std::ifstream m(marker); m) {  // the last Auto run did not reach a clean exit
+        int c = 0;
+        m >> c;
+        m.close();
+        if (c > 0 && c <= 5 && !(autoBad_ & (1 << c))) {
+            autoBad_ |= 1 << c;
+            log::warn("render: the last run on {} did not end cleanly (crash?) -> Auto skips it from now on",
+                      RenderDevice::rendererLabel(c));
+        }
+        stdfs::remove(marker, ec);
+    }
+#if defined(_WIN32)
+    static const int kOrder[] = {3, 1, 2, 4};  // Vulkan, D3D11, D3D12, OpenGL
+#elif defined(__APPLE__)
+    static const int kOrder[] = {5};           // Metal
+#else
+    static const int kOrder[] = {3, 4};        // Vulkan, OpenGL
+#endif
+    int pick = 0;
+    for (int c : kOrder)
+        if (!(autoBad_ & (1 << c)) && RenderDevice::rendererAvailable(c)) { pick = c; break; }
+    log::info("render: Auto picks {} (skipped after a crash: {})", RenderDevice::rendererLabel(pick), autoBad_);
+    if (pick > 0) {
+        stdfs::create_directories(marker.parent_path(), ec);
+        if (std::ofstream m(marker); m) m << pick << "\n";
+    }
+    return pick;
 #endif
 }
 

@@ -177,6 +177,7 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
 #endif
     init.resolution.width = static_cast<u32>(width_);
     init.resolution.height = static_cast<u32>(height_);
+    glNoMsaa_ = init.type == bgfx::RendererType::OpenGL;
     init.resolution.reset = resetFlags();
     init.platformData.nwh = nw.nwh;
     init.platformData.ndt = nw.ndt;
@@ -200,6 +201,15 @@ bool RenderDevice::init(const NativeWindow& nw, const RenderConfig& cfg) {
         }
     }
     inited_ = true;
+    // OpenGL: no MSAA back buffer (S. 2026-11-24, the picture too bright on GL from the very login screen; his
+    // screenshots: GL = DX11 through the sRGB curve, 173 -> 215, 216 -> 237, 235 -> 246). With MSAA bgfx draws the
+    // frame into its own multisampled FBO, turns GL_FRAMEBUFFER_SRGB on for FBOs and blits it to the window, and the
+    // AMD driver's sRGB-capable window encodes it a second time. Without MSAA nothing is converted.
+    if (bgfx::getRendererType() == bgfx::RendererType::OpenGL && !glNoMsaa_) {
+        glNoMsaa_ = true;
+        if (msaaResetFlag(msaa_)) bgfx::reset(static_cast<u32>(width_), static_cast<u32>(height_), resetFlags());
+    }
+    if (glNoMsaa_ && msaaResetFlag(msaa_)) log::info("render: MSAA off on OpenGL (its MSAA back buffer brightens the picture)");
 
     bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, clearColor_, 1.0f, 0);
     bgfx::setViewRect(0, 0, 0, static_cast<u16>(width_), static_cast<u16>(height_));
@@ -751,7 +761,7 @@ void RenderDevice::setVsync(bool on) {
 }
 
 u32 RenderDevice::resetFlags() const {
-    return msaaResetFlag(msaa_) | (vsync_ ? BGFX_RESET_VSYNC : 0u);
+    return (glNoMsaa_ ? 0u : msaaResetFlag(msaa_)) | (vsync_ ? BGFX_RESET_VSYNC : 0u);
 }
 
 void RenderDevice::setMsaa(int samples) {

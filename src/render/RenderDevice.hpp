@@ -287,6 +287,7 @@ private:
     bgfx::VertexBufferHandle fsTri_ = BGFX_INVALID_HANDLE;  // fullscreen triangle
     int fbW_ = 0, fbH_ = 0;   // size the current hdrFb_ was created at
     int fsrW_ = 0, fsrH_ = 0;  // size the current fsrFb_ was created at
+    bool glNoMsaa_ = false;  // OpenGL: never an MSAA back buffer (sRGB double encode, see init)
 };
 
 } // namespace uaro

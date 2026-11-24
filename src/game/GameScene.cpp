@@ -20396,19 +20396,6 @@ void GameScene::render(Application& app) {
             uiBlockRects_.push_back({dx - 2.0f, dy - 2.0f, dw + 4.0f, dh + 4.0f});  // block world under it
         }
     }
-    // While dragging an item or a skill, its icon follows the cursor so the drag is visible.
-    if (dragSrc_ != 0 && dragActive_) {
-        const ui::UiImage* ic = nullptr;
-        if (dragSrc_ == 5) {  // skill drag: resolve the icon by the dragged skill id
-            for (const auto& s : skills_)
-                if (s.id == dragIndex_) { ic = skillIcon(app, s.name); break; }
-        } else {
-            ic = itemIcon(app, dragNameid_);
-        }
-        if (ic)
-            ui::imageScaled(sb, *ic, static_cast<float>(uin.mouseX) - 16.0f,
-                            static_cast<float>(uin.mouseY) - 16.0f, 32.0f, 32.0f);
-    }
     // Emoticons over units: each plays ~2s above the head, projected to screen (2D, like the cursor).
     if (emote_.ready() && !emotes_.empty()) {
         constexpr double kEmoteSecs = 2.0;
@@ -20511,6 +20498,20 @@ void GameScene::render(Application& app) {
     // Hide the RO cursor in gamepad mode unless the Mouse overlay (L3) or the touchpad is driving it, so
     // an idle cursor doesn't clutter the screen while playing with the pad (S.). Keyboard/mouse always show.
     layerSwitchView(sb, kLayerTopView);  // [layers] the cursor (and the gamepad keyboard after it) over every window
+    // While dragging an item or a skill, its icon follows the cursor so the drag is visible -- in the top view, over
+    // every window (S. 2026-11-24: drawn in the HUD view it vanished under the windows it was dragged over).
+    if (dragSrc_ != 0 && dragActive_) {
+        const ui::UiImage* ic = nullptr;
+        if (dragSrc_ == 5) {  // skill drag: resolve the icon by the dragged skill id
+            for (const auto& s : skills_)
+                if (s.id == dragIndex_) { ic = skillIcon(app, s.name); break; }
+        } else {
+            ic = itemIcon(app, dragNameid_);
+        }
+        if (ic)
+            ui::imageScaled(sb, *ic, static_cast<float>(uin.mouseX) - 16.0f,
+                            static_cast<float>(uin.mouseY) - 16.0f, 32.0f, 32.0f);
+    }
     if (cursor_.ready() && !padHideCursor_ && !app.touchMode()) {  // touch: no pointer, hide the RO cursor (S.)
         // The wide magnet that sticks the cursor to a mob, computed up front so the ATTACK cursor and
         // the click both follow the SAME mob the cursor visibly snapped to -- otherwise the cursor

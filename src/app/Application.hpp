@@ -327,14 +327,14 @@ private:
 
     float masterVol_ = 1.0f, bgmVol_ = 1.0f, sfxVol_ = 1.0f;  // sound config (default 100%) (#104)
     bool fullscreen_ = false, vsyncOn_ = true;  // video config: windowed + vsync on by default (#104)
-    // Windows and Linux desktops: 60 fps and the sprite / effect frame interpolation on by default (S. 2026-11-23);
-    // elsewhere (Android sets 25 itself, consoles, Apple, Xbox) 30 fps and no interpolation, as before.
+    // Windows and Linux desktops: the sprite / effect frame interpolation on by default (S. 2026-11-23; the 60 fps
+    // default of then is back to 30, S. 2026-11-24); elsewhere no interpolation, as before.
 #if (defined(_WIN32) && !defined(CLIENT_UWP)) || (defined(__linux__) && !defined(__ANDROID__) && !defined(CLIENT_CONSOLE))
     static constexpr bool kDesktopDefaults = true;
 #else
     static constexpr bool kDesktopDefaults = false;
 #endif
-    int fpsLimit_ = kDesktopDefaults ? 60 : 30, worldFilter_ = 2, objFilter_ = 1;  // world trilinear, objects bilinear
+    int fpsLimit_ = 30, worldFilter_ = 2, objFilter_ = 1;  // 30 fps (S. 2026-11-24: back from 60); world trilinear, objects bilinear
     std::string language_ = "en";  // UI language ISO code; loads texts/<code>.cfg (#104 i18n)
     int gameMode_ = 0;                   // 0 = Kbd+Mouse, 1 = TouchScreen, 2 = GamePad
     bool cameraLock_ = false;            // behind-the-character follow-cam (Settings) (#104)

@@ -248,8 +248,36 @@ bool MapRenderer::load(Application& app, const std::string& mapName) {
     return true;
 }
 
+void MapRenderer::ensureCpuTextures(Application& app) {
+    if (!cpuTexReleased_) return;
+    const auto& names = map_.gnd.textures();
+    map_.textures.assign(names.size(), std::nullopt);
+    for (usize i = 0; i < names.size(); ++i)
+        if (auto bytes = app.vfs().readPreferPng("data/texture/" + names[i])) {  // as MapLoader read them
+            map_.textures[i] = decodeImage(*bytes);
+            if (map_.textures[i] && map_.textures[i]->valid() && g_texMaxDim > 0)
+                downscaleToMaxDim(*map_.textures[i], static_cast<u32>(g_texMaxDim));
+        }
+    cpuTexReleased_ = false;
+    log::info("MapRenderer: ground textures decoded again for a rebuild");
+}
+
+void MapRenderer::releaseCpuTextures() {
+    if (cpuTexReleased_) return;
+    usize bytes = 0;
+    for (auto& img : map_.textures) {
+        if (img) bytes += img->rgba.size();
+        img.reset();
+    }
+    std::vector<std::optional<Image>>().swap(map_.textures);  // the vector's own storage too
+    cpuTexReleased_ = true;
+    log::info("MapRenderer: ground textures freed from RAM ({} MB; they stay in video memory)", bytes >> 20);
+}
+
 void MapRenderer::buildNormalMaps(Application& app) {
     freeNormalMaps();
+    const bool hadCpu = !cpuTexReleased_;
+    ensureCpuTextures(app);
     normalTextures_.reserve(map_.gnd.textures().size());
     for (usize ti = 0; ti < map_.gnd.textures().size(); ++ti) {
         const auto& name = map_.gnd.textures()[ti];
@@ -288,6 +316,7 @@ void MapRenderer::buildNormalMaps(Application& app) {
         normalTextures_.push_back(h);
     }
     normalsBuilt_ = true;
+    if (!hadCpu) releaseCpuTextures();  // a rebuild later in the map: free them again
 }
 
 void MapRenderer::freeNormalMaps() {
@@ -315,11 +344,17 @@ void MapRenderer::syncNormals(Application& app) {
 // Off used to only skip the draw -- the clumps, mesh and texture were built at every map load and kept.
 void MapRenderer::syncGrass(Application& app) {
     if (!ready_) return;
-    if (g_grassEnabled == grassLoaded_) return;
-    if (g_grassEnabled)
+    if (g_grassEnabled == grassLoaded_) {
+        releaseCpuTextures();  // first frame of the map with the grass off: nothing else needs them (no-op after)
+        return;
+    }
+    if (g_grassEnabled) {
+        ensureCpuTextures(app);
         grass_.load(app, map_, water_.ready());  // a map without grassy cells stays empty; not retried
-    else
+        releaseCpuTextures();
+    } else {
         grass_.destroy();
+    }
     grassLoaded_ = g_grassEnabled;
     log::info("MapRenderer: grass {}", g_grassEnabled ? (grass_.ready() ? "built" : "none on this map") : "freed");
 }

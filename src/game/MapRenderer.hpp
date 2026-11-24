@@ -54,6 +54,12 @@ public:
 
 private:
     void buildNormalMaps(Application& app);  // per-tile relief maps (hand-authored _n or from luminance)
+    // The decoded ground textures (map_.textures) are needed only to build things from them -- the upload, the
+    // grass, the relief maps -- and are freed after (S. 2026-11-24: "зачем хранить текстуры в ОЗУ, если они есть
+    // в видеопамяти"; 13 tiles of 4k are ~0.8 GB). A later rebuild (grass / Normals turned on) decodes them again.
+    void ensureCpuTextures(Application& app);
+    void releaseCpuTextures();
+    bool cpuTexReleased_ = false;
     void freeNormalMaps();
 
     MapData map_;

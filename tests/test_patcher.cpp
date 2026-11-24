@@ -103,13 +103,13 @@ TEST_CASE(manifest_server_fallback_url) {
 }
 
 TEST_CASE(content_quality_defaults) {
-    // 4k tier.
-    CHECK(defaultQuality("windows-x64") == "4k");
-    CHECK(defaultQuality("linux-x64") == "4k");
-    CHECK(defaultQuality("macos-x64") == "4k");
-    CHECK(defaultQuality("macos-arm") == "4k");
-    CHECK(defaultQuality("xbox") == "4k");
-    CHECK(defaultQuality("ps5") == "4k");
+    // 2k tier: the x64 / Apple desktops (S. 2026-11-24).
+    CHECK(defaultQuality("windows-x64") == "2k");
+    CHECK(defaultQuality("linux-x64") == "2k");
+    CHECK(defaultQuality("macos-x64") == "2k");
+    CHECK(defaultQuality("macos-arm") == "2k");
+    CHECK(defaultQuality("xbox") == "1k");
+    CHECK(defaultQuality("ps5") == "1k");
     // 1k tier (incl. the former 2k platforms and steamdeck/switch/mobile).
     CHECK(defaultQuality("windows-arm") == "1k");
     CHECK(defaultQuality("linux-arm") == "1k");
@@ -139,8 +139,8 @@ TEST_CASE(content_quality_bundled) {
 TEST_CASE(content_quality_resolve) {
     CHECK(resolveQuality("4k", "linux-arm") == "4k");  // explicit config wins over the 1k default
     CHECK(resolveQuality("1k", "windows-x64") == "1k");
-    CHECK(resolveQuality("", "windows-x64") == "4k");  // empty -> platform default
-    CHECK(resolveQuality("2k", "windows-x64") == "4k");  // legacy 2k ignored -> default
+    CHECK(resolveQuality("", "windows-x64") == "2k");  // empty -> platform default (S. 2026-11-24)
+    CHECK(resolveQuality("2k", "windows-x64") == "2k");  // 2k is a valid choice again
     CHECK(resolveQuality("garbage", "switch") == "1k");
 }
 

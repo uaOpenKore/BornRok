@@ -278,7 +278,25 @@ int ItemDb::slots(u32 id) const {
 
 std::string ItemDb::description(u32 id) const {
     const auto it = desc_.find(id);
-    return (it != desc_.end()) ? it->second : std::string();
+    if (it != desc_.end()) return it->second;
+    // No description in the content (a renewal backport, S. 2026-11-24 "возьми список с сервера"): one made from the
+    // server's item_db -- what the item does in words, then its numbers.
+    const ref::Item* si = serverItem(id);
+    if (!si) return {};
+    static const char* const kType[13] = {"Healing item", "?", "Usable item", "Etc", "Weapon", "Armor", "Card", "Pet egg",
+                                          "Pet armor", "?", "Ammunition", "Usable item", "?"};
+    std::string d;
+    if (si->effect && si->effect[0]) {
+        std::string e = si->effect;
+        for (std::size_t p = 0; (p = e.find("; ", p)) != std::string::npos;) e.replace(p, 2, "\n");
+        d += e + "\n";
+    }
+    d += std::string("Class: ") + (si->type < 13 ? kType[si->type] : "?") + "\n";
+    if (si->atk) d += "Attack: " + std::to_string(si->atk) + "\n";
+    if (si->def) d += "Defense: " + std::to_string(si->def) + "\n";
+    if (si->elv) d += "Required level: " + std::to_string(si->elv) + "\n";
+    d += "Weight: " + std::to_string(si->weight / 10) + (si->weight % 10 ? "." + std::to_string(si->weight % 10) : "");
+    return d;
 }
 
 std::string ItemDb::name(u32 id) const {

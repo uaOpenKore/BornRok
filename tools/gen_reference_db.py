@@ -44,6 +44,54 @@ for name in ("db/mob_db.txt", "db/mob_db2.txt"):
                          atk1=num(f[10]), atk2=num(f[11]), df=num(f[12]), mdf=num(f[13]), size=num(f[22]),
                          race=num(f[23]), ele=num(f[24]), mexp=num(f[30]), drops=mvp + drops)
 
+STAT = {"bStr": "STR", "bAgi": "AGI", "bVit": "VIT", "bInt": "INT", "bDex": "DEX", "bLuk": "LUK", "bAllStats": "All stats",
+        "bMaxHP": "Max HP", "bMaxSP": "Max SP", "bMaxHPrate": "Max HP %", "bMaxSPrate": "Max SP %", "bAtk": "ATK",
+        "bDef": "DEF", "bMdef": "MDEF", "bHit": "HIT", "bFlee": "FLEE", "bFlee2": "Perfect Dodge", "bCritical": "CRIT",
+        "bAspdRate": "ASPD %", "bMatkRate": "MATK %", "bAtkRate": "ATK %", "bSpeedRate": "Move speed %",
+        "bHPrecovRate": "HP recovery %", "bSPrecovRate": "SP recovery %", "bCastrate": "Cast time %",
+        "bUseSPrate": "SP cost %", "bDelayRate": "Skill delay %", "bBaseAtk": "ATK", "bMatk": "MATK"}
+def amount(x):
+    x = x.strip()
+    m = re.match(r"rand\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)", x)
+    return "%s-%s" % (m.group(1), m.group(2)) if m else x
+def args2(x):
+    d = 0
+    for i, c in enumerate(x):
+        if c == "(": d += 1
+        elif c == ")": d -= 1
+        elif c == "," and d == 0: return x[:i], x[i + 1:]
+    return x, "0"
+def summary(script):
+    out = []
+    for st in [t.strip() for t in script.split(";") if t.strip()]:
+        m = re.match(r"itemheal\s+(.+)$", st)
+        if m:
+            a1, a2 = args2(m.group(1))
+            hp, sp = amount(a1), amount(a2)
+            if hp not in ("0", ""): out.append("Restores %s HP" % hp)
+            if sp not in ("0", ""): out.append("Restores %s SP" % sp)
+            continue
+        m = re.match(r"percentheal\s+(.+)$", st)
+        if m:
+            a1, a2 = args2(m.group(1))
+            if a1.strip() != "0": out.append("Restores %s%% HP" % a1.strip())
+            if a2.strip() != "0": out.append("Restores %s%% SP" % a2.strip())
+            continue
+        m = re.match(r"bonus\s+(\w+)\s*,\s*(-?\w+)$", st)
+        if m and m.group(1) in STAT:
+            v = m.group(2)
+            out.append("%s %s%s" % (STAT[m.group(1)], "+" if not v.startswith("-") else "", v))
+            continue
+        m = re.match(r"sc_start\s+SC_(\w+)\s*,\s*(\d+)", st)
+        if m:
+            out.append("Effect: %s (%d s)" % (m.group(1).replace("_", " ").title(), int(m.group(2)) // 1000))
+            continue
+        if st.startswith(("if", "else", "set ", "end", "{", "}", "specialeffect", "misceffect")) or len(st) > 70:
+            continue
+        out.append(st)
+        if len(out) >= 8:
+            break
+    return "; ".join(out)[:300]
 items = {}
 for name in ("db/item_db.txt", "db/item_db2.txt"):
     p = os.path.join(root, name)
@@ -56,8 +104,12 @@ for name in ("db/item_db.txt", "db/item_db2.txt"):
         f = s.split(",", 19)
         if len(f) < 17 or not f[0].strip().isdigit():
             continue
+        sc = ""
+        if len(f) > 19:
+            m = re.match(r"\s*\{(.*?)\}", f[19])
+            if m: sc = summary(m.group(1))
         items[int(f[0])] = dict(name=f[2].strip(), type=num(f[3]), buy=num(f[4]), sell=num(f[5]),
-                                w=num(f[6]), atk=num(f[7]), df=num(f[8]), slots=num(f[10]), elv=num(f[16]))
+                                w=num(f[6]), atk=num(f[7]), df=num(f[8]), slots=num(f[10]), elv=num(f[16]), sc=sc)
 
 spawns = {}  # mob -> {map: [count, delay]}
 npcs = []     # (map, name, x, y, kind 0 npc / 1 shop)
@@ -98,7 +150,8 @@ def load_npc(path):
                 for tok in parts[3].split(",")[1:]:
                     iid = tok.split(":")[0].strip()
                     if iid.isdigit() and int(iid) not in shop_items:
-                        shop_items[int(iid)] = "%s (%s %s,%s)" % (npc_name(parts[2]), a[0].replace(".gat", "").strip(), a[1].strip() if len(a) > 1 else "", a[2].strip() if len(a) > 2 else "")
+                        shop_items[int(iid)] = (npc_name(parts[2]) + " (a script's shop)") if a[0].strip() == "-" else \
+                            "%s (%s %s,%s)" % (npc_name(parts[2]), a[0].replace(".gat", "").strip(), a[1].strip() if len(a) > 1 else "", a[2].strip() if len(a) > 2 else "")
             if len(a) >= 3 and a[0] != "-" and spr.lstrip("-").isdigit() and int(spr) not in (-1, 111, 139):
                 nm = npc_name(parts[2])
                 if nm:
@@ -161,8 +214,8 @@ with open(OUT, "w", encoding="utf-8") as o:
     o.write("};\n\nstatic const Item kItems[] = {\n")
     for iid in item_ids:
         it = items[iid]
-        o.write("    {%d, %s, %d, %d, %d, %d, %d, %d, %d, %d},\n" % (iid, cstr(it["name"]), it["type"], it["buy"],
-                it["sell"], it["w"], it["atk"], it["df"], it["slots"], it["elv"]))
+        o.write("    {%d, %s, %d, %d, %d, %d, %d, %d, %d, %d, %s},\n" % (iid, cstr(it["name"]), it["type"], it["buy"],
+                it["sell"], it["w"], it["atk"], it["df"], it["slots"], it["elv"], cstr(it["sc"])))
     o.write("};\n\n")
     o.write("static const Npc kNpcs[] = {\n")
     for mp, nm, x, y, k in npcs:

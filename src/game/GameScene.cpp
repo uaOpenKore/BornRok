@@ -18944,6 +18944,7 @@ void GameScene::render(Application& app) {
                     if (it->slots) s2 += "Slots " + std::to_string(it->slots) + "   ";
                     if (it->elv) s2 += "Required level " + std::to_string(it->elv);
                     if (!s2.empty()) line(s2, tc);
+                    if (it->effect && it->effect[0]) line(it->effect, ui::rgba(150, 220, 150, 255));
                 }
                 if (refSel_ < 65536 && ui::button(sb, font, uin, cardX + cardW - 110.0f, cardTop, 110.0f, 22.0f, "Description", 1.0f)) {
                     descItemId_ = static_cast<u16>(refSel_);

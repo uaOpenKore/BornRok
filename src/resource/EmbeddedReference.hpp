@@ -26,6 +26,7 @@ struct Item {
     std::uint32_t weight, atk, def;
     std::uint8_t slots;
     std::uint8_t elv;
+    const char* effect;  // the use / equip script in words ("Restores 325 HP", "STR +2"), "" = none
 };
 
 struct Npc { const char* map; const char* name; std::uint16_t x, y; std::uint8_t kind; };   // kind 1 = shop

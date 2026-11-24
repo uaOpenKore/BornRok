@@ -617,8 +617,10 @@ bgfx::TextureHandle RenderDevice::reflectTexture() const {
 }
 
 bool RenderDevice::reflectFlipY() const {
-    const bgfx::Caps* caps = bgfx::getCaps();
-    return caps && caps->originBottomLeft;  // GL-family RTs sample bottom-up vs gl_FragCoord top-down
+    // No flip on any backend (S. 2026-11-24: on OpenGL the reflection was upside down). fs_water samples the mirror
+    // target at gl_FragCoord / viewRect, and both run the same way on each backend: on GL gl_FragCoord and texture
+    // v both start at the bottom, on D3D / Vulkan / Metal both at the top -- so the earlier GL-only flip turned it over.
+    return false;
 }
 
 bool RenderDevice::reflectActive() const {

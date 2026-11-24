@@ -13,11 +13,10 @@
 namespace uaro {
 
 std::string defaultQuality(const std::string& platform) {
-    // The TEXTURE tier a player gets until they choose one (sprites stay 1k, see resolveQuality).
-    // S. 2026-11-24: 2k on the x64 / Apple desktops -- 4k stays an option in Settings, but its textures took
-    // 2.6 GB of video memory and 4-5 GB of RAM in Prontera; 1k everywhere else. (2026-07-28 .. 11-24: 1k for all.)
-    if (platform == "windows-x64" || platform == "linux-x64" || platform == "macos-x64" || platform == "macos-arm")
-        return "2k";
+    // S. 2026-07-28: 1k is the DEFAULT tier for EVERYONE now -- both textures and sprites ("и тоже самое
+    // для текстур"). 2k/4k are an explicit opt-in in Settings. (Was: 2k on desktop x64/arm-mac + HD
+    // consoles, 1k elsewhere.)
+    (void)platform;
     return "1k";
 }
 
@@ -48,7 +47,7 @@ std::string resolveQuality(const std::string& configValue, const std::string& pl
     // (Bundled consoles don't download quality packs at all -- they use their baked content -- so this
     // default only affects the platforms that fetch <q>/texture.zip or <q>/sprite.zip.)
     if (isSprite) return "1k";
-    return defaultQuality(platform);  // 2k on the x64 / Apple desktops, else 1k
+    return defaultQuality(platform);  // now also 1k for every platform
 }
 
 // --- runtime detection ---------------------------------------------------------------------------

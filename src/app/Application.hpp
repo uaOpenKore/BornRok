@@ -361,7 +361,7 @@ private:
     int charDye_ = -1;  // -1 = unsaved: on for desktop, off for Android/Switch
     int lod_ = -1;                               // object LOD radius: 0 off/25/40/60/80; -1 = auto (#lod)
     int msaa_ = 4;                               // backbuffer MSAA samples 0/2/4 (0 on the Switch profile)
-    int texMaxDim_ = 0;                          // texture size cap, 0 = full (512 on the Switch profile)
+    int texMaxDim_ = 2048;  // texture size cap, 0 = full; 2048 by default (S. 2026-11-24: 4k packs scaled down in the game), 512 on the Switch profile
     int perfLogSec_ = 10;                        // perf log line period in seconds, 0 = off ("perflog")
     // On-screen perf counter in the top-left corner: fps, the process's RAM and its CPU load (S. 2026-11-23).
     // Refreshed once a second; "showperf 0" in settings/game.cfg hides it.

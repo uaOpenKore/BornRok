@@ -1893,6 +1893,16 @@ float skinWindow(Application& app, float x, float y, float w, float h, const std
 
 // roBrowser inventory tab bucket for an ItemType: 0 = Usable (heal/usable/usable_skill/
 // usable_unk), 1 = Equip (weapon/equip/petegg/petequip), 2 = Etc (etc/card/ammo + rest).
+// An item's type when the packet does not carry it (0xf4 / 0x124): the server's item_db (EmbeddedReference) --
+// the bag copy is usually gone by then (S. 2026-11-24: equipment moved into the cart landed in the Item tab).
+u8 serverItemType(u32 nameid, u8 fallback) {
+    std::size_t n = 0;
+    const ref::Item* all = ref::items(n);
+    const ref::Item* e = all + n;
+    const ref::Item* it = std::lower_bound(all, e, nameid, [](const ref::Item& m, u32 v) { return m.id < v; });
+    return (it != e && it->id == nameid) ? it->type : fallback;
+}
+
 int itemTabBucket(u8 type) {
     switch (type) {
         case 0: case 2: case 11: case 18: return 0;
@@ -7154,8 +7164,7 @@ void GameScene::pumpStream(Application& app) {
                     if (auto it = storage_.find(ni.index); it != storage_.end())
                         it->second.amount = static_cast<u16>(it->second.amount + ni.amount);
                     else {
-                        for (const auto& kv : inventory_)  // 0xf4 omits the item type; recover it by
-                            if (kv.second.nameid == ni.nameid) { ni.type = kv.second.type; break; }  // nameid
+                        ni.type = serverItemType(ni.nameid, ni.type);  // 0xf4 omits the item type
                         storage_[ni.index] = ni;
                     }
                 }
@@ -7199,8 +7208,7 @@ void GameScene::pumpStream(Application& app) {
                     if (auto it = cart_.find(ni.index); it != cart_.end())
                         it->second.amount = static_cast<u16>(it->second.amount + ni.amount);
                     else {
-                        for (const auto& kv : inventory_)  // 0x124 omits the item type; recover by nameid
-                            if (kv.second.nameid == ni.nameid) { ni.type = kv.second.type; break; }
+                        ni.type = serverItemType(ni.nameid, ni.type);  // 0x124 omits the item type
                         cart_[ni.index] = ni;
                     }
                 }

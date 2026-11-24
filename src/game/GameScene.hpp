@@ -795,6 +795,7 @@ private:
     // Last-drawn minimap rect, captured by drawMinimap so update() can do click-to-walk with the
     // full set of UI block rects in hand (a window over the minimap must swallow the click).
     float mmX_ = 0.0f, mmY_ = 0.0f, mmSize_ = 0.0f;
+    float statusBottom_ = 0.0f;  // the bottom of the status icons under the minimap (this frame)
     bool mmDrawn_ = false;
     bool inventoryOpen_ = false;   // inventory grid window (toggled by the on-screen Items button)
     bool statusOpen_ = false;      // character status (stats) window

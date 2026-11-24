@@ -9711,6 +9711,7 @@ StrEffect* GameScene::skillEffect(Application& app, const char* name) {
 }
 
 void GameScene::drawStatusIcons(Application& app) {
+    statusBottom_ = mmY_ + mmSize_;  // nothing drawn: the MVP timers go right under the minimap
     if (!mmDrawn_ || activeStatus_.empty()) return;
     SpriteBatch& sb = app.sprites();
     Font& font = app.font();
@@ -9753,6 +9754,7 @@ void GameScene::drawStatusIcons(Application& app) {
             if (d && d->debuff) drawIcon(d, si);
         }
     }
+    statusBottom_ = (x != x0) ? y + kIcon : y;  // under the last row of icons
 
     // Hover tooltip: the status-effect name + description, straight from the GRF's stateiconinfo.lub
     // (data-from-GRF, no hardcoded strings). Falls back to the short chip label if the GRF has no text
@@ -15355,7 +15357,6 @@ void GameScene::render(Application& app) {
     // status) flows just below the panel so the two never overlap; the panel height depends
     // on its Alt+V state (collapsed 22 / short 40 / full 150).
     drawMinimap(app);
-    drawMvpTimers(app);
     drawBasicInfo(app);
     drawGamepadModeStrip(app);  // bottom-screen active-modes line (#102/#115)
     if (app.session().walkMode && !(app.input().pad.connected && app.gamepadMode())) {
@@ -15381,6 +15382,7 @@ void GameScene::render(Application& app) {
     drawBindsPanel(app);   // 5x2 clickable chat-bind panel (toggled by the ALT button)
     drawBindsWindow(app);  // Alt+M Shortcut List editor (drawn on top)
     drawStatusIcons(app);  // active buff/debuff icons under the minimap (S.)
+    drawMvpTimers(app);    // below the status icons (S. 2026-11-24: it sat under them, unreadable)
     // Auto-attack panel (#76): a bottom-right column -- Auto HP / Auto SP / Filter / AutoAttack (top
     // to bottom). AutoAttack toggles the nearest-mob attack; the other three open their windows (WIP).
     if (!dead_ && !menuOpen_ && !dialogOpen_ && shopMode_ == ShopMode::None) {
@@ -20745,9 +20747,10 @@ void GameScene::drawMvpTimers(Application& app) {
     Font& font = app.font();
     const float rowH = 16.0f, w = 230.0f, h = 22.0f + rowH * static_cast<float>(shown.size());
     const float x = (mmSize_ > 0.0f ? mmX_ + mmSize_ : static_cast<float>(lastViewW_) / app.uiScale()) - w;
-    const float y = (mmSize_ > 0.0f ? mmY_ + mmSize_ + 6.0f : 200.0f);
-    ui::panel(sb, x, y, w, h, ui::rgba(0, 0, 0, 160));
-    font.draw(sb, x + 6.0f, y + 3.0f, 0.95f, ui::rgba(255, 205, 80, 255), "MVP timers");
+    const float y = (mmSize_ > 0.0f ? std::max(mmY_ + mmSize_, statusBottom_) + 6.0f : 200.0f);
+    ui::panel(sb, x, y, w, h, ui::rgba(0, 0, 0, 200));
+    const u32 yellow = ui::rgba(255, 225, 60, 255);  // S. 2026-11-24: the timers in yellow
+    font.draw(sb, x + 6.0f, y + 3.0f, 0.95f, yellow, "MVP timers");
     const InputState& in = app.input();
     if (ui::button(sb, font, in, x + w - 20.0f, y + 2.0f, 16.0f, 16.0f, "x", 0.9f)) mvpHidden_ = true;
     float ry = y + 20.0f;
@@ -20757,8 +20760,7 @@ void GameScene::drawMvpTimers(Application& app) {
         char tb[24];
         if (a >= 3600) std::snprintf(tb, sizeof(tb), "%s%lld:%02lld:%02lld", left < 0 ? "+" : "", a / 3600, a / 60 % 60, a % 60);
         else std::snprintf(tb, sizeof(tb), "%s%lld:%02lld", left < 0 ? "+" : "", a / 60, a % 60);
-        const u32 col = left < 0 ? ui::rgba(150, 150, 150, 255) : left < 300 ? ui::rgba(255, 170, 90, 255)
-                                                                            : ui::color::kWinText;
+        const u32 col = left < 0 ? ui::rgba(170, 170, 140, 255) : left < 300 ? ui::rgba(255, 150, 60, 255) : yellow;
         font.draw(sb, x + 6.0f, ry, 0.9f, col, t->name + "  " + t->map);
         if (!t->killer.empty() && in.hit(x, ry, w, rowH)) {  // who killed it: under the mouse
             const std::string k = "by " + t->killer;

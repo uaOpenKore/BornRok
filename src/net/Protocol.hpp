@@ -224,6 +224,7 @@ enum : u16 {
                                         // server doesn't accept from a PV7 client, so the party never formed)
     PKT_CZ_PARTY_INVITE      = 0x00fc,  // C->M  invite a player by account id: AID.L (6B)
     PKT_CZ_PARTY_INVITE_REPLY = 0x00ff, // C->M  reply to an invite: AID.L flag.L (10B; 1=accept, 0=reject)
+    PKT_CZ_PARTY_JOIN_REQ    = 0x02c4,  // C->M  invite a player by name: name[24] (26B; uAthena 27.11, answer is 0xfe as ever)
     PKT_CZ_PARTY_LEAVE       = 0x0100,  // C->M  leave the party (2B)
     PKT_CZ_PARTY_KICK        = 0x0103,  // C->M  expel a member: AID.L name.24 (30B)
     PKT_CZ_PARTY_CHAT        = 0x0108,  // C->M  party chat: len.W msg.* (var)
@@ -628,6 +629,7 @@ usize decodePartyHp(const u8* p, usize n, u32& aid, u16& hp, u16& maxHp);       
 usize decodePartyLocation(const u8* p, usize n, u32& aid, u16& x, u16& y);              // 0x107
 std::vector<u8> buildPartyCreate(const std::string& name);     // 0x1e8: name + share flags
 std::vector<u8> buildPartyInvite(u32 aid);                     // 0xfc: invite a player by account id
+std::vector<u8> buildPartyInviteByName(const std::string& name);  // 0x2c4: invite a player by name (UTF-8 in)
 std::vector<u8> buildPartyInviteReply(u32 aid, bool accept);  // 0xff: 1=accept, 0=reject
 std::vector<u8> buildPartyLeave();                            // 0x100
 std::vector<u8> buildPartyKick(u32 aid, const std::string& name);  // 0x103

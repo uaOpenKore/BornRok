@@ -8099,6 +8099,7 @@ bool GameScene::handleChatCommand(Application& app, const std::string& msg) {
         chatLog_.push_back({"Command List: /h | /help", kChatServer});
         chatLog_.push_back({"/sit /stand - sit or stand. /w <name> <text> - whisper a player.", kChatServer});
         chatLog_.push_back({"/where - show your current map and cell. /memo - save a Warp Portal point.", kChatServer});
+        chatLog_.push_back({"/invite <name> - invite a player to your party.", kChatServer});
         chatLog_.push_back({"/fx <name> - preview a RoM effect at your feet (for tuning).", kChatServer});
         chatLog_.push_back({"Right-click a player: deal / 1:1 chat / add friend / reject whispers.", kChatServer});
         while (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
@@ -8125,6 +8126,19 @@ bool GameScene::handleChatCommand(Application& app, const std::string& msg) {
             if (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
             addWhisperName(target);
         }
+        return true;
+    }
+    if (cmd == "/invite") {
+        // /invite <name> -> CZ_PARTY_JOIN_REQ (0x2c4): the server finds the player by name (a name may hold spaces).
+        const usize sp = msg.find(' ');
+        std::string name = (sp == std::string::npos) ? "" : msg.substr(sp + 1);
+        while (!name.empty() && static_cast<unsigned char>(name.back()) <= ' ') name.pop_back();
+        while (!name.empty() && name.front() == ' ') name.erase(name.begin());
+        if (name.empty())
+            chatLog_.push_back({"/invite <name> - invite a player to your party.", kChatServer});
+        else
+            conn_.send(net::buildPartyInviteByName(name));
+        while (chatLog_.size() > 300) chatLog_.erase(chatLog_.begin());
         return true;
     }
     if (cmd == "/memo") {
@@ -19119,8 +19133,14 @@ void GameScene::render(Application& app) {
                     }
                     font.draw(sb, cx + 78.0f, toolY + 5.0f, 0.9f, ui::color::kWinTextDim,
                               "invite: right-click a player");
-                } else if (ui::button(sb, font, uin, cx, toolY, 70.0f, 22.0f, tr("common.leave"), 1.1f)) {
-                    conn_.send(net::buildPartyLeave());
+                } else {
+                    if (ui::button(sb, font, uin, cx, toolY, 70.0f, 22.0f, tr("common.leave"), 1.1f))
+                        conn_.send(net::buildPartyLeave());
+                    if (ui::button(sb, font, uin, cx + 76.0f, toolY, 70.0f, 22.0f, "Invite", 1.1f)) {
+                        partyInviteOpen_ = !partyInviteOpen_;
+                        partyInviteField_.value.clear();
+                        partyInviteField_.caret = 0;
+                    }
                 }
             }
             const float fhTotal = (toolY + 30.0f) - by;
@@ -19155,6 +19175,23 @@ void GameScene::render(Application& app) {
                 }
                 if (ui::button(sb, font, uin, axp + aw - 78.0f, acy + 26.0f, 70.0f, 20.0f, tr("common.cancel"), 1.1f))
                     friendAddOpen_ = false;
+                winBlock(axp, ayp, aw, ah);
+            }
+            // Inline "invite by name" box; Enter or Invite fires CZ_PARTY_JOIN_REQ (0x2c4).
+            if (partyInviteOpen_ && !party_.empty()) {
+                float aw = fw, ah = ui::kTitleBarH + 52.0f, axp = bx, ayp = by + fhTotal + 2.0f;
+                ScopedLayer layerPopupInv(*this, sb, uin, 100 + (POPUP_PARTY_INVITE), false);
+                const float acy = popupWindow(POPUP_PARTY_INVITE, axp, ayp, aw, ah, "Invite to Party");
+                partyInviteField_.draw(sb, font, axp + 8.0f, acy + 4.0f, aw - 16.0f, 18.0f, true, time_,
+                                       "character name");
+                const bool entered = partyInviteField_.update(uin, true);
+                if (ui::button(sb, font, uin, axp + 8.0f, acy + 26.0f, 70.0f, 20.0f, "Invite", 1.1f) || entered) {
+                    if (!partyInviteField_.value.empty())
+                        conn_.send(net::buildPartyInviteByName(partyInviteField_.value));
+                    partyInviteOpen_ = false;
+                }
+                if (ui::button(sb, font, uin, axp + aw - 78.0f, acy + 26.0f, 70.0f, 20.0f, tr("common.cancel"), 1.1f))
+                    partyInviteOpen_ = false;
                 winBlock(axp, ayp, aw, ah);
             }
             // Inline "create party by name" box; Enter or Create fires CZ_MAKE_GROUP2.

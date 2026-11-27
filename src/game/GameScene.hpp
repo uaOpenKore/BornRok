@@ -865,6 +865,8 @@ private:
     std::string partyInviteName_;  // inviter / party name in the accept dialog
     bool partyCreateOpen_ = false; // the "create party" name box is showing
     ui::TextField partyCreateField_;
+    bool partyInviteOpen_ = false; // the "invite by name" box is showing (0x2c4)
+    ui::TextField partyInviteField_;
 
     // Chat room create window (#78 part 3, Alt+C).
     bool chatRoomOpen_ = false;
@@ -1111,7 +1113,7 @@ private:
         POPUP_BUYSELL, POPUP_TRADE, POPUP_EXCHANGE, POPUP_ITEM_DESC, POPUP_SKILL_DESC,
         POPUP_AUTOATTACK, POPUP_SHORTCUT, POPUP_STATUS_ALT, POPUP_EQUIP_ALT, POPUP_DEAD,
         POPUP_GUILD_INVITE, POPUP_POT_HP, POPUP_POT_SP, POPUP_MERC, POPUP_HOMUN, POPUP_RENT,
-        POPUP_PET, POPUP_PET_EGG, POPUP_CARD_DESC, POPUP_SENSE, POPUP_AUTOSPELL
+        POPUP_PET, POPUP_PET_EGG, POPUP_CARD_DESC, POPUP_SENSE, POPUP_AUTOSPELL, POPUP_PARTY_INVITE
     };
     struct PopupPos { float x = 0.0f, y = 0.0f; bool placed = false; };
     std::unordered_map<int, PopupPos> popupPos_;

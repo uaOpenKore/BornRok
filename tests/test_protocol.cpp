@@ -797,6 +797,12 @@ TEST_CASE(protocol_player_actions) {
     CHECK_EQ(af.size(), 26u);
     CHECK(af[2] == 'B' && af[4] == 'b' && af[5] == 0);  // name @2, NUL-padded
 
+    // CZ_PARTY_JOIN_REQ (0x2c4): id(2) name[24] = 26B -- a party invite by name.
+    const B pj = net::buildPartyInviteByName("Dave");
+    CHECK_EQ(net::peekId(pj), 0x02c4);
+    CHECK_EQ(pj.size(), 26u);
+    CHECK(pj[2] == 'D' && pj[5] == 'e' && pj[6] == 0);  // name @2, NUL-padded
+
     // CZ_SETTING_WHISPER_PC (0xcf): id(2) name[24] type(1) = 27B. block=0, unblock=1.
     const B ig = net::buildIgnorePlayer("Carol", true);
     CHECK_EQ(net::peekId(ig), 0x00cf);

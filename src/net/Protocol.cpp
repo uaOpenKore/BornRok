@@ -917,6 +917,13 @@ std::vector<u8> buildPartyInvite(u32 aid) {
     return w.data();
 }
 
+std::vector<u8> buildPartyInviteByName(const std::string& name) {
+    ByteWriter w;  // S 02c4 <name>.24B (26B) -- CZ_PARTY_JOIN_REQ; the server finds the player by name
+    w.u16le(PKT_CZ_PARTY_JOIN_REQ);
+    writeFixed(w, utf8ToCp1251(name), 24);
+    return w.data();
+}
+
 std::vector<u8> buildPartyInviteReply(u32 aid, bool accept) {
     ByteWriter w;  // S 00ff <AID>.L <flag>.L (10B) -- 1 = accept, 0 = reject
     w.u16le(PKT_CZ_PARTY_INVITE_REPLY);
